@@ -1,0 +1,1 @@
+<tileset tilewidth="1" tileheight="1" columns="0"><tile id="0" x="2" y="1" width="1" height="1"><image source="sheet.png"/></tile></tileset>

@@ -1,0 +1,349 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 12,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 13,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 14,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			}
+		]
+	},
+	"worlds": [
+		{
+			"iid": "world-a",
+			"levels": [
+				{
+					"identifier": "Start",
+					"iid": "start",
+					"uid": 100,
+					"pxWid": 32,
+					"pxHei": 24,
+					"worldX": 64,
+					"worldY": -32,
+					"worldDepth": 2,
+					"__bgColor": "#101820",
+					"bgRelPath": null,
+					"externalRelPath": null,
+					"fieldInstances": [
+						{
+							"__identifier": "spawn",
+							"__type": "Point",
+							"__value": {
+								"cx": 4,
+								"cy": 5
+							}
+						}
+					],
+					"layerInstances": [
+						{
+							"__identifier": "Entities",
+							"iid": "layer-Entities",
+							"__type": "Entities",
+							"__gridSize": 8,
+							"__cWid": 4,
+							"__cHei": 3,
+							"layerDefUid": 13,
+							"__opacity": 1,
+							"__pxTotalOffsetX": 1,
+							"__pxTotalOffsetY": 2,
+							"visible": true,
+							"__tilesetDefUid": 1,
+							"autoLayerTiles": [],
+							"gridTiles": [],
+							"intGridCsv": [],
+							"entityInstances": [
+								{
+									"__identifier": "Player",
+									"iid": "player",
+									"width": 4,
+									"height": 6,
+									"px": [
+										8,
+										8
+									],
+									"__pivot": [
+										0.5,
+										0.5
+									],
+									"__tags": [
+										"Actor"
+									],
+									"fieldInstances": [
+										{
+											"__identifier": "target",
+											"__type": "EntityRef",
+											"__value": {
+												"worldIid": "world-a",
+												"levelIid": "room",
+												"layerIid": "layer-room",
+												"entityIid": "player"
+											}
+										},
+										{
+											"__identifier": "route",
+											"__type": "Array<Point>",
+											"__value": [
+												{
+													"cx": 2,
+													"cy": 3
+												},
+												null,
+												{
+													"cx": -1,
+													"cy": 7
+												}
+											]
+										},
+										{
+											"__identifier": "targets",
+											"__type": "Array<EntityRef>",
+											"__value": [
+												{
+													"worldIid": "world-a",
+													"levelIid": "room",
+													"layerIid": "layer-room",
+													"entityIid": "player"
+												},
+												null
+											]
+										},
+										{
+											"__identifier": "icon",
+											"__type": "Tile",
+											"__value": {
+												"tilesetUid": 1,
+												"x": 2,
+												"y": 0,
+												"w": 2,
+												"h": 2
+											}
+										},
+										{
+											"__identifier": "labels",
+											"__type": "Array<String>",
+											"__value": [
+												"open",
+												"closed"
+											]
+										},
+										{
+											"__identifier": "enabled",
+											"__type": "Bool",
+											"__value": true
+										},
+										{
+											"__identifier": "count",
+											"__type": "Int",
+											"__value": 9223372036854775807
+										},
+										{
+											"__identifier": "speed",
+											"__type": "Float",
+											"__value": 4
+										},
+										{
+											"__identifier": "name",
+											"__type": "String",
+											"__value": "Door"
+										},
+										{
+											"__identifier": "empty",
+											"__type": "Array<Int>",
+											"__value": []
+										}
+									]
+								}
+							]
+						}
+					],
+					"__neighbours": [
+						{
+							"dir": "e",
+							"levelIid": "room"
+						},
+						{
+							"dir": "e",
+							"levelIid": "room"
+						},
+						{
+							"dir": "nw",
+							"levelIid": "absent"
+						},
+						{
+							"dir": "o",
+							"levelIid": "absent"
+						},
+						{
+							"dir": "<",
+							"levelIid": "absent"
+						},
+						{
+							"dir": ">",
+							"levelIid": "absent"
+						}
+					]
+				},
+				{
+					"identifier": "Room",
+					"iid": "room",
+					"uid": 100,
+					"pxWid": 32,
+					"pxHei": 24,
+					"worldX": 64,
+					"worldY": -32,
+					"worldDepth": 2,
+					"__bgColor": "#101820",
+					"bgRelPath": null,
+					"externalRelPath": "levels/room.ldtkl",
+					"fieldInstances": [
+						{
+							"__identifier": "spawn",
+							"__type": "Point",
+							"__value": {
+								"cx": 4,
+								"cy": 5
+							}
+						}
+					],
+					"layerInstances": null,
+					"__neighbours": [
+						{
+							"dir": "w",
+							"levelIid": "start"
+						}
+					]
+				}
+			]
+		},
+		{
+			"iid": "world-b",
+			"levels": [
+				{
+					"identifier": "Room",
+					"iid": "absent",
+					"uid": 100,
+					"pxWid": 32,
+					"pxHei": 24,
+					"worldX": 64,
+					"worldY": -32,
+					"worldDepth": 2,
+					"__bgColor": "#101820",
+					"bgRelPath": null,
+					"externalRelPath": "levels/not-loaded.ldtkl",
+					"fieldInstances": [
+						{
+							"__identifier": "spawn",
+							"__type": "Point",
+							"__value": {
+								"cx": 4,
+								"cy": 5
+							}
+						}
+					],
+					"layerInstances": null,
+					"__neighbours": [
+						{
+							"dir": "w",
+							"levelIid": "start"
+						}
+					]
+				}
+			]
+		}
+	],
+	"levels": []
+}

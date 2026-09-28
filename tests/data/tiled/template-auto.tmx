@@ -1,0 +1,1 @@
+<map orientation="orthogonal" width="2" height="2" tilewidth="2" tileheight="2"><objectgroup><object id="1" template="templates/tile.tx" x="0" y="8"/><object id="2" template="templates/tile.tx" x="8" y="8"/></objectgroup></map>

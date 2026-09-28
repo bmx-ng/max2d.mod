@@ -1,0 +1,30 @@
+{
+	"orientation": "orthogonal",
+	"width": 2,
+	"height": 2,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"type": "map",
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"source": "tiles/basic.tsj",
+			"type": "tileset"
+		}
+	],
+	"layers": [
+		{
+			"name": "ground",
+			"width": 2,
+			"height": 2,
+			"type": "tilelayer",
+			"encoding": "csv",
+			"data": [
+				-1,
+				2147483649,
+				1073741825,
+				3221225473
+			]
+		}
+	]
+}

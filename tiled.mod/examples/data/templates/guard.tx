@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<template>
+	<object name="Guard" type="Enemy" width="24" height="32">
+		<properties>
+			<property name="stats" type="class" propertytype="EnemyStats">
+				<properties>
+					<property name="health" type="int" value="100"/>
+					<property name="speed" type="float" value="2.5"/>
+				</properties>
+			</property>
+			<property name="opens" type="object" value="0"/>
+		</properties>
+	</object>
+</template>

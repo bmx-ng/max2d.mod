@@ -1,0 +1,24 @@
+{
+	"type": "map",
+	"orientation": "orthogonal",
+	"width": 2,
+	"height": 2,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"source": "tiles/basic.tsx"
+		}
+	],
+	"layers": [
+		{
+			"type": "tilelayer",
+			"width": 2,
+			"height": 2,
+			"encoding": "base64",
+			"compression": "zstd",
+			"data": "KLUv/SAQgQAAAQAAAAEAAIABAABAAQAAwA=="
+		}
+	]
+}

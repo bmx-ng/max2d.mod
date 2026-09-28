@@ -1,0 +1,16 @@
+{
+	"propertyTypes": [
+		{
+			"id": 5,
+			"name": "Ability",
+			"type": "enum",
+			"storageType": "float",
+			"values": [
+				"Walk",
+				"Jump",
+				"Fly"
+			],
+			"valuesAsFlags": true
+		}
+	]
+}

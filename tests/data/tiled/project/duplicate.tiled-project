@@ -1,0 +1,102 @@
+{
+	"propertyTypes": [
+		{
+			"id": 1,
+			"name": "Enemy",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "stats",
+					"type": "class",
+					"value": {},
+					"propertyType": "Stats"
+				},
+				{
+					"name": "health",
+					"type": "int",
+					"value": 100
+				},
+				{
+					"name": "enabled",
+					"type": "bool",
+					"value": true
+				},
+				{
+					"name": "tag",
+					"type": "string",
+					"value": "schema"
+				},
+				{
+					"name": "mode",
+					"type": "string",
+					"value": "Idle",
+					"propertyType": "Mode"
+				},
+				{
+					"name": "flags",
+					"type": "int",
+					"value": 1,
+					"propertyType": "Ability"
+				}
+			]
+		},
+		{
+			"id": 1,
+			"name": "Enemy",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "stats",
+					"type": "class",
+					"value": {},
+					"propertyType": "Stats"
+				},
+				{
+					"name": "health",
+					"type": "int",
+					"value": 100
+				},
+				{
+					"name": "enabled",
+					"type": "bool",
+					"value": true
+				},
+				{
+					"name": "tag",
+					"type": "string",
+					"value": "schema"
+				},
+				{
+					"name": "mode",
+					"type": "string",
+					"value": "Idle",
+					"propertyType": "Mode"
+				},
+				{
+					"name": "flags",
+					"type": "int",
+					"value": 1,
+					"propertyType": "Ability"
+				}
+			]
+		}
+	]
+}

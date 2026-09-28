@@ -1,0 +1,1 @@
+<map orientation="orthogonal" width="2" height="2" tilewidth="2" tileheight="2" parallaxoriginx="8"><group offsetx="4" tintcolor="#8080ff80" parallaxx="0.5" opacity="0.5"><imagelayer name="Sky" offsetx="2" offsety="4" tintcolor="#8080ffff" parallaxx="0.5" opacity="0.5"><image source="layer.png"/></imagelayer></group></map>

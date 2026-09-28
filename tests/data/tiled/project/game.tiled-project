@@ -1,0 +1,219 @@
+{
+	"propertyTypes": [
+		{
+			"id": 1,
+			"name": "Enemy",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "stats",
+					"type": "class",
+					"value": {},
+					"propertyType": "Stats"
+				},
+				{
+					"name": "health",
+					"type": "int",
+					"value": 100
+				},
+				{
+					"name": "enabled",
+					"type": "bool",
+					"value": true
+				},
+				{
+					"name": "tag",
+					"type": "string",
+					"value": "schema"
+				},
+				{
+					"name": "mode",
+					"type": "string",
+					"value": "Idle",
+					"propertyType": "Mode"
+				},
+				{
+					"name": "flags",
+					"type": "int",
+					"value": 1,
+					"propertyType": "Ability"
+				}
+			]
+		},
+		{
+			"id": 2,
+			"name": "Stats",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "speed",
+					"type": "float",
+					"value": 2.5
+				},
+				{
+					"name": "combat",
+					"type": "class",
+					"value": {},
+					"propertyType": "Combat"
+				},
+				{
+					"name": "sound",
+					"type": "file",
+					"value": "audio/default.wav"
+				},
+				{
+					"name": "target",
+					"type": "object",
+					"value": 0
+				},
+				{
+					"name": "mode",
+					"type": "string",
+					"value": "Idle",
+					"propertyType": "Mode"
+				}
+			]
+		},
+		{
+			"id": 3,
+			"name": "Combat",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "damage",
+					"type": "int",
+					"value": 3
+				},
+				{
+					"name": "range",
+					"type": "float",
+					"value": 1.0
+				}
+			]
+		},
+		{
+			"id": 4,
+			"name": "Mode",
+			"type": "enum",
+			"storageType": "string",
+			"values": [
+				"Idle",
+				"Chase"
+			],
+			"valuesAsFlags": false
+		},
+		{
+			"id": 5,
+			"name": "Ability",
+			"type": "enum",
+			"storageType": "int",
+			"values": [
+				"Walk",
+				"Jump",
+				"Fly"
+			],
+			"valuesAsFlags": true
+		},
+		{
+			"id": 6,
+			"name": "World",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "title",
+					"type": "string",
+					"value": "Schema world"
+				}
+			]
+		},
+		{
+			"id": 7,
+			"name": "Layer",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "solid",
+					"type": "bool",
+					"value": true
+				}
+			]
+		},
+		{
+			"id": 8,
+			"name": "Tiles",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "category",
+					"type": "string",
+					"value": "Actors"
+				}
+			]
+		},
+		{
+			"id": 9,
+			"name": "Tags",
+			"type": "enum",
+			"storageType": "string",
+			"values": [
+				"a",
+				"b"
+			],
+			"valuesAsFlags": true
+		}
+	]
+}

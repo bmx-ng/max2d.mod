@@ -1,0 +1,1 @@
+<template><object template="base.tx" width="8"><properties><property name="stats" type="class" propertytype="EnemyStats"><properties><property name="combat" type="class" propertytype="Combat"><properties><property name="health" type="int" value="25"/></properties></property></properties></property></properties></object></template>

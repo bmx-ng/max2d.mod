@@ -1,0 +1,364 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			},
+			{
+				"uid": 2,
+				"relPath": "art.png",
+				"tileGridSize": 6
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 12,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 13,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 14,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			}
+		],
+		"entities": [
+			{
+				"uid": 1000,
+				"tileRenderMode": "Stretch",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1001,
+				"tileRenderMode": "FitInside",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1002,
+				"tileRenderMode": "Cover",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1003,
+				"tileRenderMode": "FullSizeCropped",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1004,
+				"tileRenderMode": "FullSizeUncropped",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1005,
+				"tileRenderMode": "Repeat",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1006,
+				"tileRenderMode": "NineSlice",
+				"tileOpacity": 1,
+				"nineSliceBorders": [
+					5,
+					2,
+					2,
+					1
+				]
+			}
+		]
+	},
+	"worlds": [],
+	"levels": [
+		{
+			"identifier": "First",
+			"iid": "level-first",
+			"uid": 100,
+			"pxWid": 64,
+			"pxHei": 64,
+			"worldX": 64,
+			"worldY": -32,
+			"worldDepth": 2,
+			"__bgColor": "#101820",
+			"bgRelPath": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "difficulty",
+					"__type": "Int",
+					"__value": 3
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"iid": "layer-Entities",
+					"__type": "Entities",
+					"__gridSize": 8,
+					"__cWid": 8,
+					"__cHei": 8,
+					"layerDefUid": 13,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [],
+					"intGridCsv": [],
+					"entityInstances": [
+						{
+							"__identifier": "Stretch",
+							"iid": "Stretch",
+							"defUid": 1000,
+							"width": 8,
+							"height": 4,
+							"px": [
+								12,
+								8
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "FitInside",
+							"iid": "FitInside",
+							"defUid": 1001,
+							"width": 8,
+							"height": 8,
+							"px": [
+								24,
+								12
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Cover",
+							"iid": "Cover",
+							"defUid": 1002,
+							"width": 4,
+							"height": 4,
+							"px": [
+								32,
+								8
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "FullSizeCropped",
+							"iid": "FullSizeCropped",
+							"defUid": 1003,
+							"width": 2,
+							"height": 1,
+							"px": [
+								38,
+								5
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "FullSizeUncropped",
+							"iid": "FullSizeUncropped",
+							"defUid": 1004,
+							"width": 2,
+							"height": 1,
+							"px": [
+								46,
+								5
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Repeat",
+							"iid": "Repeat",
+							"defUid": 1005,
+							"width": 7,
+							"height": 3,
+							"px": [
+								11,
+								23
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 1,
+								"x": 0,
+								"y": 0,
+								"w": 4,
+								"h": 2
+							},
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "NineSlice",
+							"iid": "NineSlice",
+							"defUid": 1006,
+							"width": 9,
+							"height": 8,
+							"px": [
+								25,
+								28
+							],
+							"__pivot": [
+								1,
+								1
+							],
+							"__tile": {
+								"tilesetUid": 2,
+								"x": 0,
+								"y": 0,
+								"w": 6,
+								"h": 6
+							},
+							"fieldInstances": []
+						}
+					]
+				}
+			]
+		}
+	]
+}

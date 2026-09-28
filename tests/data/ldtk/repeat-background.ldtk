@@ -1,0 +1,202 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			},
+			{
+				"uid": 2,
+				"relPath": "art.png",
+				"tileGridSize": 6
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 12,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 13,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 14,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			}
+		],
+		"entities": [
+			{
+				"uid": 1000,
+				"tileRenderMode": "Stretch",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1001,
+				"tileRenderMode": "FitInside",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1002,
+				"tileRenderMode": "Cover",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1003,
+				"tileRenderMode": "FullSizeCropped",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1004,
+				"tileRenderMode": "FullSizeUncropped",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1005,
+				"tileRenderMode": "Repeat",
+				"tileOpacity": 1,
+				"nineSliceBorders": []
+			},
+			{
+				"uid": 1006,
+				"tileRenderMode": "NineSlice",
+				"tileOpacity": 1,
+				"nineSliceBorders": [
+					1,
+					2,
+					2,
+					1
+				]
+			}
+		]
+	},
+	"worlds": [],
+	"levels": [
+		{
+			"identifier": "First",
+			"iid": "level-first",
+			"uid": 100,
+			"pxWid": 7,
+			"pxHei": 5,
+			"worldX": 64,
+			"worldY": -32,
+			"worldDepth": 2,
+			"__bgColor": "#101820",
+			"bgRelPath": "tiles.png",
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "difficulty",
+					"__type": "Int",
+					"__value": 3
+				}
+			],
+			"layerInstances": [],
+			"bgPos": "Repeat",
+			"bgPivotX": 1,
+			"bgPivotY": 1,
+			"__bgPos": {
+				"cropRect": [
+					0,
+					0,
+					4,
+					2
+				],
+				"scale": [
+					1,
+					1
+				],
+				"topLeftPx": [
+					3,
+					3
+				]
+			}
+		}
+	]
+}

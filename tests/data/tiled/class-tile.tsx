@@ -1,0 +1,1 @@
+<tileset tilewidth="2" tileheight="2" columns="2" tilecount="2" spacing="1" margin="1"><image source="sheet.png"/><tile id="0"><properties><property name="stats" type="class" propertytype="Stats"><properties><property name="health" type="int" value="10"/><property name="speed" type="float" value="2.5"/></properties></property></properties></tile></tileset>

@@ -1,0 +1,68 @@
+{
+	"identifier": "Room",
+	"iid": "room",
+	"uid": 100,
+	"pxWid": 32,
+	"pxHei": 24,
+	"worldX": 64,
+	"worldY": -32,
+	"worldDepth": 2,
+	"__bgColor": "#101820",
+	"bgRelPath": null,
+	"externalRelPath": null,
+	"fieldInstances": [
+		{
+			"__identifier": "spawn",
+			"__type": "Point",
+			"__value": {
+				"cx": 4,
+				"cy": 5
+			}
+		}
+	],
+	"layerInstances": [
+		{
+			"__identifier": "Entities",
+			"iid": "layer-room",
+			"__type": "Entities",
+			"__gridSize": 8,
+			"__cWid": 4,
+			"__cHei": 3,
+			"layerDefUid": 13,
+			"__opacity": 1,
+			"__pxTotalOffsetX": 1,
+			"__pxTotalOffsetY": 2,
+			"visible": true,
+			"__tilesetDefUid": 1,
+			"autoLayerTiles": [],
+			"gridTiles": [],
+			"intGridCsv": [],
+			"entityInstances": [
+				{
+					"__identifier": "Player",
+					"iid": "player",
+					"width": 4,
+					"height": 6,
+					"px": [
+						8,
+						8
+					],
+					"__pivot": [
+						0.5,
+						0.5
+					],
+					"__tags": [
+						"Actor"
+					],
+					"fieldInstances": []
+				}
+			]
+		}
+	],
+	"__neighbours": [
+		{
+			"dir": "w",
+			"levelIid": "start"
+		}
+	]
+}

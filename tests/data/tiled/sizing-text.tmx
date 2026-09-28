@@ -1,0 +1,80 @@
+<map orientation="orthogonal" width="8" height="8" tilewidth="8" tileheight="8">
+	<tileset firstgid="1" name="stretch" tilewidth="4" tileheight="2" columns="0" tilecount="2" tilerendersize="grid" fillmode="stretch">
+		<tile id="0">
+			<image source="sizing.png" />
+			<objectgroup>
+				<object id="1" x="0" y="0" width="4" height="2" />
+			</objectgroup>
+			<animation>
+				<frame tileid="0" duration="100" />
+				<frame tileid="1" duration="100" />
+			</animation>
+		</tile>
+		<tile id="1">
+			<image source="sizing-next.png" />
+		</tile>
+	</tileset>
+	<tileset firstgid="3" name="preserve-aspect-fit" tilewidth="4" tileheight="2" columns="0" tilecount="2" tilerendersize="grid" fillmode="preserve-aspect-fit">
+		<tile id="0">
+			<image source="sizing.png" />
+			<objectgroup>
+				<object id="1" x="0" y="0" width="4" height="2" />
+			</objectgroup>
+			<animation>
+				<frame tileid="0" duration="100" />
+				<frame tileid="1" duration="100" />
+			</animation>
+		</tile>
+		<tile id="1">
+			<image source="sizing-next.png" />
+		</tile>
+	</tileset>
+	<tileset firstgid="5" name="Animation canvas tile" tilewidth="7" tileheight="4" columns="0" tilecount="3" tilerendersize="tile" fillmode="stretch">
+		<tileoffset x="1" y="1" />
+		<tile id="0">
+			<image source="sheet.png" />
+			<animation>
+				<frame tileid="1" duration="100" />
+				<frame tileid="2" duration="100" />
+			</animation>
+		</tile>
+		<tile id="1">
+			<image source="sizing.png" />
+		</tile>
+		<tile id="2">
+			<image source="sizing-next.png" />
+		</tile>
+	</tileset>
+	<tileset firstgid="8" name="Animation canvas grid" tilewidth="7" tileheight="4" columns="0" tilecount="3" tilerendersize="grid" fillmode="stretch">
+		<tileoffset x="1" y="1" />
+		<tile id="0">
+			<image source="sheet.png" />
+			<animation>
+				<frame tileid="1" duration="100" />
+				<frame tileid="2" duration="100" />
+			</animation>
+		</tile>
+		<tile id="1">
+			<image source="sizing.png" />
+		</tile>
+		<tile id="2">
+			<image source="sizing-next.png" />
+		</tile>
+	</tileset>
+	<layer name="Stretch" width="1" height="1">
+		<data encoding="csv">1</data>
+	</layer>
+	<layer name="Fit" offsetx="16" width="2" height="1">
+		<data encoding="csv">3,536870915</data>
+	</layer>
+	<objectgroup draworder="index">
+		<object id="1" gid="3" x="0" y="24" width="8" height="8" />
+		<object id="2" gid="536870915" x="16" y="24" width="8" height="8" />
+		<object id="3" x="32" y="0" width="8" height="12">
+			<text fontfamily="Test" pixelsize="4" color="#80ff0000" wrap="1" halign="center" valign="center" bold="1" italic="1" kerning="0">AB CD</text>
+		</object>
+		<object id="4" x="48" y="16" width="8" height="8" rotation="90">
+			<text pixelsize="4" color="#ffffff" halign="center">ABCD</text>
+		</object>
+	</objectgroup>
+</map>

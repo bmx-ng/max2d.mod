@@ -1,0 +1,44 @@
+{
+	"type": "map",
+	"orientation": "orthogonal",
+	"width": 4,
+	"height": 4,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"layers": [
+		{
+			"type": "objectgroup",
+			"objects": [
+				{
+					"id": 1,
+					"template": "templates/enemy.json",
+					"x": 3,
+					"properties": [
+						{
+							"name": "stats",
+							"type": "class",
+							"propertytype": "Stats",
+							"value": {
+								"health": 50
+							}
+						}
+					]
+				},
+				{
+					"id": 2,
+					"template": "templates/enemy.json",
+					"x": 8
+				},
+				{
+					"id": 3,
+					"template": "templates/tile.tx",
+					"x": 12
+				},
+				{
+					"id": 4,
+					"template": "templates/tile.json"
+				}
+			]
+		}
+	]
+}

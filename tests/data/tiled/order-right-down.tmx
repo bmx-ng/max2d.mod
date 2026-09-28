@@ -1,0 +1,1 @@
+<map orientation="orthogonal" renderorder="right-down" width="1" height="1" tilewidth="2" tileheight="2"><tileset firstgid="1" source="tiles/basic.tsx"/><group><layer width="1" height="1"><data encoding="csv">1</data></layer></group></map>

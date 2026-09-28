@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<map orientation="hexagonal" staggeraxis="y" staggerindex="odd" hexsidelength="40" width="7" height="7" tilewidth="96" tileheight="80">
+	<tileset firstgid="1" source="transform-arrow.tsx"/>
+	<layer name="Transformations" width="7" height="7">
+		<data encoding="csv">
+			1,0,2147483649,0,1073741825,0,3221225473,
+			0,0,0,0,0,0,0,
+			536870913,0,2684354561,0,1610612737,0,3758096385,
+			0,0,0,0,0,0,0,
+			268435457,0,2415919105,0,1342177281,0,3489660929,
+			0,0,0,0,0,0,0,
+			805306369,0,2952790017,0,1879048193,0,4026531841
+		</data>
+	</layer>
+</map>

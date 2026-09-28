@@ -1,0 +1,1 @@
+<?xml version="1.0"?><map orientation="hexagonal" width="2" height="2" tilewidth="2" tileheight="2" staggeraxis="y" staggerindex="odd" hexsidelength="1"><tileset firstgid="1" source="tiles/basic.tsx"/><layer name="ground" width="2" height="2" ><data encoding="csv" compression="">1,2147483649,1073741825,3221225473</data></layer></map>

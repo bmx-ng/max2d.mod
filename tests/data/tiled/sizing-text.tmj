@@ -1,0 +1,245 @@
+{
+	"type": "map",
+	"orientation": "orthogonal",
+	"width": 8,
+	"height": 8,
+	"tilewidth": 8,
+	"tileheight": 8,
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"name": "stretch",
+			"tilewidth": 4,
+			"tileheight": 2,
+			"columns": 0,
+			"tilecount": 2,
+			"tilerendersize": "grid",
+			"fillmode": "stretch",
+			"tiles": [
+				{
+					"id": 0,
+					"image": "sizing.png",
+					"objectgroup": {
+						"objects": [
+							{
+								"id": 1,
+								"x": 0,
+								"y": 0,
+								"width": 4,
+								"height": 2
+							}
+						]
+					},
+					"animation": [
+						{
+							"tileid": 0,
+							"duration": 100
+						},
+						{
+							"tileid": 1,
+							"duration": 100
+						}
+					]
+				},
+				{
+					"id": 1,
+					"image": "sizing-next.png"
+				}
+			]
+		},
+		{
+			"firstgid": 3,
+			"name": "preserve-aspect-fit",
+			"tilewidth": 4,
+			"tileheight": 2,
+			"columns": 0,
+			"tilecount": 2,
+			"tilerendersize": "grid",
+			"fillmode": "preserve-aspect-fit",
+			"tiles": [
+				{
+					"id": 0,
+					"image": "sizing.png",
+					"objectgroup": {
+						"objects": [
+							{
+								"id": 1,
+								"x": 0,
+								"y": 0,
+								"width": 4,
+								"height": 2
+							}
+						]
+					},
+					"animation": [
+						{
+							"tileid": 0,
+							"duration": 100
+						},
+						{
+							"tileid": 1,
+							"duration": 100
+						}
+					]
+				},
+				{
+					"id": 1,
+					"image": "sizing-next.png"
+				}
+			]
+		},
+		{
+			"firstgid": 5,
+			"name": "Animation canvas tile",
+			"tilewidth": 7,
+			"tileheight": 4,
+			"columns": 0,
+			"tilecount": 3,
+			"tilerendersize": "tile",
+			"fillmode": "stretch",
+			"tileoffset": {
+				"x": 1,
+				"y": 1
+			},
+			"tiles": [
+				{
+					"id": 0,
+					"image": "sheet.png",
+					"animation": [
+						{
+							"tileid": 1,
+							"duration": 100
+						},
+						{
+							"tileid": 2,
+							"duration": 100
+						}
+					]
+				},
+				{
+					"id": 1,
+					"image": "sizing.png"
+				},
+				{
+					"id": 2,
+					"image": "sizing-next.png"
+				}
+			]
+		},
+		{
+			"firstgid": 8,
+			"name": "Animation canvas grid",
+			"tilewidth": 7,
+			"tileheight": 4,
+			"columns": 0,
+			"tilecount": 3,
+			"tilerendersize": "grid",
+			"fillmode": "stretch",
+			"tileoffset": {
+				"x": 1,
+				"y": 1
+			},
+			"tiles": [
+				{
+					"id": 0,
+					"image": "sheet.png",
+					"animation": [
+						{
+							"tileid": 1,
+							"duration": 100
+						},
+						{
+							"tileid": 2,
+							"duration": 100
+						}
+					]
+				},
+				{
+					"id": 1,
+					"image": "sizing.png"
+				},
+				{
+					"id": 2,
+					"image": "sizing-next.png"
+				}
+			]
+		}
+	],
+	"layers": [
+		{
+			"type": "tilelayer",
+			"name": "Stretch",
+			"width": 1,
+			"height": 1,
+			"data": [
+				1
+			]
+		},
+		{
+			"type": "tilelayer",
+			"name": "Fit",
+			"offsetx": 16,
+			"width": 2,
+			"height": 1,
+			"data": [
+				3,
+				536870915
+			]
+		},
+		{
+			"type": "objectgroup",
+			"draworder": "index",
+			"objects": [
+				{
+					"id": 1,
+					"gid": 3,
+					"x": 0,
+					"y": 24,
+					"width": 8,
+					"height": 8
+				},
+				{
+					"id": 2,
+					"gid": 536870915,
+					"x": 16,
+					"y": 24,
+					"width": 8,
+					"height": 8
+				},
+				{
+					"id": 3,
+					"x": 32,
+					"y": 0,
+					"width": 8,
+					"height": 12,
+					"text": {
+						"text": "AB CD",
+						"fontfamily": "Test",
+						"pixelsize": 4,
+						"color": "#80ff0000",
+						"wrap": true,
+						"halign": "center",
+						"valign": "center",
+						"bold": true,
+						"italic": true,
+						"kerning": false
+					}
+				},
+				{
+					"id": 4,
+					"x": 48,
+					"y": 16,
+					"width": 8,
+					"height": 8,
+					"rotation": 90,
+					"text": {
+						"text": "ABCD",
+						"pixelsize": 4,
+						"color": "#ffffff",
+						"halign": "center"
+					}
+				}
+			]
+		}
+	]
+}

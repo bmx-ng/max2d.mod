@@ -1,0 +1,30 @@
+{
+	"type": "map",
+	"orientation": "orthogonal",
+	"renderorder": "right-up",
+	"width": 1,
+	"height": 1,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"source": "tiles/basic.tsj"
+		}
+	],
+	"layers": [
+		{
+			"type": "group",
+			"layers": [
+				{
+					"type": "tilelayer",
+					"width": 1,
+					"height": 1,
+					"data": [
+						1
+					]
+				}
+			]
+		}
+	]
+}

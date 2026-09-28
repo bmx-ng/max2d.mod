@@ -1,0 +1,32 @@
+{
+	"type": "template",
+	"object": {
+		"name": "Enemy",
+		"width": 4,
+		"height": 6,
+		"properties": [
+			{
+				"name": "stats",
+				"type": "class",
+				"propertytype": "Stats",
+				"value": {
+					"health": 100,
+					"speed": 2.5,
+					"combat": {
+						"damage": 3
+					}
+				}
+			},
+			{
+				"name": "asset",
+				"type": "file",
+				"value": "guard.wav"
+			},
+			{
+				"name": "large",
+				"type": "int",
+				"value": 9007199254740993
+			}
+		]
+	}
+}

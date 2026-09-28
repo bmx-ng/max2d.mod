@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<map orientation="orthogonal" width="7" height="3" tilewidth="96" tileheight="80">
+	<tileset firstgid="1" source="transform-arrow.tsx"/>
+	<layer name="Transformations" width="7" height="3">
+		<data encoding="csv">
+			1,0,2147483649,0,1073741825,0,3221225473,
+			0,0,0,0,0,0,0,
+			536870913,0,2684354561,0,1610612737,0,3758096385
+		</data>
+	</layer>
+</map>

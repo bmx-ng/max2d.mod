@@ -1,0 +1,6 @@
+.DS_Store
+.bmx/
+.generics/
+/*.mod/*.debug.*
+/*.mod/*.release.*
+*.app/

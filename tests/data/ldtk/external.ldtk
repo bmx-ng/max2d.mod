@@ -1,0 +1,130 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 12,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 13,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 14,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			}
+		]
+	},
+	"worlds": [],
+	"levels": [
+		{
+			"identifier": "First",
+			"iid": "level-first",
+			"uid": 100,
+			"pxWid": 32,
+			"pxHei": 24,
+			"worldX": 64,
+			"worldY": -32,
+			"worldDepth": 2,
+			"__bgColor": "#101820",
+			"bgRelPath": null,
+			"externalRelPath": "levels/first.ldtkl",
+			"fieldInstances": [
+				{
+					"__identifier": "difficulty",
+					"__type": "Int",
+					"__value": 3
+				}
+			],
+			"layerInstances": null
+		}
+	],
+	"externalLevels": true
+}

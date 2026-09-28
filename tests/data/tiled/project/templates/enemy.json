@@ -1,0 +1,29 @@
+{
+	"type": "template",
+	"tileset": {
+		"firstgid": 1,
+		"source": "../tiles.tsj"
+	},
+	"object": {
+		"gid": 1,
+		"properties": [
+			{
+				"name": "health",
+				"type": "int",
+				"value": 60
+			},
+			{
+				"name": "stats",
+				"type": "class",
+				"value": {
+					"sound": "template.wav",
+					"combat": {
+						"range": 4
+					},
+					"target": 2
+				},
+				"propertytype": "Stats"
+			}
+		]
+	}
+}

@@ -1,0 +1,30 @@
+{
+	"orientation": "orthogonal",
+	"width": 2,
+	"height": 2,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"parallaxoriginx": 8,
+	"type": "map",
+	"layers": [
+		{
+			"offsetx": 4,
+			"tintcolor": "#8080ff80",
+			"parallaxx": 0.5,
+			"opacity": 0.5,
+			"type": "group",
+			"layers": [
+				{
+					"name": "Sky",
+					"offsetx": 2,
+					"offsety": 4,
+					"tintcolor": "#8080ffff",
+					"parallaxx": 0.5,
+					"opacity": 0.5,
+					"type": "imagelayer",
+					"image": "layer.png"
+				}
+			]
+		}
+	]
+}

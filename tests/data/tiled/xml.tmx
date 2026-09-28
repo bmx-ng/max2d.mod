@@ -1,0 +1,1 @@
+<?xml version="1.0"?><map orientation="orthogonal" width="2" height="2" tilewidth="2" tileheight="2" ><tileset firstgid="1" source="tiles/basic.tsx"/><layer name="ground" width="2" height="2" ><data><tile gid="1"/><tile gid="2147483649"/><tile gid="1073741825"/><tile gid="3221225473"/></data></layer></map>

@@ -1,0 +1,26 @@
+{
+	"propertyTypes": [
+		{
+			"id": 1,
+			"name": "A",
+			"type": "class",
+			"color": "#ff0088ff",
+			"useAs": [
+				"property",
+				"map",
+				"layer",
+				"tileset",
+				"tile",
+				"object"
+			],
+			"members": [
+				{
+					"name": "other",
+					"type": "class",
+					"value": {},
+					"propertyType": "B"
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,6 @@
+<map orientation="orthogonal" width="2" height="2" tilewidth="2" tileheight="2">
+	<tileset firstgid="1" source="tiles/basic.tsx" />
+	<layer name="ground" width="2" height="2">
+		<data encoding="base64" compression="zstd">KLUv/SAUoQAAAQAAAAEAAIABAABAAQAAwAAAAAA=</data>
+	</layer>
+</map>

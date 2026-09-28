@@ -1,0 +1,35 @@
+{
+	"type": "tileset",
+	"name": "Actors",
+	"class": "Tiles",
+	"tilewidth": 2,
+	"tileheight": 2,
+	"margin": 1,
+	"spacing": 1,
+	"columns": 2,
+	"tilecount": 2,
+	"image": "../sheet.png",
+	"tiles": [
+		{
+			"id": 0,
+			"type": "Enemy",
+			"properties": [
+				{
+					"name": "health",
+					"type": "int",
+					"value": 80
+				},
+				{
+					"name": "stats",
+					"type": "class",
+					"value": {
+						"combat": {
+							"damage": 7
+						}
+					},
+					"propertytype": "Stats"
+				}
+			]
+		}
+	]
+}

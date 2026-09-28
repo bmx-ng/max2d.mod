@@ -1,0 +1,159 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0.5,
+				"parallaxFactorY": 0.25,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				],
+				"parallaxScaling": true
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0.5,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				],
+				"parallaxScaling": false
+			}
+		]
+	},
+	"worlds": [],
+	"levels": [
+		{
+			"identifier": "First",
+			"iid": "level-first",
+			"uid": 100,
+			"pxWid": 32,
+			"pxHei": 24,
+			"worldX": 64,
+			"worldY": -32,
+			"worldDepth": 2,
+			"__bgColor": "#101820",
+			"bgRelPath": "tiles.png",
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "difficulty",
+					"__type": "Int",
+					"__value": 3
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Scaled",
+					"iid": "scaled",
+					"__type": "Tiles",
+					"__gridSize": 2,
+					"__cWid": 8,
+					"__cHei": 6,
+					"layerDefUid": 10,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 2,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [
+						{
+							"px": [
+								0,
+								0
+							],
+							"src": [
+								0,
+								0
+							],
+							"f": 0,
+							"a": 1,
+							"t": 0
+						}
+					],
+					"intGridCsv": [],
+					"entityInstances": []
+				},
+				{
+					"__identifier": "Unscaled",
+					"iid": "unscaled",
+					"__type": "Tiles",
+					"__gridSize": 2,
+					"__cWid": 8,
+					"__cHei": 6,
+					"layerDefUid": 11,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 2,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [
+						{
+							"px": [
+								0,
+								0
+							],
+							"src": [
+								2,
+								0
+							],
+							"f": 0,
+							"a": 1,
+							"t": 0
+						}
+					],
+					"intGridCsv": [],
+					"entityInstances": []
+				}
+			],
+			"bgPos": "Cover",
+			"__bgPos": {
+				"cropRect": [
+					0.5,
+					0.5,
+					4,
+					1
+				],
+				"scale": [
+					4,
+					4
+				],
+				"topLeftPx": [
+					20,
+					4
+				]
+			}
+		}
+	]
+}

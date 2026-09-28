@@ -1,0 +1,14 @@
+{
+	"type": "template",
+	"tileset": {
+		"firstgid": 5,
+		"source": "../tiles/basic.tsj",
+		"type": "tileset"
+	},
+	"object": {
+		"name": "TileGuard",
+		"gid": 2147483653,
+		"width": 8,
+		"height": 8
+	}
+}

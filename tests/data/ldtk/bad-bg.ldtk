@@ -1,0 +1,354 @@
+{
+	"jsonVersion": "1.5.3",
+	"defaultGridSize": 2,
+	"defs": {
+		"tilesets": [
+			{
+				"uid": 1,
+				"relPath": "tiles.png",
+				"tileGridSize": 2
+			}
+		],
+		"layers": [
+			{
+				"uid": 10,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 11,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 12,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 13,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			},
+			{
+				"uid": 14,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"blendMode": "Normal",
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Wall",
+						"color": "#ffffff"
+					},
+					{
+						"value": 2,
+						"identifier": "Water",
+						"color": "#0000ff"
+					}
+				]
+			}
+		]
+	},
+	"worlds": [],
+	"levels": [
+		{
+			"identifier": "First",
+			"iid": "level-first",
+			"uid": 100,
+			"pxWid": 32,
+			"pxHei": 24,
+			"worldX": 64,
+			"worldY": -32,
+			"worldDepth": 2,
+			"__bgColor": "#101820",
+			"bgRelPath": "tiles.png",
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "difficulty",
+					"__type": "Int",
+					"__value": 3
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Hidden",
+					"iid": "layer-Hidden",
+					"__type": "Tiles",
+					"__gridSize": 2,
+					"__cWid": 8,
+					"__cHei": 6,
+					"layerDefUid": 14,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 2,
+					"visible": false,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [
+						{
+							"px": [
+								0,
+								0
+							],
+							"src": [
+								2,
+								0
+							],
+							"f": 0,
+							"a": 1,
+							"t": 0
+						}
+					],
+					"intGridCsv": [],
+					"entityInstances": []
+				},
+				{
+					"__identifier": "Entities",
+					"iid": "layer-Entities",
+					"__type": "Entities",
+					"__gridSize": 8,
+					"__cWid": 4,
+					"__cHei": 3,
+					"layerDefUid": 13,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 1,
+					"__pxTotalOffsetY": 2,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [],
+					"intGridCsv": [],
+					"entityInstances": [
+						{
+							"__identifier": "Player",
+							"iid": "player",
+							"width": 4,
+							"height": 6,
+							"px": [
+								8,
+								8
+							],
+							"__pivot": [
+								0.5,
+								0.5
+							],
+							"__tags": [
+								"Actor"
+							],
+							"fieldInstances": [
+								{
+									"__identifier": "hp",
+									"__type": "Int",
+									"__value": 12
+								},
+								{
+									"__identifier": "speed",
+									"__type": "Float",
+									"__value": 4
+								},
+								{
+									"__identifier": "alive",
+									"__type": "Bool",
+									"__value": true
+								},
+								{
+									"__identifier": "asset",
+									"__type": "FilePath",
+									"__value": "sounds/step.wav"
+								},
+								{
+									"__identifier": "point",
+									"__type": "Point",
+									"__value": {
+										"cx": 1,
+										"cy": 2
+									}
+								},
+								{
+									"__identifier": "names",
+									"__type": "Array<String>",
+									"__value": [
+										"one",
+										"two"
+									]
+								},
+								{
+									"__identifier": "target",
+									"__type": "EntityRef",
+									"__value": null
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Logic",
+					"iid": "layer-Logic",
+					"__type": "IntGrid",
+					"__gridSize": 4,
+					"__cWid": 2,
+					"__cHei": 2,
+					"layerDefUid": 12,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 10,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [],
+					"intGridCsv": [
+						1,
+						0,
+						2,
+						1
+					],
+					"entityInstances": []
+				},
+				{
+					"__identifier": "Auto",
+					"iid": "layer-Auto",
+					"__type": "AutoLayer",
+					"__gridSize": 2,
+					"__cWid": 8,
+					"__cHei": 6,
+					"layerDefUid": 11,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 2,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [
+						{
+							"px": [
+								0,
+								4
+							],
+							"src": [
+								2,
+								0
+							],
+							"f": 0,
+							"a": 1,
+							"t": 0
+						}
+					],
+					"gridTiles": [],
+					"intGridCsv": [],
+					"entityInstances": []
+				},
+				{
+					"__identifier": "Tiles",
+					"iid": "layer-Tiles",
+					"__type": "Tiles",
+					"__gridSize": 2,
+					"__cWid": 8,
+					"__cHei": 6,
+					"layerDefUid": 10,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 2,
+					"__pxTotalOffsetY": 2,
+					"visible": true,
+					"__tilesetDefUid": 1,
+					"autoLayerTiles": [],
+					"gridTiles": [
+						{
+							"px": [
+								0,
+								0
+							],
+							"src": [
+								0,
+								0
+							],
+							"f": 0,
+							"a": 1,
+							"t": 0
+						},
+						{
+							"px": [
+								0,
+								0
+							],
+							"src": [
+								2,
+								0
+							],
+							"f": 0,
+							"a": 0.5,
+							"t": 0
+						},
+						{
+							"px": [
+								4,
+								0
+							],
+							"src": [
+								0,
+								0
+							],
+							"f": 3,
+							"a": 1,
+							"t": 0
+						}
+					],
+					"intGridCsv": [],
+					"entityInstances": []
+				}
+			]
+		}
+	]
+}

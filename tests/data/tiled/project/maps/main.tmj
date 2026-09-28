@@ -1,0 +1,112 @@
+{
+	"type": "map",
+	"class": "World",
+	"orientation": "orthogonal",
+	"width": 8,
+	"height": 8,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"source": "../tiles.tsj"
+		}
+	],
+	"layers": [
+		{
+			"type": "group",
+			"class": "Layer",
+			"layers": [
+				{
+					"type": "objectgroup",
+					"class": "Layer",
+					"objects": [
+						{
+							"id": 1,
+							"template": "../templates/enemy.json",
+							"x": 1,
+							"y": 2,
+							"properties": [
+								{
+									"name": "health",
+									"type": "int",
+									"value": 0
+								},
+								{
+									"name": "enabled",
+									"type": "bool",
+									"value": false
+								},
+								{
+									"name": "tag",
+									"type": "string",
+									"value": ""
+								},
+								{
+									"name": "flags",
+									"type": "int",
+									"value": 5,
+									"propertytype": "Ability"
+								},
+								{
+									"name": "labels",
+									"type": "string",
+									"value": "a,b",
+									"propertytype": "Tags"
+								},
+								{
+									"name": "stats",
+									"type": "class",
+									"value": {
+										"sound": "instance.wav",
+										"combat": {
+											"damage": 9
+										},
+										"mode": "Chase"
+									},
+									"propertytype": "Stats"
+								}
+							]
+						},
+						{
+							"id": 2,
+							"template": "../templates/enemy.json",
+							"x": 4,
+							"y": 2
+						},
+						{
+							"id": 3,
+							"gid": 1,
+							"x": 8,
+							"y": 2
+						},
+						{
+							"id": 4,
+							"type": "Enemy",
+							"x": 10,
+							"y": 2
+						},
+						{
+							"id": 5,
+							"template": "../templates/enemy.json",
+							"x": 12,
+							"y": 2,
+							"properties": [
+								{
+									"name": "stats",
+									"type": "class",
+									"value": {
+										"combat": {
+											"damage": 11
+										}
+									},
+									"propertytype": "Stats"
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

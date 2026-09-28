@@ -1,0 +1,45 @@
+{
+	"orientation": "orthogonal",
+	"width": 2,
+	"height": 2,
+	"tilewidth": 2,
+	"tileheight": 2,
+	"type": "map",
+	"tilesets": [
+		{
+			"firstgid": 1,
+			"source": "tiles/basic.tsx",
+			"type": "tileset"
+		},
+		{
+			"firstgid": 100,
+			"name": "collection",
+			"tilewidth": 7,
+			"tileheight": 4,
+			"columns": 0,
+			"tilecount": 1,
+			"type": "tileset",
+			"tiles": [
+				{
+					"id": 5,
+					"image": "sheet.png"
+				}
+			]
+		}
+	],
+	"layers": [
+		{
+			"name": "ground",
+			"width": 2,
+			"height": 2,
+			"type": "tilelayer",
+			"encoding": "csv",
+			"data": [
+				1,
+				105,
+				0,
+				2
+			]
+		}
+	]
+}

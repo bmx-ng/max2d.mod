@@ -1,0 +1,32 @@
+case,frames,draw_submit_mean_ms,present_mean_ms,frame_median_ms,frame_p95_ms,submissions,updates,uploaded_pixels,creations,gc_heap_delta_bytes
+# sprites_separate renderer=metal
+sprites_separate,120,1.4502815965291422,10.698336111090612,8.544541662558913,18.09395832242444,491520,0,0,0,0
+# sprites_atlas renderer=metal
+sprites_atlas,120,0.6186003496016687,10.342502084192043,8.354083285667002,17.071041627787054,480,0,0,0,0
+# text_cached renderer=metal
+text_cached,120,0.1846836797388581,11.620340974089535,8.505166682880372,17.052375013008714,120,0,0,0,278528
+# text_changing renderer=metal
+text_changing,120,0.5658305555698462,9.631407293879116,8.343458350282162,17.10616669151932,160,0,0,0,0
+# atlas_one_edit renderer=metal
+atlas_one_edit,120,0.045381598465610296,12.236811111991605,8.756875002291054,16.853458306286484,120,120,38880,0,0
+# atlas_two_edits renderer=metal
+atlas_two_edits,120,0.03031284916990747,11.988823262799997,8.92574997851625,17.012041702400893,120,120,77760,0,-16384
+# target_alpha renderer=metal
+target_alpha,120,11.690039931272622,0.034509725810494274,8.617083367425948,17.42529170587659,1920,0,0,0,0
+# target_solid renderer=metal
+target_solid,120,14.894994097509576,0.02947187943694492,15.539291664026678,25.85366665152833,1920,0,0,0,0
+# text_density_changes renderer=metal
+text_density_changes,120,0.04738784919027239,10.909722915675957,8.499291667249054,16.91829168703407,120,0,0,0,0
+# resource_cycle=0 gc_heap_bytes=12779520 delta_from_first=0 closed_context_frames=0
+# resource_cycle=1 gc_heap_bytes=12025856 delta_from_first=-753664 closed_context_frames=0
+# resource_cycle=2 gc_heap_bytes=12337152 delta_from_first=-442368 closed_context_frames=0
+# resource_cycle=3 gc_heap_bytes=12664832 delta_from_first=-114688 closed_context_frames=0
+# resource_cycle=4 gc_heap_bytes=12648448 delta_from_first=-131072 closed_context_frames=0
+# resource_cycle=5 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=6 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=7 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=8 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=9 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=10 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# resource_cycle=11 gc_heap_bytes=11075584 delta_from_first=-1703936 closed_context_frames=0
+# benchmark complete
