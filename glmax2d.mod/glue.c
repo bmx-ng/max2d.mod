@@ -1,5 +1,5 @@
 /* Desktop GL 2.1 / GLSL 1.20, with EXT framebuffer objects. */
-#include "../../pub.mod/glew.mod/GL/glew.h"
+#include "pub.mod/glew.mod/GL/glew.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
