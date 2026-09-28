@@ -1,4 +1,4 @@
-#include "../../pub.mod/glew.mod/GL/glew.h"
+#include "pub.mod/glew.mod/GL/glew.h"
 #ifdef _WIN32
 #include <windows.h>
 double max2d_bench_seconds(void) {

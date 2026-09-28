@@ -1,6 +1,6 @@
 /* Max2D.Tiled - zlib/libpng licence. Exact, bounded zlib/gzip decoding. */
 #include <string.h>
-#include "../../archive.mod/zlib.mod/zlib/zlib.h"
+#include "archive.mod/zlib.mod/zlib/zlib.h"
 
 int max2d_tiled_inflate(const unsigned char *source, int source_size,
 		unsigned char *dest, int dest_size, int gzip) {

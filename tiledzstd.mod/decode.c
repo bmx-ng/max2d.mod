@@ -1,5 +1,5 @@
 /* Max2D.TiledZstd - zlib/libpng licence. Bounded one-shot decompression. */
-#include "../../archive.mod/zstd.mod/zstd/lib/zstd.h"
+#include "archive.mod/zstd.mod/zstd/lib/zstd.h"
 
 int max2d_tiled_zstd_decode(const void *source, int source_size,
 		void *destination, int destination_size) {
