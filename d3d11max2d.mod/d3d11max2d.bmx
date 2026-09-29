@@ -3,15 +3,15 @@ Module Max2D.D3D11Max2D
 ModuleInfo "Version: 0.06"
 ModuleInfo "License: zlib/libpng"
 
-Import Max2D.Core
 ?win32
+Import Max2D.Core
 Import BRL.DXGraphics
 Import "glue.cpp"
 Import "draw_shaders.cpp"
 
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 Global D3D11TestCoverageFallback:Int
-?
+?win32
 
 Type TD3D11ImageFrame Extends TImageFrame
  Field native:Byte Ptr
@@ -52,9 +52,9 @@ Type TD3D11Max2DContext Extends TMax2DContext
 		If f.native Then Return
 		Local coverage:Int=f.pixelFormat=PF_A8
 		If f.pixels Then coverage=f.pixels.format=PF_A8
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 		If D3D11TestCoverageFallback Then coverage=False
-?
+?win32
 		Local bits:Int
 		If f.pixelFormat=PF_RGBA16F Then bits=16
 		If f.pixelFormat=PF_RGBA32F Then bits=32
@@ -65,9 +65,9 @@ Type TD3D11Max2DContext Extends TMax2DContext
 		If f.storage And (f.storage.LevelCount()>1 Or compression) Then
 			levels=f.storage.LevelCount()
 			coverage=f.storage.Format()=PF_A8
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 			If D3D11TestCoverageFallback Then coverage=False
-?
+?win32
 		End If
 		f.native=m2d11_create(native,f.width,f.height,f.flags,f.target,coverage,bits,levels,compression)
 		Require(f.native<>Null)
@@ -81,11 +81,11 @@ Type TD3D11Max2DContext Extends TMax2DContext
 		End If
 	End Method
  Method Operation:Int(result:Int)
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
   If D3D11TestOperationRemoved Then
    D3D11TestOperationRemoved=False;D3D11TestRemoved=True;result=0
   End If
-?
+?win32
   If result Then Return True
   If TD3D11Graphics(graphics).DeviceStatus()<0 Then
    EnsureDevice()
@@ -130,9 +130,9 @@ Type TD3D11Max2DContext Extends TMax2DContext
 		EnsureDevice()
 		Local frame:TD3D11ImageFrame=New TD3D11ImageFrame
 		Local coverage:Int=pixelFormat=PF_A8
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 		If D3D11TestCoverageFallback Then coverage=False
-?
+?win32
 		Local bits:Int
 		If pixelFormat=PF_RGBA16F Then bits=16
 		If pixelFormat=PF_RGBA32F Then bits=32
@@ -164,9 +164,9 @@ Type TD3D11Max2DContext Extends TMax2DContext
 		EnsureDevice()
 		Local frame:TD3D11ImageFrame=New TD3D11ImageFrame
 		Local coverage:Int=data.Format()=PF_A8
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 		If D3D11TestCoverageFallback Then coverage=False
-?
+?win32
 		Local bits:Int
 		If data.Format()=PF_RGBA16F Then bits=16
 		If data.Format()=PF_RGBA32F Then bits=32
@@ -290,9 +290,9 @@ Type TD3D11Max2DContext Extends TMax2DContext
 			Return ETextureFormatSupport.Unsupported
 		End If
 		If support<>ETextureFormatSupport.Converted Or (flags & MIPMAPPEDIMAGE) Then Return support
-?d3d11_recovery_test
+?win32 And d3d11_recovery_test
 		If D3D11TestCoverageFallback Then Return support
-?
+?win32
 		If m2d11_coverage_supported(native) Then Return ETextureFormatSupport.Native
 		Return support
 	End Method

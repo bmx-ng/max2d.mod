@@ -3,8 +3,8 @@ Module Max2D.D3D9Max2D
 ModuleInfo "Version: 0.01"
 ModuleInfo "License: zlib/libpng"
 
-Import Max2D.Core
 ?win32
+Import Max2D.Core
 Import BRL.DXGraphics
 Import "glue.cpp"
 Import "draw_shader.cpp"

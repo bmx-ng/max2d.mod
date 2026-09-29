@@ -3,9 +3,9 @@ Module Max2D.D3D7Max2D
 ModuleInfo "Version: 0.01"
 ModuleInfo "License: zlib/libpng"
 
-Import Max2D.Core
 ' Disabled pending validation on supported D3D7 hardware.
-?disabled
+?win32 And disabled
+Import Max2D.Core
 Import BRL.DXGraphics
 Import "glue.cpp"
 
