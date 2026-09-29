@@ -21,6 +21,11 @@ Type TTextColorSpan
 	Field hasForeground:Int
 
 	Rem
+	bbdoc: Whether foreground paint preserves the caller's drawing RGB while applying its opacity.
+	End Rem
+	Field inheritForegroundColor:Int
+
+	Rem
 	bbdoc: Whether this span supplies background paint.
 	End Rem
 	Field hasBackground:Int
@@ -85,8 +90,24 @@ Type TTextColorSpan
 	End Rem
 	Method SetForeground(red:Int,green:Int,blue:Int,opacity:Float=1)
 		If IsNan(opacity) Or IsInf(opacity) Then Throw "Max2D: text opacity must be finite"
-		Self.red=Max(0,Min(255,red));Self.green=Max(0,Min(255,green));Self.blue=Max(0,Min(255,blue))
-		Self.opacity=Max(0.0,Min(1.0,opacity));hasForeground=True
+		Self.red=Max(0,Min(255,red))
+		Self.green=Max(0,Min(255,green))
+		Self.blue=Max(0,Min(255,blue))
+		Self.opacity=Max(0.0,Min(1.0,opacity))
+		hasForeground=True
+		inheritForegroundColor=False
+	End Method
+
+	Rem
+	bbdoc: Sets glyph opacity while preserving the caller's drawing RGB colour.
+	param: Opacity multiplier from 0.0 to 1.0, multiplied by the drawing alpha.
+	about: Replaces any foreground RGB override previously set on this span.
+	End Rem
+	Method SetForegroundOpacity(opacity:Float)
+		If IsNan(opacity) Or IsInf(opacity) Then Throw "Max2D: text opacity must be finite"
+		Self.opacity=Max(0.0,Min(1.0,opacity))
+		hasForeground=True
+		inheritForegroundColor=True
 	End Method
 
 	Rem
@@ -107,7 +128,13 @@ Type TTextColorSpan
 	End Rem
 	Method Copy:TTextColorSpan()
 		Local result:TTextColorSpan=Create(sourceStart,sourceEnd)
-		If hasForeground Then result.SetForeground(red,green,blue,opacity)
+		If hasForeground
+			If inheritForegroundColor
+				result.SetForegroundOpacity(opacity)
+			Else
+				result.SetForeground(red,green,blue,opacity)
+			End If
+		End If
 		If hasBackground Then result.SetBackground(backgroundRed,backgroundGreen,backgroundBlue,backgroundOpacity)
 		Return result
 	End Method
@@ -176,9 +203,21 @@ Type TTextPaint
 	End Rem
 	Function Apply(state:TMax2DState,color:TTextColorSpan,red:Int,green:Int,blue:Int,alpha:Float)
 		If color Then
-			state.red=color.red;state.green=color.green;state.blue=color.blue;state.alpha=alpha*color.opacity
+			If color.inheritForegroundColor
+				state.red=red
+				state.green=green
+				state.blue=blue
+			Else
+				state.red=color.red
+				state.green=color.green
+				state.blue=color.blue
+			End If
+			state.alpha=alpha*color.opacity
 		Else
-			state.red=red;state.green=green;state.blue=blue;state.alpha=alpha
+			state.red=red
+			state.green=green
+			state.blue=blue
+			state.alpha=alpha
 		End If
 	End Function
 
