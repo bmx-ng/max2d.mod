@@ -102,3 +102,33 @@ See [benchmark instructions](../benchmarks/README.md#native-sdl-gpu-comparison).
 The [JSON summary](../benchmarks/results/2026-09-27-native-gpu/summary.json) includes
 all repetitions. [Raw per-frame CSVs and stderr](../benchmarks/results/2026-09-27-native-gpu/raw-captures.tar.gz)
 are archived alongside it. No logging occurs inside the measured frame loop.
+
+## Opt-in compact rectangle path (2026-09-29)
+
+`SetSDLGPUMax2DCompactSprites(True)` now routes Core quads to 64-byte records,
+while other geometry retains expanded triangles. This measurement uses public
+`DrawImage` calls, not the earlier isolated native prototype.
+
+On the M4 Max/Metal, medians of four alternating trials (60 frames per trial):
+
+| Sprites | Expanded CPU submission | Compact CPU submission | Expanded completed | Compact completed |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 0.0322 ms | 0.0188 ms | 0.1128 ms | 0.0893 ms |
+| 10,000 | 0.3056 ms | 0.1837 ms | 0.5104 ms | 0.3213 ms |
+| 40,000 | 1.3546 ms | 0.7388 ms | 1.5564 ms | 1.2035 ms |
+
+The 40,000-sprite case drops from 30 to 10 Core submissions per frame while
+reporting the same 240,000 generated vertices. Geometry records use one third
+of the upload bytes. A one-pixel readback every three frames drains the recorded
+GPU work; completed time includes that readback and its waiting cost. This is
+amortised throughput, not isolated GPU execution time. CPU submission includes
+Core/native command recording, not just vertex calculation.
+
+These synthetic figures justify the opt-in path but do not establish game-wide
+speedups. The benchmark does not include presentation, varying texture batches
+or text shaping. Use `tests/gpu_compact_benchmark.bmx` to repeat it on a target
+machine. Production defaults remain unchanged.
+
+Raw integrated timings are checked in at
+`experiments/sprite_batching/results/integrated-metal-m4max.csv`. They use the
+public-API benchmark schema, unlike the isolated prototype CSVs beside it.

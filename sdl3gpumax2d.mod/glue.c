@@ -16,7 +16,7 @@ typedef struct {
 } GPUFrame;
 typedef struct {
 	GPUFrame *destination,*source;
-	int blend,first,count,generate;
+	int blend,first,count,generate,compact;
 	SDL_Rect clip;
 	float transform[4];
 } GPUDraw;
@@ -24,8 +24,9 @@ struct GPUContext {
 	SDL_GPUDevice *device;
 	SDL_Window *window;
 	GPUFrame *backbuffer,*white;
-	SDL_GPUShader *vertex,*fragment;
+	SDL_GPUShader *vertex,*fragment,*compactVertex;
 	SDL_GPUGraphicsPipeline *pipelines[4][6];
+	SDL_GPUGraphicsPipeline *compactPipelines[4][6];
 	SDL_GPUSampler *samplers[2][32];
 	SDL_GPUBuffer *vertices;
 	SDL_GPUTransferBuffer *upload;
@@ -194,11 +195,13 @@ void m2d_gpu_close(GPUContext *c) {
 		release_frame(c->white);
 		for(int kind=0;kind<4;++kind) for(int i=1;i<=5;++i) {
 			if(c->pipelines[kind][i]) SDL_ReleaseGPUGraphicsPipeline(c->device,c->pipelines[kind][i]);
+			if(c->compactPipelines[kind][i]) SDL_ReleaseGPUGraphicsPipeline(c->device,c->compactPipelines[kind][i]);
 		}
 		for(int i=0;i<2;++i) for(int level=0;level<32;++level) {
 			if(c->samplers[i][level]) SDL_ReleaseGPUSampler(c->device,c->samplers[i][level]);
 		}
 		if(c->vertex) SDL_ReleaseGPUShader(c->device,c->vertex);
+		if(c->compactVertex) SDL_ReleaseGPUShader(c->device,c->compactVertex);
 		if(c->fragment) SDL_ReleaseGPUShader(c->device,c->fragment);
 		if(c->vertices) SDL_ReleaseGPUBuffer(c->device,c->vertices);
 		if(c->upload) SDL_ReleaseGPUTransferBuffer(c->device,c->upload);
@@ -209,35 +212,42 @@ void m2d_gpu_close(GPUContext *c) {
 	free(c->data);
 	free(c);
 }
-static SDL_GPUShader *shader(GPUContext *c,int fragment) {
+static SDL_GPUShader *shader(GPUContext *c,int stage) {
+	int fragment=stage==1,compact=stage==2;
 	SDL_GPUShaderCreateInfo info={0};
 	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(c->device);
 	info.stage=fragment?SDL_GPU_SHADERSTAGE_FRAGMENT:SDL_GPU_SHADERSTAGE_VERTEX;
 	info.num_uniform_buffers=1;
+	info.num_storage_buffers=compact?1:0;
 	info.num_samplers=fragment?1:0;
 	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
 		info.format=SDL_GPU_SHADERFORMAT_MSL;
 		info.code=(const Uint8 *)gpu_metal;
 		info.code_size=sizeof(gpu_metal);
-		info.entrypoint=fragment?"pixelMain":"vertexMain";
+		info.entrypoint=fragment?"pixelMain":compact?"compactMain":"vertexMain";
 	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
 		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
-		info.code=fragment?gpu_frag_spv:gpu_vert_spv;
-		info.code_size=fragment?sizeof(gpu_frag_spv):sizeof(gpu_vert_spv);
+		info.code=fragment?gpu_frag_spv:compact?gpu_compact_spv:gpu_vert_spv;
+		info.code_size=fragment?sizeof(gpu_frag_spv):compact?sizeof(gpu_compact_spv):sizeof(gpu_vert_spv);
 		info.entrypoint="main";
 	} else {
 		info.format=SDL_GPU_SHADERFORMAT_DXBC;
-		info.code=fragment?gpu_fragment_dxbc:gpu_vertex_dxbc;
-		info.code_size=fragment?gpu_fragment_dxbc_size:gpu_vertex_dxbc_size;
-		info.entrypoint=fragment?"pixelMain":"vertexMain";
+		info.code=fragment?gpu_fragment_dxbc:compact?gpu_compact_dxbc:gpu_vertex_dxbc;
+		info.code_size=fragment?gpu_fragment_dxbc_size:compact?gpu_compact_dxbc_size:gpu_vertex_dxbc_size;
+		info.entrypoint=fragment?"pixelMain":compact?"compactMain":"vertexMain";
 	}
 	return SDL_CreateGPUShader(c->device,&info);
 }
-static int ensure_pipelines(GPUContext *c,int kind) {
+static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
+	if(compact && !c->compactVertex) {
+		c->compactVertex=shader(c,2);
+		if(!c->compactVertex) return 0;
+	}
+	SDL_GPUGraphicsPipeline **pipelines=compact?c->compactPipelines[kind]:c->pipelines[kind];
 	SDL_GPUVertexBufferDescription buffer={0,32,SDL_GPU_VERTEXINPUTRATE_VERTEX,0};
 	SDL_GPUVertexAttribute attributes[3]={{0,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,0},{1,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,8},{2,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,24}};
 	for(int blend=1;blend<=5;++blend) {
-		if(c->pipelines[kind][blend]) continue;
+		if(pipelines[blend]) continue;
 		SDL_GPUColorTargetDescription colour={0};
 		colour.format=texture_format(kind);
 		SDL_GPUColorTargetBlendState *b=&colour.blend_state;
@@ -249,18 +259,20 @@ static int ensure_pipelines(GPUContext *c,int kind) {
 		b->src_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE:SDL_GPU_BLENDFACTOR_ZERO;
 		b->dst_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:SDL_GPU_BLENDFACTOR_ONE;
 		SDL_GPUGraphicsPipelineCreateInfo pipeline={0};
-		pipeline.vertex_shader=c->vertex;
+		pipeline.vertex_shader=compact?c->compactVertex:c->vertex;
 		pipeline.fragment_shader=c->fragment;
-		pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
+		if(!compact) pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
 		pipeline.primitive_type=SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 		pipeline.rasterizer_state.fill_mode=SDL_GPU_FILLMODE_FILL;
 		pipeline.target_info.color_target_descriptions=&colour;
 		pipeline.target_info.num_color_targets=1;
-		c->pipelines[kind][blend]=SDL_CreateGPUGraphicsPipeline(c->device,&pipeline);
-		if(!c->pipelines[kind][blend]) return 0;
+		pipelines[blend]=SDL_CreateGPUGraphicsPipeline(c->device,&pipeline);
+		if(!pipelines[blend]) return 0;
 	}
 	return 1;
 }
+static int ensure_pipelines(GPUContext *c,int kind) { return ensure_pipelines_mode(c,kind,0); }
+int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,0,1); }
 void *m2d_gpu_open(SDL_Window *window) {
 	GPUContext *c=calloc(1,sizeof(*c));
 	if(!c) { fail("Out of memory"); return NULL; }
@@ -329,10 +341,16 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 	c->clip=(SDL_Rect){left,top,right-left,bottom-top};
 	return 1;
 }
-int m2d_gpu_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count) {
+static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
-	if(c->vertexCount+count>262144 && !flush(c)) return 0;
+	if(compact && !ensure_pipelines_mode(c,target?target->kind:0,1)) return 0;
+	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
+	int padding=compact?(c->vertexCount & 1):0;
+	if(c->vertexCount+count+padding>262144) {
+		if(!flush(c)) return 0;
+		padding=0;
+	}
 	if(c->drawCount==c->drawCapacity) {
 		int capacity=c->drawCapacity?c->drawCapacity*2:128;
 		GPUDraw *draws=realloc(c->draws,(size_t)capacity*sizeof(*draws));
@@ -340,15 +358,20 @@ int m2d_gpu_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const
 		c->draws=draws;
 		c->drawCapacity=capacity;
 	}
-	if(c->vertexCount+count>c->vertexCapacity) {
+	if(c->vertexCount+count+padding>c->vertexCapacity) {
 		int capacity=c->vertexCapacity?c->vertexCapacity*2:8192;
-		if(capacity<c->vertexCount+count) capacity=c->vertexCount+count;
+		if(capacity<c->vertexCount+count+padding) capacity=c->vertexCount+count+padding;
 		float *data=realloc(c->data,(size_t)capacity*32);
 		if(!data) return fail("Out of memory");
 		c->data=data;
 		c->vertexCapacity=capacity;
 	}
+	if(padding) {
+		memset(c->data+(size_t)c->vertexCount*8,0,32);
+		++c->vertexCount;
+	}
 	GPUDraw *draw=&c->draws[c->drawCount++];
+	draw->compact=compact;
 	draw->destination=target;
 	draw->source=source;
 	draw->blend=blend;
@@ -363,6 +386,14 @@ int m2d_gpu_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const
 	c->vertexCount+=count;
 	return 1+draw->generate;
 }
+int m2d_gpu_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count) {
+	return record_draw(c,target,source,blend,vertices,count,0);
+}
+int m2d_gpu_draw_quads(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *records,int count) {
+	if(count<0 || count>131072) return fail("Rectangle batch is too large");
+	return record_draw(c,target,source,blend,records,count*2,1);
+}
+
 static void generate_mips(GPUContext *c,SDL_GPUCommandBuffer *cmd,GPUFrame *frame) {
 	/* Bundled SDL Vulkan mip generation does not clamp shifted dimensions.
 	 * Explicit per-level GPU blits keep rectangular chains valid through 1x1. */
@@ -393,7 +424,7 @@ static int flush(GPUContext *c) {
 	if(!c->drawCount) return 1;
 	Uint32 size=(Uint32)c->vertexCount*32;
 	if(size>c->bufferSize) {
-		SDL_GPUBufferCreateInfo buffer={SDL_GPU_BUFFERUSAGE_VERTEX,size,0};
+		SDL_GPUBufferCreateInfo buffer={SDL_GPU_BUFFERUSAGE_VERTEX|SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,size,0};
 		SDL_GPUTransferBufferCreateInfo transfer={SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,size,0};
 		SDL_GPUBuffer *vertices=SDL_CreateGPUBuffer(c->device,&buffer);
 		SDL_GPUTransferBuffer *upload=SDL_CreateGPUTransferBuffer(c->device,&transfer);
@@ -444,13 +475,14 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
-		SDL_BindGPUGraphicsPipeline(pass,c->pipelines[target->kind][draw->blend]);
+		SDL_BindGPUGraphicsPipeline(pass,draw->compact?c->compactPipelines[target->kind][draw->blend]:c->pipelines[target->kind][draw->blend]);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
-		SDL_BindGPUVertexBuffers(pass,0,&buffer,1);
+		if(draw->compact) SDL_BindGPUVertexStorageBuffers(pass,0,&c->vertices,1);
+		else SDL_BindGPUVertexBuffers(pass,0,&buffer,1);
 		SDL_GPUTextureSamplerBinding sampler={image->texture,image->sampler};
 		SDL_BindGPUFragmentSamplers(pass,0,&sampler,1);
-		SDL_DrawGPUPrimitives(pass,draw->count,1,draw->first,0);
+		SDL_DrawGPUPrimitives(pass,draw->compact?draw->count*3:draw->count,1,draw->compact?draw->first*3:draw->first,0);
 	}
 	if(pass) SDL_EndGPURenderPass(pass);
 	c->drawCount=0;

@@ -318,6 +318,16 @@ Type TMax2DContext
 	Field batchCount:Int
 
 	Rem
+	bbdoc: Enables compact rectangle submission on backends that implement NativeSubmitQuads; defaults to False.
+	End Rem
+	Field compactQuads:Int
+
+	Rem
+	bbdoc: Whether the pending batch contains 16-float rectangles instead of 8-float vertices.
+	End Rem
+	Field batchQuads:Int
+
+	Rem
 	bbdoc: Texture used by the current buffered batch, or Null for solid geometry.
 	End Rem
 	Field batchFrame:TImageFrame
@@ -746,6 +756,8 @@ Type TMax2DContext
 	param: Number of items to process.
 	End Rem
 	Method BeginTriangles(frame:TImageFrame, blend:Int, count:Int)
+		If batchQuads Then Flush()
+		batchQuads=False
 		CheckOpen()
 		If Not SupportsBlend(blend) Then Throw "Max2D: blend mode unsupported by this backend"
 		If frame Then
@@ -755,6 +767,37 @@ Type TMax2DContext
 		If count > batch.Length / 8 Then Throw "Max2D: geometry chunk exceeds buffer capacity"
 		If frame <> batchFrame Or blend <> batchBlend Or batchCount + count > batch.Length / 8 Then Flush()
 		batchFrame = frame; batchBlend = blend
+	End Method
+
+	Rem
+	bbdoc: Prepares one compact rectangle, flushing incompatible triangles and state first.
+	param: Texture to sample, or Null for solid geometry.
+	param: Blend mode.
+	End Rem
+	Method BeginQuads(frame:TImageFrame,blend:Int)
+		If Not batchQuads Then Flush()
+		' Reuse frame validation without discarding a compatible compact batch.
+		CheckOpen()
+		If Not SupportsBlend(blend) Then Throw "Max2D: blend mode unsupported by this backend"
+		If frame Then
+			If frame.closed Or frame.owner<>Self Then Throw "Max2D: texture belongs to another or closed context"
+			If frame=target Then Throw "Max2D: cannot sample the current render target"
+		End If
+		If frame<>batchFrame Or blend<>batchBlend Or (batchCount+1)*16>batch.Length Then Flush()
+		batchQuads=True
+		batchFrame=frame
+		batchBlend=blend
+	End Method
+
+	Rem
+	bbdoc: Submits compact affine rectangles; backends opt in by implementing this method.
+	param: Texture to sample, or Null for solid geometry.
+	param: Blend mode.
+	param: Records of 16 floats: origin.xy, horizontal edge.xy, vertical edge.xy, uv0.xy, uv1.xy, two padding floats, colour.rgba.
+	param: Number of rectangle records.
+	End Rem
+	Method NativeSubmitQuads(frame:TImageFrame,blend:Int,records:Float Ptr,count:Int)
+		Throw "Max2D: backend does not support compact rectangles"
 	End Method
 
 	Rem
@@ -781,9 +824,14 @@ Type TMax2DContext
 	End Rem
 	Method Flush()
 		If batchCount Then
-			NativeSubmit(batchFrame, batchBlend, batch, batchCount)
+			If batchQuads Then
+				NativeSubmitQuads(batchFrame,batchBlend,batch,batchCount)
+				stats.vertices:+batchCount*6
+			Else
+				NativeSubmit(batchFrame,batchBlend,batch,batchCount)
+				stats.vertices:+batchCount
+			End If
 			stats.submissions :+ 1
-			stats.vertices :+ batchCount
 			batchCount = 0
 		End If
 		batchFrame = Null

@@ -314,6 +314,19 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	End Method
 
 	Rem
+	bbdoc: Records compact affine rectangles in submission order.
+	param: Texture to sample, or Null for solid geometry.
+	param: Blend mode.
+	param: Sixteen-float rectangle records defined by TMax2DContext.NativeSubmitQuads.
+	param: Number of rectangles.
+	End Rem
+	Method NativeSubmitQuads(frame:TImageFrame,blend:Int,vertices:Float Ptr,count:Int) Override
+		Local result:Int=m2d_gpu_draw_quads(native,NativeFrame(target),NativeFrame(frame),blend,vertices,count)
+		Require(result)
+		stats.mipmapGenerations:+result-1
+	End Method
+
+	Rem
 	bbdoc: Applies the render target, presentation transform and clipping rectangle.
 	param: Render-target frame, or Null for the window backbuffer.
 	param: Virtual dimensions, presentation and clipping settings.
@@ -494,6 +507,19 @@ Function SDLGPUMax2DDriverName:String()
 	Return String.FromUTF8String(m2d_gpu_name(context.native))
 End Function
 
+Rem
+bbdoc: Enables or disables compact sprite and glyph submission on the current SDL3 GPU context.
+param: True to enable the experimental compact path; False restores expanded triangles.
+about: Defaults to False. Flushes pending drawing before changing mode. Other contexts are unaffected.
+End Rem
+Function SetSDLGPUMax2DCompactSprites(enabled:Int)
+	Local context:TSDLGPUMax2DContext=TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
+	If Not context Then Throw "Max2D: current context is not SDL3 GPU"
+	context.Flush()
+	If enabled Then context.Require(m2d_gpu_compact_support(context.native))
+	context.compactQuads=enabled<>0
+End Function
+
 Extern "C"
 	Function m2d_gpu_open:Byte Ptr(window:Byte Ptr)
 	Function m2d_gpu_close(context:Byte Ptr)
@@ -507,6 +533,8 @@ Extern "C"
 	Function m2d_gpu_update_level:Int(frame:Byte Ptr,pixels:Byte Ptr,pitch:Int,level:Int,x:Int,y:Int,w:Int,h:Int)
 	Function m2d_gpu_destroy(frame:Byte Ptr)
 	Function m2d_gpu_update:Int(frame:Byte Ptr,pixels:Byte Ptr,pitch:Int,x:Int,y:Int,w:Int,h:Int)
+	Function m2d_gpu_compact_support:Int(context:Byte Ptr)
+	Function m2d_gpu_draw_quads:Int(context:Byte Ptr,target:Byte Ptr,source:Byte Ptr,blend:Int,vertices:Float Ptr,count:Int)
 	Function m2d_gpu_draw:Int(context:Byte Ptr,target:Byte Ptr,source:Byte Ptr,blend:Int,vertices:Float Ptr,count:Int)
 	Function m2d_gpu_view:Int(context:Byte Ptr,target:Byte Ptr,width:Int,height:Int,ox:Int,oy:Int,vw:Int,vh:Int,sx:Float,sy:Float,x:Int,y:Int,w:Int,h:Int)
 	Function m2d_gpu_clear:Int(context:Byte Ptr,target:Byte Ptr,bars:Int,red:Int,green:Int,blue:Int,alpha:Float,barRed:Int,barGreen:Int,barBlue:Int)
