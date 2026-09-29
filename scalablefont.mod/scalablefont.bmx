@@ -114,6 +114,11 @@ Type TFontRaster
 	Field atlas:TTextureAtlas=TTextureAtlas.Create(512,FILTEREDIMAGE,1,PF_A8)
 
 	Rem
+	bbdoc: Whether glyphs use antialiased coverage and linear texture filtering.
+	End Rem
+	Field smooth:Int=True
+
+	Rem
 	bbdoc: Glyph images cached by native glyph index.
 	End Rem
 	Field glyphs:TMap=New TMap
@@ -128,14 +133,19 @@ Type TFontRaster
 	param: Font-file bytes retained while the native face is alive.
 	param: Requested font size.
 	param: Number of raster pixels per logical font unit.
+	param: Font flags; omit SMOOTHFONT for monochrome glyphs and nearest-neighbour sampling.
 	End Rem
- Function Create:TFontRaster(data:TBank,size:Float,density:Int)
-  Local result:TFontRaster=New TFontRaster
-  result.density=density
-  result.face=TFreeTypeFont.LoadFace(data,size*density,SMOOTHFONT,result.buffer)
-  If Not result.face Then Return Null
-  Return result
- End Function
+	Function Create:TFontRaster(data:TBank,size:Float,density:Int,style:Int=SMOOTHFONT)
+		Local result:TFontRaster=New TFontRaster
+		result.density=density
+		result.smooth=(style & SMOOTHFONT)<>0
+		Local flags:Int
+		If result.smooth Then flags=FILTEREDIMAGE
+		result.atlas=TTextureAtlas.Create(512,flags,1,PF_A8)
+		result.face=TFreeTypeFont.LoadFace(data,size*density,style,result.buffer)
+		If Not result.face Then Return Null
+		Return result
+	End Function
 
 	Rem
 	bbdoc: Releases the rasterizer's native font face.
@@ -151,7 +161,9 @@ Type TFontRaster
 		For Local page:TImage=EachIn atlas.pages
 			page.ReleaseFrames()
 		Next
-		atlas=TTextureAtlas.Create(512,FILTEREDIMAGE,1,PF_A8)
+		Local flags:Int
+		If smooth Then flags=FILTEREDIMAGE
+		atlas=TTextureAtlas.Create(512,flags,1,PF_A8)
 		glyphs.Clear()
 	End Method
 
@@ -163,7 +175,9 @@ Type TFontRaster
 		Local key:String=String(index)
 		Local cached:TImageGlyph=TImageGlyph(glyphs.ValueForKey(key))
 		If cached Then Return cached
-		If FT_Load_Glyph(face,UInt(index),FT_LOAD_RENDER) Then Throw "Max2D scalable font: cannot render glyph "+index
+		Local loadFlags:Int=FT_LOAD_RENDER
+		If Not smooth Then loadFlags:|FT_LOAD_MONOCHROME
+		If FT_Load_Glyph(face,UInt(index),loadFlags) Then Throw "Max2D scalable font: cannot render glyph "+index
 		Local slot:Byte Ptr=bmx_freetype_Face_glyph(face)
 		Local w:Int=bmx_freetype_Slot_bitmap_width(slot),h:Int=bmx_freetype_Slot_bitmap_rows(slot)
 		cached=New TImageGlyph
@@ -274,29 +288,30 @@ Type TScalableImageFont Extends TImageFont
 	bbdoc: Loads a font whose glyph raster density follows the drawing scale.
 	param: Font filename, stream URL or supported readable stream.
 	param: Requested font size.
-	param: Font style flags, such as SMOOTHFONT, BOLDFONT or ITALICFONT.
+	param: SMOOTHFONT, KERNFONT and LIGATURESFONT flags; omit SMOOTHFONT for monochrome glyphs.
 	End Rem
- Function LoadScalable:TScalableImageFont(url:Object,size:Float,style:Int=SMOOTHFONT|KERNFONT|LIGATURESFONT)
-  If Not (size>0 And size<=512) Then Throw "Max2D scalable font: logical size must be in (0,512]"
-  If style & (BOLDFONT|ITALICFONT) Then Throw "Max2D scalable font: load a bold or italic font face instead of synthetic style flags"
-  Local input:TBank=TBank(url)
-  If Not input Then input=LoadBank(url)
-  If Not input Then Return Null
-  Local result:TScalableImageFont=New TScalableImageFont
-  If input.Size()>$7fffffff Then Throw "Max2D scalable font: font data is too large"
-  result.data=CreateBank(Int(input.Size()))
-  CopyBank(input,0,result.data,0,input.Size())
-  result.logicalSize=size; result.styleFlags=style|SMOOTHFONT
-  result.baseRaster=TFontRaster.Create(result.data,size,1)
-  If Not result.baseRaster Then Return Null
-  Local metrics:Byte Ptr=bmx_freetype_Face_size(result.baseRaster.face)
-  result.lineHeight=bmx_freetype_Size_height(metrics)/64.0
-  result.ascender=bmx_freetype_Size_ascend(metrics)/64.0
-  result.hbFont=bmx_hb_ft_font_create(result.baseRaster.face)
-  result.hbBuffer=bmx_hb_buffer_create()
-  result.hbFeatures=bmx_hb_ft_font_features(style,result.featureCount)
-  Return result
- End Function
+	Function LoadScalable:TScalableImageFont(url:Object,size:Float,style:Int=SMOOTHFONT|KERNFONT|LIGATURESFONT)
+		If Not (size>0 And size<=512) Then Throw "Max2D scalable font: logical size must be in (0,512]"
+		If style & (BOLDFONT|ITALICFONT) Then Throw "Max2D scalable font: load a bold or italic font face instead of synthetic style flags"
+		Local input:TBank=TBank(url)
+		If Not input Then input=LoadBank(url)
+		If Not input Then Return Null
+		Local result:TScalableImageFont=New TScalableImageFont
+		If input.Size()>$7fffffff Then Throw "Max2D scalable font: font data is too large"
+		result.data=CreateBank(Int(input.Size()))
+		CopyBank(input,0,result.data,0,input.Size())
+		result.logicalSize=size
+		result.styleFlags=style
+		result.baseRaster=TFontRaster.Create(result.data,size,1,style)
+		If Not result.baseRaster Then Return Null
+		Local metrics:Byte Ptr=bmx_freetype_Face_size(result.baseRaster.face)
+		result.lineHeight=bmx_freetype_Size_height(metrics)/64.0
+		result.ascender=bmx_freetype_Size_ascend(metrics)/64.0
+		result.hbFont=bmx_hb_ft_font_create(result.baseRaster.face)
+		result.hbBuffer=bmx_hb_buffer_create()
+		result.hbFeatures=bmx_hb_ft_font_features(style,result.featureCount)
+		Return result
+	End Function
 
 	Rem
 	bbdoc: Releases native shaping and raster resources held by this font.
@@ -341,25 +356,25 @@ Type TScalableImageFont Extends TImageFont
 	bbdoc: Gets or creates the cached glyph rasterizer for a pixel density.
 	param: Number of raster pixels per logical font unit.
 	End Rem
- Method Raster:TFontRaster(density:Int)
-  density=Min(maxDensity,Max(1,density))
-  If density=1 Then Return baseRaster
-  Local key:String=String(density)
-  Local result:TFontRaster=TFontRaster(rasterVariants.ValueForKey(key))
-  If result Then
-   rasterKeys.Remove(key); rasterKeys.AddLast(key)
-   Return result
-  End If
-  result=TFontRaster.Create(data,logicalSize,density)
-  If Not result Then Throw "Max2D scalable font: cannot create raster size"
-  While rasterKeys.Count()>=rasterCacheLimit
-   Local oldest:String=String(rasterKeys.RemoveFirst())
-   TFontRaster(rasterVariants.ValueForKey(oldest)).Clear()
-   rasterVariants.Remove(oldest)
-  Wend
-  rasterVariants.Insert(key,result); rasterKeys.AddLast(key)
-  Return result
- End Method
+	Method Raster:TFontRaster(density:Int)
+		density=Min(maxDensity,Max(1,density))
+		If density=1 Then Return baseRaster
+		Local key:String=String(density)
+		Local result:TFontRaster=TFontRaster(rasterVariants.ValueForKey(key))
+		If result Then
+			rasterKeys.Remove(key); rasterKeys.AddLast(key)
+			Return result
+		End If
+		result=TFontRaster.Create(data,logicalSize,density,styleFlags)
+		If Not result Then Throw "Max2D scalable font: cannot create raster size"
+		While rasterKeys.Count()>=rasterCacheLimit
+			Local oldest:String=String(rasterKeys.RemoveFirst())
+			TFontRaster(rasterVariants.ValueForKey(oldest)).Clear()
+			rasterVariants.Remove(oldest)
+		Wend
+		rasterVariants.Insert(key,result); rasterKeys.AddLast(key)
+		Return result
+	End Method
 
 	Rem
 	bbdoc: Limits the number of cached raster densities.
@@ -566,7 +581,7 @@ Rem
 bbdoc: Loads a density-aware image font for crisp text under scaling and high-DPI output.
 param: Font filename, stream URL or supported readable stream.
 param: Requested font size.
-param: Font style flags, such as SMOOTHFONT, BOLDFONT or ITALICFONT.
+param: SMOOTHFONT, KERNFONT and LIGATURESFONT flags; omit SMOOTHFONT for monochrome glyphs.
 End Rem
 Function LoadScalableImageFont:TScalableImageFont(url:Object,size:Float,style:Int=SMOOTHFONT|KERNFONT|LIGATURESFONT)
  Return TScalableImageFont.LoadScalable(url,size,style)
