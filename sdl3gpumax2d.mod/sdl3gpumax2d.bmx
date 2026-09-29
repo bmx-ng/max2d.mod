@@ -467,6 +467,7 @@ Type TSDLGPUMax2DDriver Extends TMax2DDriver
 			graphics.Close()
 			Throw "Max2D SDL GPU: "+message
 		End If
+		context.compactQuads=m2d_gpu_compact_support(context.native)<>0
 		Return context
 	End Method
 
@@ -509,8 +510,8 @@ End Function
 
 Rem
 bbdoc: Enables or disables compact sprite and glyph submission on the current SDL3 GPU context.
-param: True to enable the experimental compact path; False restores expanded triangles.
-about: Defaults to False. Flushes pending drawing before changing mode. Other contexts are unaffected.
+param: True to enable compact submission; False restores expanded triangles.
+about: New contexts enable compact submission when its pipelines can be created, otherwise they use expanded triangles. Explicitly enabling it reports pipeline-creation failures. Flushes pending drawing before changing mode. Other contexts are unaffected.
 End Rem
 Function SetSDLGPUMax2DCompactSprites(enabled:Int)
 	Local context:TSDLGPUMax2DContext=TSDLGPUMax2DContext(TMax2DGraphics.Current().context)

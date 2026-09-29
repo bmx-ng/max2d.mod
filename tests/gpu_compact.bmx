@@ -75,6 +75,11 @@ Function Scene(target:TRenderImage,source:TRenderImage,image:TImage,compact:Int)
 End Function
 
 Graphics 400,300
+Check(TMax2DGraphics.Current().context.compactQuads,"Compact sprites enabled by default")
+SetSDLGPUMax2DCompactSprites(False)
+Check(Not TMax2DGraphics.Current().context.compactQuads,"Expanded triangles remain selectable")
+SetSDLGPUMax2DCompactSprites(True)
+Check(TMax2DGraphics.Current().context.compactQuads,"Compact sprites can be restored")
 Print "Driver: "+SDLGPUMax2DDriverName()
 Local pixmap:TPixmap=CreatePixmap(24,24,PF_RGBA8888)
 For Local y:Int=0 Until 24

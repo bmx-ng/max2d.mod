@@ -2,7 +2,7 @@ SuperStrict
 Framework Max2D.SDL3GPUMax2D
 
 Graphics 640,480,0
-Local compact:Int
+Local compact:Int=TMax2DGraphics.Current().context.compactQuads
 SetVirtualResolution(320,180,VIRTUAL_LETTERBOX)
 SetVirtualBarColor(12,12,16)
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()

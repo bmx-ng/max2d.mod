@@ -195,16 +195,18 @@ reports that driver as unsupported, so Direct3D 12 rendering still needs a
 compatible device. Set `SDL_GPU_DRIVER` before launching when testing a specific
 SDL GPU driver.
 
-## Optional compact sprites
+## Compact sprites
 
-After opening graphics with `Max2D.SDL3GPUMax2D`, enable the compact path with:
+`Max2D.SDL3GPUMax2D` enables compact sprites by default. To use expanded triangles instead:
 
 ```blitzmax
 Graphics 960, 540
-SetSDLGPUMax2DCompactSprites(True)
+SetSDLGPUMax2DCompactSprites(False)
 ```
 
-It is experimental and disabled by default. The setting belongs to the current
+If compact pipelines cannot be created, a new context falls back to expanded
+triangles. Calling `SetSDLGPUMax2DCompactSprites(True)` explicitly enables compact
+submission and reports pipeline-creation failures. The setting belongs to the current
 GPU context; changing it flushes pending Core geometry and does not change other
 windows. Use `False` to return to expanded triangles. It is a backend setting,
 not drawing state, so Push/Pop and Using scopes do not restore it.

@@ -124,10 +124,11 @@ GPU work; completed time includes that readback and its waiting cost. This is
 amortised throughput, not isolated GPU execution time. CPU submission includes
 Core/native command recording, not just vertex calculation.
 
-These synthetic figures justify the opt-in path but do not establish game-wide
+These synthetic figures support the compact path but do not establish game-wide
 speedups. The benchmark does not include presentation, varying texture batches
 or text shaping. Use `tests/gpu_compact_benchmark.bmx` to repeat it on a target
-machine. Production defaults remain unchanged.
+machine. Compact submission is now enabled by default when its pipelines are
+available; `SetSDLGPUMax2DCompactSprites(False)` selects expanded triangles.
 
 Raw integrated timings are checked in at
 `experiments/sprite_batching/results/integrated-metal-m4max.csv`. They use the
