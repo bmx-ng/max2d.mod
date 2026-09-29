@@ -145,6 +145,12 @@ wrapping, alignment, font/colour spans and backgrounds. Optional interaction
 geometry supports caret placement, hit testing and selection in scrollable text.
 A selection controller handles character, word and line selection, including drag.
 
+Import `Max2D.RichText` to prepare inline tags such as `[b]bold[/b]`,
+`[color=#FFD060]gold[/color]` and `[style=heading]Title[/style]`. Parse content once,
+resolve it using registered fonts and styles, and reuse the ordinary text layout
+cache. See [inline rich text](docs/rich-text.md) and the
+[interactive example](examples/rich_text.bmx).
+
 Import `Max2D.ScalableFont` for FreeType/HarfBuzz text that selects an appropriate
 glyph raster size for the current display scale and drawing transform. Load the
 actual font faces you need; automatic font fallback is not provided.
@@ -183,6 +189,7 @@ from the basic drawing API.
 | --- | --- |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |
+| `Max2D.RichText` | Optional inline markup, named styles and registered font variants over the paragraph API. |
 | `Max2D.ScalableFont` | Scalable, shaped text using `Text.HBFreeTypeFont`. |
 | `Max2D.TileMap` | Native editable tilemaps, rendering, picking and geometry queries. |
 | `Max2D.Tiled` | Tiled XML/JSON maps, tilesets and templates; uses Text.XML, Text.JSON and Archive.ZLib. |
