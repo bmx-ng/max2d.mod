@@ -38,7 +38,6 @@ Local testFrame:Int
 ?
 Repeat
 
-	PollSystem()
 	Local mx:Float, my:Float
 	GetVirtualMouse(mx,my)
 ?sample_test

@@ -27,7 +27,6 @@ Local quantised:TImage = LoadImage(pixmap,FILTEREDIMAGE)
 Local gain:Float = 0.25
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyHit(KEY_LEFT) Then gain = Max(0.05,gain-0.05)
 	If KeyHit(KEY_RIGHT) Then gain = Min(1.0,gain+0.05)
 	SetClsColor(20,24,36)

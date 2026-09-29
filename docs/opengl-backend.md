@@ -6,7 +6,6 @@ Framework Max2D.GLMax2D
 
 Graphics 640,480,0
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     Cls()
     DrawText("Hello World",10,10)
     Flip()

@@ -44,7 +44,6 @@ Next
 Local exposure:Float=0.25
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyDown(KEY_LEFT) Then exposure=Max(0.05,exposure-0.005)
 	If KeyDown(KEY_RIGHT) Then exposure=Min(1.0,exposure+0.005)
 	SetRenderImage(Null)

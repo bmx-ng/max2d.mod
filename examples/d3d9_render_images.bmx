@@ -6,7 +6,6 @@ Local scene:TRenderImage = CreateRenderImage(128, 128, FILTEREDIMAGE)
 Local composite:TRenderImage = CreateRenderImage(256, 128, FILTEREDIMAGE)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 
 	' Draw both passes each frame, including after a device reset.
 	SetRenderImage(scene)

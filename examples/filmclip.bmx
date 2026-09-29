@@ -45,7 +45,6 @@ SampleCheck(FLM01IMG<>Null,"Filmstrip loading")
 ?
 Local a:Int
 While Not KeyDown(KEY_ESCAPE)
-  PollSystem()
   If AppTerminate() Then Exit
   Cls
 

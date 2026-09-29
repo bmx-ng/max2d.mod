@@ -20,7 +20,6 @@ Local plain:TImage = TImage.FromPixmap(pixels, FILTEREDIMAGE)
 Local mipmapped:TImage = TImage.FromPixmap(pixels, FILTEREDIMAGE | MIPMAPPEDIMAGE)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	SetClsColor(24, 32, 48)
 	Cls()
 	Local size:Float = 64 + 48 * (1 + Sin(MilliSecs() * 0.04))

@@ -13,7 +13,6 @@ Graphics 960,720,0
 Local scroll:Int
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     If KeyDown(KEY_DOWN) Then scroll:+4
     If KeyDown(KEY_UP) Then scroll=Max(0,scroll-4)
     SetClsColor(24,32,48); Cls()

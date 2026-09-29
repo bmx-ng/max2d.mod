@@ -10,7 +10,6 @@ SetVirtualBarColor(8,12,20)
 Local angle:Float=25
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyDown(KEY_LEFT) Then angle:-1
 	If KeyDown(KEY_RIGHT) Then angle:+1
 	SetClsColor(24,32,48)

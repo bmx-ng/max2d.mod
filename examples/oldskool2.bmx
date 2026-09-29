@@ -217,7 +217,6 @@ Local myChannel:TChannel
 If Not sampleTest Then myChannel = PlaySound(muzak)
 
 While term < 1
-	PollSystem()
 	If AppTerminate() Then Exit
 
 	Cls

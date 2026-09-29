@@ -6,7 +6,6 @@ SetVirtualResolution(320, 180, VIRTUAL_LETTERBOX)
 SetClsColor(24, 32, 48)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Cls()
 	SetColor(0, 180, 230)
 	DrawRect(20, 20, 80, 50)

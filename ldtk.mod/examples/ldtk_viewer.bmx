@@ -59,7 +59,6 @@ Local camera:TCamera2D=New TCamera2D
 FitLevel(map,camera)
 Local frames:Int,previous:Int=MilliSecs(),showEntities:Int=True
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Local now:Int=MilliSecs(),dt:Float=Min(0.1,Float(now-previous)/1000)
 	previous=now
 	Local nextIndex:Int=index

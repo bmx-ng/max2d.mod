@@ -20,7 +20,6 @@ SetVirtualResolution(800, 480, VIRTUAL_LETTERBOX)
 Local fullscreen:Int
 Local borderless:Int
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyHit(KEY_F11) Then
 		fullscreen = Not fullscreen
 		borderless = False

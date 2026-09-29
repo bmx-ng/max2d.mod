@@ -13,7 +13,6 @@ Next
 SetVirtualResolution(800, 480, VIRTUAL_LETTERBOX)
 Local small:Int
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If GetWindowMode()=MAX2D_WINDOWED Then
 		If KeyHit(KEY_F5) Then
 			small=Not small

@@ -38,7 +38,6 @@ For Local arg:String = EachIn AppArgs[1..]
 Next
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Local column:Int, row:Int
 	Local hover:Int = map.MouseCell(column, row, MAP_X, MAP_Y, ground)
 	If hover Then hover = ground.Cell(column, row) <> 0

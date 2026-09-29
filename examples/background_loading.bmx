@@ -106,7 +106,6 @@ Local b:Int = 127
 ' -----------------------------------------------------------------------------
 
 While ThreadRunning (thread) ' Worker owns the map until joined.
-	PollSystem()
 
 	Cls
 
@@ -174,7 +173,6 @@ Local testFrames:Int
 ?
 Local ang:Float
 Repeat
-	PollSystem()
 
 	Cls
 	

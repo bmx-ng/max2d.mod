@@ -31,7 +31,6 @@ SetVirtualResolution(640, 360, VIRTUAL_LETTERBOX)
 If font Then SetImageFont(font)
 Local frames:Int
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     SetClsColor(18, 23, 32)
     Cls()
     SetColor(240, 245, 255)
