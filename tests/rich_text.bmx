@@ -66,6 +66,36 @@ Local opacity:TTextColorSpan=paint.glyphColors[0].Copy()
 opacity.SetForeground(1,2,3)
 Check(Not opacity.inheritForegroundColor,"Explicit colour resets opacity-only inheritance")
 
+Local rgba:TParagraphLayout=PrepareStyledText("[alpha=0.5][bg=#20304080][color=#FFFFFF40]A[/color]B[/bg][/alpha]",styles,True).Layout(500)
+paint=rgba.PrepareLinePaint(0)
+Check(Abs(paint.glyphColors[0].opacity-0.5*64/255)<0.00001,"Glyph alpha multiplies overall alpha")
+Check(paint.glyphColors[1].opacity=0.5 And paint.glyphColors[1].inheritForegroundColor,"Closing colour restores inherited glyph opacity")
+Check(Abs(paint.backgrounds[0].color.backgroundOpacity-0.5*128/255)<0.00001,"Background has independent alpha multiplied by overall alpha")
+paint=PrepareStyledText("[bg=#20304080]A[/bg]",styles,True).Layout(500).PrepareLinePaint(0)
+Check(paint.glyphColors[0]=Null And Abs(paint.backgrounds[0].color.backgroundOpacity-Float(128)/255)<0.00001,"Translucent background leaves glyph colour and opacity untouched")
+paint=PrepareStyledText("[color=#ffffff00]A[color=#123456]B[/color]C[/color]",styles,True).Layout(500).PrepareLinePaint(0)
+Check(paint.glyphColors[0].opacity=0 And paint.glyphColors[1].opacity=1 And paint.glyphColors[2].opacity=0,"Six-digit colour resets opacity; closing restores transparent parent")
+Local translucent:TStyledTextStyle=New TStyledTextStyle
+translucent.background=$123456
+translucent.backgroundOpacity=0.25
+translucent.foregroundOpacity=0.75
+styles.RegisterStyle("translucent",translucent)
+translucent.backgroundOpacity=1
+paint=PrepareStyledText("[style=translucent]A[/style]",styles,True).Layout(500).PrepareLinePaint(0)
+Check(paint.glyphColors[0].opacity=0.75 And paint.backgrounds[0].color.backgroundOpacity=0.25,"Named styles snapshot independent channel opacity")
+For Local invalid:String=EachIn ["[bg=#2030408]x[/bg]","[color=#ffffffGG]x[/color]","[bg=#203040800]x[/bg]"]
+	Reject(invalid)
+	Check(ParseStyledText(invalid).PlainText()=invalid,"Malformed RGBA remains literal")
+Next
+Local invalidOpacity:Int
+Try
+	translucent.foregroundOpacity=1.5
+	styles.RegisterStyle("invalid",translucent)
+Catch error:Object
+	invalidOpacity=True
+End Try
+Check(invalidOpacity,"Named style channel opacity is validated")
+
 Local unicode:String="A"+Chr($D83D)+Chr($DE03)
 Local unicodeDoc:TStyledTextDocument=ParseStyledText(unicode+"[bg=#112233]B[/bg]",True)
 Check(unicodeDoc.PlainText().Length=4,"UTF-16 plain text retains surrogate units")

@@ -27,7 +27,9 @@ sizes use actual fonts supplied by your application.
 | `[b][i]both[/i][/b]` | Select the registered bold-italic face. |
 | `[color=#FFD060]gold[/color]` | Override glyph RGB colour. |
 | `[bg=#203040]highlight[/bg]` | Add background colour. |
-| `[alpha=0.5]faint[/alpha]` | Set glyph and background opacity, multiplied by the drawing alpha. |
+| `[bg=#20304080]highlight[/bg]` | Set a roughly 50% opaque background, keeping text opacity unchanged. |
+| `[color=#FFD06080]faint gold[/color]` | Set glyph colour and opacity independently of the background. |
+| `[alpha=0.5]faint[/alpha]` | Multiply glyph and background opacity by 0.5, in addition to the drawing alpha. |
 | `[font=ui]interface[/font]` | Select a registered family. |
 | `[size=28]large[/size]` | Select a registered logical font size. |
 | `[style=heading]Title[/style]` | Apply a named partial style. |
@@ -38,7 +40,11 @@ it does not multiply it again. Alpha without an explicit colour preserves the
 current drawing RGB. Explicit foreground colours replace the drawing RGB.
 
 Tag names are case-insensitive. Registered font and style names are
-case-sensitive. Colours require exactly six hexadecimal digits after `#`.
+case-sensitive. Colours accept `#RRGGBB` or `#RRGGBBAA`, where `AA` is opacity
+from `00` (transparent) to `FF` (opaque). Six-digit colours set their channel
+opacity to one, including inside a translucent colour tag. Closing restores the
+enclosing colour and its opacity. Final opacity for each channel is its colour
+opacity multiplied by `[alpha]` and the drawing alpha.
 Opacity accepts decimal values from 0 to 1. Sizes are positive integer identifiers
 (up to 100000), in your application's logical font units. There are no quoted
 attributes, whitespace around tag syntax, implicit closing tags or HTML entities.
@@ -108,7 +114,10 @@ preparation. Keep font objects alive and unchanged while layouts use them.
 Named styles are partial overrides: unset fields inherit the enclosing style.
 For example, a heading's colour does not erase an enclosing background.
 `bold` and `italic` use `-1` for inherit, `0` for off and `1` for on. Colours use
-`-1` for inherit, opacity uses `-1` for inherit, the empty font name inherits,
+`-1` for inherit. `foregroundOpacity` and `backgroundOpacity` independently set
+channel opacity from 0 to 1; `opacity` multiplies both. All three use `-1` for
+inherit. Setting a colour resets that channel's opacity to one unless the style
+also specifies its channel opacity. The empty font name inherits,
 and size zero inherits. `RegisterStyle` copies the supplied settings.
 `styles.defaultStyle` supplies overrides at the root of the document.
 

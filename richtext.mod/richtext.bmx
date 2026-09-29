@@ -15,7 +15,7 @@ Import BRL.StringBuilder
 
 Rem
 bbdoc: A partial text style whose unspecified properties inherit from the enclosing style.
-about: Font names are case-sensitive. Font sizes identify registered logical sizes; zero selects the family's default registration. Colours are packed RGB values, or -1 to inherit. Configure before registering; registration takes a copy.
+about: Font names are case-sensitive. Font sizes identify registered logical sizes; zero selects the family's default registration. Colours are packed RGB values, or -1 to inherit. Setting a colour resets its channel opacity to one unless an explicit channel opacity is supplied. Configure before registering; registration takes a copy.
 End Rem
 Type TStyledTextStyle
 
@@ -50,6 +50,16 @@ Type TStyledTextStyle
 	Field background:Int=-1
 
 	Rem
+	bbdoc: Glyph opacity from 0 to 1, or -1 to inherit; multiplied by overall opacity and drawing alpha.
+	End Rem
+	Field foregroundOpacity:Float=-1
+
+	Rem
+	bbdoc: Background opacity from 0 to 1, or -1 to inherit; multiplied by overall opacity and drawing alpha.
+	End Rem
+	Field backgroundOpacity:Float=-1
+
+	Rem
 	bbdoc: Opacity from 0 to 1, or -1 to inherit; multiplies drawing alpha for glyphs and backgrounds.
 	End Rem
 	Field opacity:Float=-1
@@ -65,6 +75,8 @@ Type TStyledTextStyle
 		result.size=size
 		result.foreground=foreground
 		result.background=background
+		result.foregroundOpacity=foregroundOpacity
+		result.backgroundOpacity=backgroundOpacity
 		result.opacity=opacity
 		Return result
 	End Method
@@ -236,6 +248,8 @@ Type TStyledTextDocument
 		base.italic=False
 		base.fontName="default"
 		base.opacity=1
+		base.foregroundOpacity=1
+		base.backgroundOpacity=1
 		If styles.defaultStyle Then ApplyStyle(base,styles.defaultStyle)
 		Local cache:TMap=New TMap
 		Local baseFont:TImageFont=FindFont(styles,base,cache)
@@ -274,11 +288,12 @@ Type TStyledTextDocument
 			End If
 			Local color:TTextColorSpan=TTextColorSpan.Create(run.first,run.last)
 			Local rgb:Int=state.foreground
-			If rgb<0 And state.opacity<>1 Then color.SetForegroundOpacity(state.opacity)
-			If rgb>=0 Then color.SetForeground((rgb Shr 16)&255,(rgb Shr 8)&255,rgb&255,state.opacity)
+			Local glyphOpacity:Float=state.opacity*state.foregroundOpacity
+			If rgb<0 And glyphOpacity<>1 Then color.SetForegroundOpacity(glyphOpacity)
+			If rgb>=0 Then color.SetForeground((rgb Shr 16)&255,(rgb Shr 8)&255,rgb&255,glyphOpacity)
 			If state.background>=0
 				rgb=state.background
-				color.SetBackground((rgb Shr 16)&255,(rgb Shr 8)&255,rgb&255,state.opacity)
+				color.SetBackground((rgb Shr 16)&255,(rgb Shr 8)&255,rgb&255,state.opacity*state.backgroundOpacity)
 			End If
 			If color.hasForeground Or color.hasBackground
 				If colorCount And colors[colorCount-1].sourceEnd=run.first And SameColor(colors[colorCount-1],color)
@@ -487,7 +502,13 @@ End Function
 Function ValidateStyle(style:TStyledTextStyle)
 	If style.bold< -1 Or style.bold>1 Or style.italic< -1 Or style.italic>1 Or style.size<0 Then Throw "Max2D.RichText: invalid font style"
 	If style.foreground< -1 Or style.foreground>$FFFFFF Or style.background< -1 Or style.background>$FFFFFF Then Throw "Max2D.RichText: invalid RGB colour"
-	If IsNan(style.opacity) Or IsInf(style.opacity) Or (style.opacity<>-1 And (style.opacity<0 Or style.opacity>1)) Then Throw "Max2D.RichText: invalid opacity"
+	ValidateOpacity(style.opacity)
+	ValidateOpacity(style.foregroundOpacity)
+	ValidateOpacity(style.backgroundOpacity)
+End Function
+
+Function ValidateOpacity(opacity:Float)
+	If IsNan(opacity) Or IsInf(opacity) Or (opacity<>-1 And (opacity<0 Or opacity>1)) Then Throw "Max2D.RichText: invalid opacity"
 End Function
 
 Function ApplyStyle(target:TStyledTextStyle,source:TStyledTextStyle)
@@ -496,8 +517,16 @@ Function ApplyStyle(target:TStyledTextStyle,source:TStyledTextStyle)
 	If source.italic>=0 Then target.italic=source.italic
 	If source.fontName Then target.fontName=source.fontName
 	If source.size Then target.size=source.size
-	If source.foreground>=0 Then target.foreground=source.foreground
-	If source.background>=0 Then target.background=source.background
+	If source.foreground>=0
+		target.foreground=source.foreground
+		target.foregroundOpacity=1
+	End If
+	If source.background>=0
+		target.background=source.background
+		target.backgroundOpacity=1
+	End If
+	If source.foregroundOpacity>=0 Then target.foregroundOpacity=source.foregroundOpacity
+	If source.backgroundOpacity>=0 Then target.backgroundOpacity=source.backgroundOpacity
 	If source.opacity>=0 Then target.opacity=source.opacity
 End Function
 
@@ -535,14 +564,29 @@ Function ParseTag:TRichToken(body:String)
 			If equal>=0 Then Return Null
 			If token.name="b" Then token.style.bold=True Else token.style.italic=True
 		Case "color","bg"
-			If value.Length<>7 Or Not value.StartsWith("#") Then Return Null
+			If (value.Length<>7 And value.Length<>9) Or Not value.StartsWith("#") Then Return Null
 			Local rgb:Int
 			For Local i:Int=1 Until 7
 				Local digit:Int="0123456789abcdef".Find(Chr(value[i]).ToLower())
 				If digit<0 Then Return Null
 				rgb=(rgb Shl 4)|digit
 			Next
-			If token.name="color" Then token.style.foreground=rgb Else token.style.background=rgb
+			Local alpha:Int=255
+			If value.Length=9
+				alpha=0
+				For Local i:Int=7 Until 9
+					Local digit:Int="0123456789abcdef".Find(Chr(value[i]).ToLower())
+					If digit<0 Then Return Null
+					alpha=(alpha Shl 4)|digit
+				Next
+			End If
+			If token.name="color"
+				token.style.foreground=rgb
+				token.style.foregroundOpacity=Float(alpha)/255
+			Else
+				token.style.background=rgb
+				token.style.backgroundOpacity=Float(alpha)/255
+			End If
 		Case "font","style"
 			If Not value Or value.Trim()<>value Then Return Null
 			If token.name="font" Then token.style.fontName=value Else token.named=value
