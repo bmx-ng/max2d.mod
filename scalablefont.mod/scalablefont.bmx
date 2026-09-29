@@ -63,6 +63,32 @@ Type TScalableTextLayout Extends TTextLayout
 		Local alpha:Float=canvas.state.alpha
 		Try
 			Local raster:TFontRaster=font.Raster(font.DrawingDensity(canvas))
+			Local state:TMax2DState=canvas.state
+			Local a:Double,b:Double,c:Double,d:Double
+			Local tx:Double,ty:Double
+			Local align:Int
+			If font.pixelAligned Then
+				state.DrawingMatrix(a,b,c,d)
+				a:*canvas.context.pixelScaleX
+				b:*canvas.context.pixelScaleX
+				c:*canvas.context.pixelScaleY
+				d:*canvas.context.pixelScaleY
+				' Snap only when an axis-aligned raster texel maps to one target pixel.
+				align=Abs(b)<0.000001 And Abs(c)<0.000001 And Abs(Abs(a)-raster.density)<0.000001 And Abs(Abs(d)-raster.density)<0.000001
+				If align Then
+					Local originX:Double=x+state.originX
+					Local originY:Double=y+state.originY
+					tx=state.coordXX*originX+state.coordXY*originY+state.coordTX
+					ty=state.coordYX*originX+state.coordYY*originY+state.coordTY
+					If state.camera Then
+						Local worldX:Double=tx,worldY:Double=ty
+						tx=state.cameraXX*worldX+state.cameraXY*worldY+state.cameraTX
+						ty=state.cameraYX*worldX+state.cameraYY*worldY+state.cameraTY
+					End If
+					tx=tx*canvas.context.pixelScaleX+canvas.context.pixelOffsetX
+					ty=ty*canvas.context.pixelScaleY+canvas.context.pixelOffsetY
+				End If
+			End If
 			For Local glyphIndex:Int=0 Until glyphs.Length
 				Local item:TScalablePositionedGlyph=TScalablePositionedGlyph(glyphs[glyphIndex])
 				If colors Then TTextPaint.Apply(canvas.state,colors[colorOffset+glyphIndex],red,green,blue,alpha)
@@ -74,6 +100,12 @@ Type TScalableTextLayout Extends TTextLayout
 				Local u:Float=image.sourceX[0]/Float(source.width),v:Float=image.sourceY[0]/Float(source.height)
 				Local gx:Float=item.baselineX+glyph.x/Float(raster.density)-canvas.state.handleX
 				Local gy:Float=item.baselineY+glyph.y/Float(raster.density)-canvas.state.handleY
+				If align Then
+					Local px:Double=a*gx+tx
+					Local py:Double=d*gy+ty
+					gx:+Float((Floor(px+0.5)-px)/a)
+					gy:+Float((Floor(py+0.5)-py)/d)
+				End If
 				canvas.Quad(frame,gx,gy,gx+image.width/Float(raster.density),gy+image.height/Float(raster.density),..
 					x+canvas.state.originX,y+canvas.state.originY,u,v,u+image.width/Float(source.width),v+image.height/Float(source.height))
 			Next
@@ -218,6 +250,15 @@ bbdoc: A logical-size font that selects glyph resolution at drawing time.
 about: Logical layouts stay unchanged across DPI, target, and transform changes. Higher-resolution raster caches use LRU eviction.
 End Rem
 Type TScalableImageFont Extends TImageFont
+
+	Rem
+	bbdoc: Aligns glyph artwork to physical pixels when enabled; defaults to False.
+	about: Applies only to axis-aligned drawing with one raster texel per target pixel.
+	Other transforms keep fractional positioning. Layout, wrapping and interaction
+	coordinates are unchanged. Enable for stationary text; leave disabled for smooth motion.
+	End Rem
+	Field pixelAligned:Int
+
 
 	Rem
 	bbdoc: Font-file bytes retained while native shaping and raster faces use them.

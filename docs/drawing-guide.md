@@ -404,6 +404,35 @@ For that look, use a fixed-resolution `LoadImageFont(..., 0)` and integer scalin
 Rendering into a texture and later filtering that texture can smooth either
 kind of font again. `examples/scalable_text.bmx` lets you toggle smoothing with M.
 
+For stationary UI text, you can opt into physical-pixel alignment:
+
+```blitzmax
+font.pixelAligned = True
+```
+
+This changes drawing only. Each glyph's bitmap origin is rounded to the nearest
+physical target pixel after the drawing transforms, including camera and parent
+translations. Logical advances, wrapping, selection, hit testing and cached
+layouts stay unchanged. Artwork may shift by up to half a physical pixel on each
+axis relative to its logical position.
+
+Alignment applies only when the final transform is axis-aligned and one glyph
+raster texel maps to one target pixel (including axis reflections). Rotation,
+shear, unequal axis scales, fractional magnification or a raster-density cap
+that requires bitmap enlargement retain fractional positioning. It works with
+window backbuffers and render textures; filtering a render texture later can
+still soften its contents.
+
+The default is `False`, which allows smooth subpixel motion. Pixel-aligned text
+moves in physical-pixel steps, so leave it disabled for scrolling or animated
+text if that stepping is undesirable. This option belongs to the font and
+therefore also affects retained and rich-text layouts using that font. It is
+independent of `SMOOTHFONT`: antialiasing controls the raster edges; alignment
+controls where the bitmap is drawn.
+
+Run `examples/text_positioning.bmx` to compare both modes, adjust the fractional
+offset, toggle smoothing, and see their behaviour during motion.
+
 Size is in logical units and may be fractional. Shaping and line metrics are
 computed at that size, independently of graphics state. Glyphs are rasterized
 again at the resolution required for drawing, including virtual-to-output
