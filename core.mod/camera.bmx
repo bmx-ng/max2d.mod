@@ -39,17 +39,21 @@ Type TCamera2D
 	bbdoc: Checks object settings and throws when a value is invalid.
 	End Rem
  Method Validate()
-  If IsNan(x) Or IsInf(x) Or IsNan(y) Or IsInf(y) Or IsNan(offsetX) Or IsInf(offsetX) Or IsNan(offsetY) Or IsInf(offsetY) Or IsNan(rotation) Or IsInf(rotation) Or IsNan(zoom) Or IsInf(zoom) Or zoom<=0 Then Throw "Max2D: camera values must be finite and zoom positive"
+	If IsNan(x) Or IsInf(x) Or IsNan(y) Or IsInf(y) Or IsNan(offsetX) Or IsInf(offsetX) Or IsNan(offsetY) Or IsInf(offsetY) Or IsNan(rotation) Or IsInf(rotation) Or IsNan(zoom) Or IsInf(zoom) Or zoom<=0 Then Throw "Max2D: camera values must be finite and zoom positive"
  End Method
 
 	Rem
 	bbdoc: Returns a copy that can be modified independently of this object's scalar settings.
 	End Rem
  Method Copy:TCamera2D()
-  Local result:TCamera2D=New TCamera2D
-  result.x=x; result.y=y; result.offsetX=offsetX; result.offsetY=offsetY
-  result.zoom=zoom; result.rotation=rotation
-  Return result
+	Local result:TCamera2D=New TCamera2D
+	result.x=x
+	result.y=y
+	result.offsetX=offsetX
+	result.offsetY=offsetY
+	result.zoom=zoom
+	result.rotation=rotation
+	Return result
  End Method
 
  Rem
@@ -60,17 +64,20 @@ Type TCamera2D
  about: This edits the camera object; call SetCamera again to apply it. Invalid inputs leave the camera unchanged.
  End Rem
  Method ZoomAt(newZoom:Float,viewX:Float,viewY:Float)
-  Validate()
-  If IsNan(viewX) Or IsInf(viewX) Or IsNan(viewY) Or IsInf(viewY) Then Throw "Max2D: camera anchor must be finite"
-  Local candidate:TCamera2D=Copy()
-  candidate.zoom=newZoom
-  candidate.Validate()
-  Local beforeX:Float,beforeY:Float,afterX:Float,afterY:Float
-  VirtualToWorld(viewX,viewY,beforeX,beforeY)
-  candidate.VirtualToWorld(viewX,viewY,afterX,afterY)
-  candidate.x:+beforeX-afterX; candidate.y:+beforeY-afterY
-  candidate.Validate()
-  x=candidate.x; y=candidate.y; zoom=candidate.zoom
+	Validate()
+	If IsNan(viewX) Or IsInf(viewX) Or IsNan(viewY) Or IsInf(viewY) Then Throw "Max2D: camera anchor must be finite"
+	Local candidate:TCamera2D=Copy()
+	candidate.zoom=newZoom
+	candidate.Validate()
+	Local beforeX:Float,beforeY:Float,afterX:Float,afterY:Float
+	VirtualToWorld(viewX,viewY,beforeX,beforeY)
+	candidate.VirtualToWorld(viewX,viewY,afterX,afterY)
+	candidate.x:+beforeX-afterX
+	candidate.y:+beforeY-afterY
+	candidate.Validate()
+	x=candidate.x
+	y=candidate.y
+	zoom=candidate.zoom
  End Method
 
  Rem
@@ -82,13 +89,13 @@ Type TCamera2D
  about: The rectangle can describe the full view or a clipped viewport. No window or render target is required.
  End Rem
  Method WorldCorners:Float[](viewX:Float,viewY:Float,width:Float,height:Float)
-  Validate()
-  If IsNan(viewX) Or IsInf(viewX) Or IsNan(viewY) Or IsInf(viewY) Or IsNan(width) Or IsInf(width) Or IsNan(height) Or IsInf(height) Or width<0 Or height<0 Then Throw "Max2D: camera rectangle must be finite with nonnegative dimensions"
-  Local result:Float[]=[viewX,viewY,viewX+width,viewY,viewX+width,viewY+height,viewX,viewY+height]
-  For Local i:Int=0 Until 8 Step 2
-   VirtualToWorld(result[i],result[i+1],result[i],result[i+1])
-  Next
-  Return result
+	Validate()
+	If IsNan(viewX) Or IsInf(viewX) Or IsNan(viewY) Or IsInf(viewY) Or IsNan(width) Or IsInf(width) Or IsNan(height) Or IsInf(height) Or width<0 Or height<0 Then Throw "Max2D: camera rectangle must be finite with nonnegative dimensions"
+	Local result:Float[]=[viewX,viewY,viewX+width,viewY,viewX+width,viewY+height,viewX,viewY+height]
+	For Local i:Int=0 Until 8 Step 2
+		VirtualToWorld(result[i],result[i+1],result[i],result[i+1])
+	Next
+	Return result
  End Method
 
 	Rem
@@ -99,11 +106,11 @@ Type TCamera2D
 	param: Receives vertical virtual coordinate.
 	End Rem
  Method WorldToVirtual(worldX:Float,worldY:Float,viewX:Float Var,viewY:Float Var)
-  Validate()
-  Local c:Double=Cos(rotation),s:Double=Sin(rotation)
-  Local dx:Double=Double(worldX)-x,dy:Double=Double(worldY)-y
-  viewX=Float(offsetX+zoom*(c*dx+s*dy))
-  viewY=Float(offsetY+zoom*(-s*dx+c*dy))
+	Validate()
+	Local c:Double=Cos(rotation),s:Double=Sin(rotation)
+	Local dx:Double=Double(worldX)-x,dy:Double=Double(worldY)-y
+	viewX=Float(offsetX+zoom*(c*dx+s*dy))
+	viewY=Float(offsetY+zoom*(-s*dx+c*dy))
  End Method
 
 	Rem
@@ -114,10 +121,11 @@ Type TCamera2D
 	param: Receives vertical world coordinate.
 	End Rem
  Method VirtualToWorld(viewX:Float,viewY:Float,worldX:Float Var,worldY:Float Var)
-  Validate()
-  Local c:Double=Cos(rotation),s:Double=Sin(rotation)
-  Local dx:Double=(Double(viewX)-offsetX)/zoom,dy:Double=(Double(viewY)-offsetY)/zoom
-  worldX=Float(x+c*dx-s*dy); worldY=Float(y+s*dx+c*dy)
+	Validate()
+	Local c:Double=Cos(rotation),s:Double=Sin(rotation)
+	Local dx:Double=(Double(viewX)-offsetX)/zoom,dy:Double=(Double(viewY)-offsetY)/zoom
+	worldX=Float(x+c*dx-s*dy)
+	worldY=Float(y+s*dx+c*dy)
  End Method
 
 End Type
@@ -146,14 +154,15 @@ Type TMax2DCameraInput
 	param: Whether to require the point to be inside the clipping viewport as well as the scene.
 	End Rem
  Method WindowToWorld:Int(x:Float,y:Float,worldX:Float Var,worldY:Float Var,checkViewport:Int=False)
-  Local vx:Float,vy:Float
-  Local inside:Int=mapping.WindowToVirtual(x,y,vx,vy,checkViewport)
-  If Not mapping.valid Then
-   worldX=0; worldY=0
-   Return False
-  End If
-  camera.VirtualToWorld(vx,vy,worldX,worldY)
-  Return inside
+	Local vx:Float,vy:Float
+	Local inside:Int=mapping.WindowToVirtual(x,y,vx,vy,checkViewport)
+	If Not mapping.valid Then
+		worldX=0
+		worldY=0
+		Return False
+	End If
+	camera.VirtualToWorld(vx,vy,worldX,worldY)
+	Return inside
  End Method
 
 	Rem
@@ -164,9 +173,9 @@ Type TMax2DCameraInput
 	param: Receives vertical window input coordinate.
 	End Rem
  Method WorldToWindow:Int(x:Float,y:Float,windowX:Float Var,windowY:Float Var)
-  Local vx:Float,vy:Float
-  camera.WorldToVirtual(x,y,vx,vy)
-  Return mapping.VirtualToWindow(vx,vy,windowX,windowY)
+	Local vx:Float,vy:Float
+	camera.WorldToVirtual(x,y,vx,vy)
+	Return mapping.VirtualToWindow(vx,vy,windowX,windowY)
  End Method
 
 End Type
@@ -190,28 +199,28 @@ Type TMax2DStateScope Implements ICloseable
 	Rem
 	bbdoc: Restores the saved drawing state once; repeated calls have no effect.
 	End Rem
- Method Close()
-  If Not canvas Then Return
-  Local owner:TMax2DGraphics=canvas
-  canvas=Null
-  If owner.context.closed Or Not entry.active Then
-   entry=Null
-   Return
-  End If
-  Local previous:TMax2DGraphics=TMax2DGraphics.selected
-  Try
-   If previous And previous<>owner Then previous.context.Flush()
-   owner.context.Activate()
-   While Not owner.saved.IsEmpty()
-    Local item:TMax2DSavedState=TMax2DSavedState(owner.saved.RemoveLast())
-    item.active=False
-    If item=entry Then Exit
-   Wend
-   owner.RestoreState(entry)
-  Finally
-   entry=Null
-   If previous And previous<>owner And Not previous.context.closed Then previous.context.Activate()
-  End Try
- End Method
+	Method Close()
+		If Not canvas Then Return
+		Local owner:TMax2DGraphics=canvas
+		canvas=Null
+		If owner.context.closed Or Not entry.active Then
+			entry=Null
+			Return
+		End If
+		Local previous:TMax2DGraphics=TMax2DGraphics.selected
+		Try
+			If previous And previous<>owner Then previous.context.Flush()
+			owner.context.Activate()
+			While Not owner.saved.IsEmpty()
+				Local item:TMax2DSavedState=TMax2DSavedState(owner.saved.RemoveLast())
+				item.active=False
+				If item=entry Then Exit
+			Wend
+			owner.RestoreState(entry)
+		Finally
+			entry=Null
+			If previous And previous<>owner And Not previous.context.closed Then previous.context.Activate()
+		End Try
+	End Method
 
 End Type

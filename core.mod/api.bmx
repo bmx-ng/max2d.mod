@@ -326,11 +326,11 @@ Rem
 bbdoc: Saves drawing state for deterministic restoration with Using/ICloseable.
 End Rem
 Function ScopedMax2DState:TMax2DStateScope()
- Local result:TMax2DStateScope=New TMax2DStateScope
- result.canvas=TMax2DGraphics.Current()
- result.entry=result.canvas.PushState()
- result.entry.scoped=True
- Return result
+	Local result:TMax2DStateScope=New TMax2DStateScope
+	result.canvas=TMax2DGraphics.Current()
+	result.entry=result.canvas.PushState()
+	result.entry.scoped=True
+	Return result
 End Function
 
 Rem
@@ -338,16 +338,16 @@ bbdoc: Applies a snapshot of the camera, or identity for Null. Does not change v
 param: Camera to snapshot; Null disables the camera transform.
 End Rem
 Function SetCamera(camera:TCamera2D)
- TMax2DGraphics.Current().SetCamera(camera)
+	TMax2DGraphics.Current().SetCamera(camera)
 End Function
 
 Rem
 bbdoc: Returns a detached copy of the applied camera, or Null when disabled.
 End Rem
 Function GetCamera:TCamera2D()
- Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
- If camera Then Return camera.Copy()
- Return Null
+	Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
+	If camera Then Return camera.Copy()
+	Return Null
 End Function
 
 Rem
@@ -358,12 +358,13 @@ param: Receives horizontal virtual coordinate.
 param: Receives vertical virtual coordinate.
 End Rem
 Function WorldToVirtual(x:Float,y:Float,viewX:Float Var,viewY:Float Var)
- Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
- If camera Then
-  camera.WorldToVirtual(x,y,viewX,viewY)
- Else
-  viewX=x; viewY=y
- End If
+	Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
+	If camera Then
+		camera.WorldToVirtual(x,y,viewX,viewY)
+	Else
+		viewX=x
+		viewY=y
+	End If
 End Function
 
 Rem
@@ -374,12 +375,13 @@ param: Receives horizontal world coordinate.
 param: Receives vertical world coordinate.
 End Rem
 Function VirtualToWorld(x:Float,y:Float,worldX:Float Var,worldY:Float Var)
- Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
- If camera Then
-  camera.VirtualToWorld(x,y,worldX,worldY)
- Else
-  worldX=x; worldY=y
- End If
+	Local camera:TCamera2D=TMax2DGraphics.Current().state.camera
+	If camera Then
+		camera.VirtualToWorld(x,y,worldX,worldY)
+	Else
+		worldX=x
+		worldY=y
+	End If
 End Function
 
 Rem
@@ -387,12 +389,12 @@ bbdoc: Captures window presentation and camera for stable world picking across o
 about: Select the window and its camera before capturing. Render-image presentation requires its own additional mapping.
 End Rem
 Function CaptureCameraInput:TMax2DCameraInput()
- If TMax2DGraphics.Current().renderImage Then Throw "Max2D: capture camera input with the window selected"
- Local result:TMax2DCameraInput=New TMax2DCameraInput
- result.mapping=CaptureWindowInput()
- result.camera=GetCamera()
- If Not result.camera Then result.camera=New TCamera2D
- Return result
+	If TMax2DGraphics.Current().renderImage Then Throw "Max2D: capture camera input with the window selected"
+	Local result:TMax2DCameraInput=New TMax2DCameraInput
+	result.mapping=CaptureWindowInput()
+	result.camera=GetCamera()
+	If Not result.camera Then result.camera=New TCamera2D
+	Return result
 End Function
 
 Rem
@@ -405,7 +407,7 @@ param: Whether to require the point to be inside the clipping viewport as well a
 returns: True when the point is inside the scene and the optional viewport.
 End Rem
 Function WindowToWorld:Int(x:Float,y:Float,worldX:Float Var,worldY:Float Var,checkViewport:Int=False)
- Return CaptureCameraInput().WindowToWorld(x,y,worldX,worldY,checkViewport)
+	Return CaptureCameraInput().WindowToWorld(x,y,worldX,worldY,checkViewport)
 End Function
 
 Rem
@@ -417,7 +419,7 @@ param: Receives vertical window input coordinate.
 returns: True if the window mapping is valid; the position need not be inside the window.
 End Rem
 Function WorldToWindow:Int(x:Float,y:Float,windowX:Float Var,windowY:Float Var)
- Return CaptureCameraInput().WorldToWindow(x,y,windowX,windowY)
+	Return CaptureCameraInput().WorldToWindow(x,y,windowX,windowY)
 End Function
 
 Rem
@@ -428,7 +430,7 @@ param: Whether to require the point to be inside the clipping viewport as well a
 returns: True when the mouse is inside the scene and the optional viewport.
 End Rem
 Function GetWorldMouse:Int(x:Float Var,y:Float Var,checkViewport:Int=False)
- Return WindowToWorld(MouseX(),MouseY(),x,y,checkViewport)
+	Return WindowToWorld(MouseX(),MouseY(),x,y,checkViewport)
 End Function
 
 Rem
@@ -798,7 +800,10 @@ param: Receives viewport height in virtual screen units.
 End Rem
 Function GetViewport(x:Int Var,y:Int Var,width:Int Var,height:Int Var)
 	Local view:TMax2DView=TMax2DGraphics.Current().context.view
-	x=view.x; y=view.y; width=view.w; height=view.h
+	x=view.x
+	y=view.y
+	width=view.w
+	height=view.h
 End Function
 
 Rem
@@ -850,13 +855,18 @@ Function CreateImage:TImage(width:Int,height:Int,frames:Int=1,flags:Int=-1)
 	If flags=-1 Then flags=_autoImageFlags
 	flags :| DYNAMICIMAGE
 	Local image:TImage=New TImage
-	image.width=width; image.height=height; image.flags=flags
+	image.width=width
+	image.height=height
+	image.flags=flags
 	image.sources=New TImageSource[frames]
-	image.sourceX=New Int[frames]; image.sourceY=New Int[frames]; image.frameDuration=New Int[frames]
+	image.sourceX=New Int[frames]
+	image.sourceY=New Int[frames]
+	image.frameDuration=New Int[frames]
 	For Local i:Int=0 Until frames
 		Local source:TImageSource=New TImageSource
 		source.width=width; source.height=height; source.flags=flags
-		source.pixmap=CreatePixmap(width,height,PF_RGBA8888); source.pixmap.ClearPixels(0)
+		source.pixmap=CreatePixmap(width,height,PF_RGBA8888)
+		source.pixmap.ClearPixels(0)
 		image.sources[i]=source
 	Next
 	If _autoMidHandle Then MidHandleImage(image)
@@ -882,7 +892,9 @@ Function LoadAnimImage:TImage(url:Object,cell_width:Int,cell_height:Int,first_ce
 	Local image:TImage=New TImage
 	image.width=cell_width; image.height=cell_height; image.flags=sheet.flags
 	image.sources=New TImageSource[cell_count]
-	image.sourceX=New Int[cell_count]; image.sourceY=New Int[cell_count]; image.frameDuration=New Int[cell_count]
+	image.sourceX=New Int[cell_count]
+	image.sourceY=New Int[cell_count]
+	image.frameDuration=New Int[cell_count]
 	Local suppliedViews:Int=sheet.sources[0].textureData And (sheet.sources[0].textureData.LevelCount()>1 Or sheet.sources[0].textureData.Format()>=PF_RGBA16F)
 	Local atlas:TTextureAtlas
 	If Not suppliedViews And (sheet.flags & FILTEREDIMAGE) And Not (sheet.flags & MIPMAPPEDIMAGE) Then atlas=TTextureAtlas.Create(1024,sheet.flags)
@@ -898,9 +910,13 @@ Function LoadAnimImage:TImage(url:Object,cell_width:Int,cell_height:Int,first_ce
 			image.sources[i]=cell.sources[0]
 		Else If atlas Then
 			Local view:TImage=atlas.AddPixmap(sheet.sources[0].ReadPixels().Window(x,y,cell_width,cell_height))
-			image.sources[i]=view.sources[0]; image.sourceX[i]=view.sourceX[0]; image.sourceY[i]=view.sourceY[0]
+			image.sources[i]=view.sources[0]
+			image.sourceX[i]=view.sourceX[0]
+			image.sourceY[i]=view.sourceY[0]
 		Else
-			image.sources[i]=sheet.sources[0]; image.sourceX[i]=x; image.sourceY[i]=y
+			image.sources[i]=sheet.sources[0]
+			image.sourceX[i]=x
+			image.sourceY[i]=y
 		End If
 	Next
 	If _autoMidHandle Then MidHandleImage(image)
@@ -1017,7 +1033,9 @@ Function ClearImage(image:TImage,r:UInt=0,g:UInt=0,b:UInt=0,a:Float=0,frameIndex
 		frame.view=New TMax2DView
 		frame.view.Reset(image.width,image.height)
 		Try
-			SetRenderImage(TRenderImage(image)); SetClsColor(Int(r),Int(g),Int(b),a); Cls()
+			SetRenderImage(TRenderImage(image))
+			SetClsColor(Int(r),Int(g),Int(b),a)
+			Cls()
 		Catch error:Object
 			frame.view=savedView
 			PopMax2DState()
@@ -1043,7 +1061,8 @@ param: Horizontal local handle offset.
 param: Vertical local handle offset.
 End Rem
 Function SetImageHandle(image:TImage,x:Float,y:Float)
-	image.handle_x=x; image.handle_y=y
+	image.handle_x=x
+	image.handle_y=y
 End Function
 
 Rem
@@ -1051,7 +1070,8 @@ bbdoc: Places an image's drawing handle at its logical centre.
 param: Image to operate on.
 End Rem
 Function MidHandleImage(image:TImage)
-	image.handle_x=image.width*0.5; image.handle_y=image.height*0.5
+	image.handle_x=image.width*0.5
+	image.handle_y=image.height*0.5
 End Function
 
 Rem
@@ -1100,7 +1120,9 @@ param: Green component, from 0 to 255.
 param: Blue component, from 0 to 255.
 End Rem
 Function SetMaskColor(red:Int,green:Int,blue:Int)
-	_maskRed=red; _maskGreen=green; _maskBlue=blue
+	_maskRed=red
+	_maskGreen=green
+	_maskBlue=blue
 End Function
 
 Rem
@@ -1110,7 +1132,9 @@ param: Receives green component, from 0 to 255.
 param: Receives blue component, from 0 to 255.
 End Rem
 Function GetMaskColor(red:Int Var,green:Int Var,blue:Int Var)
-	red=_maskRed; green=_maskGreen; blue=_maskBlue
+	red=_maskRed
+	green=_maskGreen
+	blue=_maskBlue
 End Function
 
 Rem
@@ -1390,7 +1414,8 @@ Function TileImage(image:TImage,x:Float=0,y:Float=0,frame:Int=0)
 	Local view:TMax2DView=canvas.context.view
 	Local left:Float=view.x,top:Float=view.y,right:Float=view.x+view.w,bottom:Float=view.y+view.h
 	Local tileState:TMax2DState=canvas.state.Copy()
-	tileState.originX=0;tileState.originY=0
+	tileState.originX=0
+	tileState.originY=0
 	Local tileTransform:TMax2DDrawTransform=TMax2DDrawTransform.Create(tileState,0,0,0,0)
 	If tileTransform.xx*tileTransform.yy-tileTransform.xy*tileTransform.yx=0 Then
 		PopMax2DState()
@@ -1401,9 +1426,15 @@ Function TileImage(image:TImage,x:Float=0,y:Float=0,frame:Int=0)
 		Local wx:Float,wy:Float
 		tileTransform.VirtualToLocal(corners[i],corners[i+1],wx,wy)
 		If i=0 Then
-			left=wx;right=wx;top=wy;bottom=wy
+			left=wx
+			right=wx
+			top=wy
+			bottom=wy
 		Else
-			left=Min(left,wx);right=Max(right,wx);top=Min(top,wy);bottom=Max(bottom,wy)
+			left=Min(left,wx)
+			right=Max(right,wx)
+			top=Min(top,wy)
+			bottom=Max(bottom,wy)
 		End If
 	Next
 	Local startX:Float=x+canvas.state.originX-image.handle_x
@@ -1427,7 +1458,9 @@ param: Blue component, from 0 to 255.
 End Rem
 Function SetVirtualBarColor(red:Int,green:Int,blue:Int)
 	Local view:TMax2DView=TMax2DGraphics.Current().context.view
-	view.barRed=Min(255,Max(0,red)); view.barGreen=Min(255,Max(0,green)); view.barBlue=Min(255,Max(0,blue))
+	view.barRed=Min(255,Max(0,red))
+	view.barGreen=Min(255,Max(0,green))
+	view.barBlue=Min(255,Max(0,blue))
 End Function
 
 Rem
@@ -1438,7 +1471,9 @@ param: Receives blue component, from 0 to 255.
 End Rem
 Function GetVirtualBarColor(red:Int Var,green:Int Var,blue:Int Var)
 	Local view:TMax2DView=TMax2DGraphics.Current().context.view
-	red=view.barRed; green=view.barGreen; blue=view.barBlue
+	red=view.barRed
+	green=view.barGreen
+	blue=view.barBlue
 End Function
 
 Rem
@@ -1452,7 +1487,10 @@ about: Includes glyph bearings and overhangs; advance-based TextWidth is unchang
 End Rem
 Function TextBounds(text:String,x:Float Var,y:Float Var,width:Float Var,height:Float Var)
 	Local layout:TTextLayout=CreateTextLayout(text)
-	x=layout.boundsX; y=layout.boundsY; width=layout.boundsWidth; height=layout.boundsHeight
+	x=layout.boundsX
+	y=layout.boundsY
+	width=layout.boundsWidth
+	height=layout.boundsHeight
 End Function
 
 Rem
@@ -1472,7 +1510,8 @@ param: Receives colour including its byte alpha component.
 param: Receives opacity multiplier, from 0.0 to 1.0.
 End Rem
 Function GetColor(color:SColor8 Var,alpha:Float Var)
- GetColor(color); alpha=GetAlpha()
+	GetColor(color)
+	alpha=GetAlpha()
 End Function
 
 Rem
@@ -1480,8 +1519,9 @@ bbdoc: Gets the current clear colour.
 param: Receives colour including its byte alpha component.
 End Rem
 Function GetClsColor(color:SColor8 Var)
- Local r:Int,g:Int,b:Int
- GetClsColor(r,g,b); color=New SColor8(r,g,b,TMax2DGraphics.Current().state.clsByteAlpha)
+	Local r:Int,g:Int,b:Int
+	GetClsColor(r,g,b)
+	color=New SColor8(r,g,b,TMax2DGraphics.Current().state.clsByteAlpha)
 End Function
 
 Rem
@@ -1490,7 +1530,8 @@ param: Receives colour including its byte alpha component.
 param: Receives opacity multiplier, from 0.0 to 1.0.
 End Rem
 Function GetClsColor(color:SColor8 Var,alpha:Float Var)
- GetClsColor(color); alpha=TMax2DGraphics.Current().state.clsAlpha
+	GetClsColor(color)
+	alpha=TMax2DGraphics.Current().state.clsAlpha
 End Function
 
 Rem
@@ -1500,7 +1541,7 @@ param: Colour including its byte alpha component.
 param: Zero-based frame index, or -1 to clear all frames.
 End Rem
 Function ClearImage(image:TImage,color:SColor8,frameIndex:Int=-1)
- ClearImage(image,UInt(color.r),UInt(color.g),UInt(color.b),color.a/255.0,frameIndex)
+	ClearImage(image,UInt(color.r),UInt(color.g),UInt(color.b),color.a/255.0,frameIndex)
 End Function
 
 Rem

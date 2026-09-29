@@ -189,18 +189,42 @@ Type TMax2DState
 	End Rem
 	Method Copy:TMax2DState()
 		Local result:TMax2DState = New TMax2DState
-		result.red = red; result.green = green; result.blue = blue; result.alpha = alpha
-		result.colorByteAlpha=colorByteAlpha; result.clsByteAlpha=clsByteAlpha
-		result.clsRed = clsRed; result.clsGreen = clsGreen; result.clsBlue = clsBlue; result.clsAlpha = clsAlpha
-		result.blend = blend; result.lineWidth = lineWidth
-		result.rotation = rotation; result.scaleX = scaleX; result.scaleY = scaleY
-		result.ix = ix; result.iy = iy; result.jx = jx; result.jy = jy
-		result.originX = originX; result.originY = originY; result.handleX = handleX; result.handleY = handleY
-		result.coordXX=coordXX; result.coordXY=coordXY; result.coordYX=coordYX; result.coordYY=coordYY
-		result.coordTX=coordTX; result.coordTY=coordTY
+		result.red = red
+		result.green = green
+		result.blue = blue
+		result.alpha = alpha
+		result.colorByteAlpha=colorByteAlpha
+		result.clsByteAlpha=clsByteAlpha
+		result.clsRed = clsRed
+		result.clsGreen = clsGreen
+		result.clsBlue = clsBlue
+		result.clsAlpha = clsAlpha
+		result.blend = blend
+		result.lineWidth = lineWidth
+		result.rotation = rotation
+		result.scaleX = scaleX
+		result.scaleY = scaleY
+		result.ix = ix
+		result.iy = iy
+		result.jx = jx
+		result.jy = jy
+		result.originX = originX
+		result.originY = originY
+		result.handleX = handleX
+		result.handleY = handleY
+		result.coordXX=coordXX
+		result.coordXY=coordXY
+		result.coordYX=coordYX
+		result.coordYY=coordYY
+		result.coordTX=coordTX
+		result.coordTY=coordTY
 		If camera Then result.camera=camera.Copy()
-		result.cameraXX=cameraXX; result.cameraXY=cameraXY; result.cameraYX=cameraYX; result.cameraYY=cameraYY
-		result.cameraTX=cameraTX; result.cameraTY=cameraTY
+		result.cameraXX=cameraXX
+		result.cameraXY=cameraXY
+		result.cameraYX=cameraYX
+		result.cameraYY=cameraYY
+		result.cameraTX=cameraTX
+		result.cameraTY=cameraTY
 		Return result
 	End Method
 
@@ -216,16 +240,20 @@ Type TMax2DState
 	Method DrawingMatrix(xx:Double Var,xy:Double Var,yx:Double Var,yy:Double Var)
 		Local a:Double=coordXX*ix+coordXY*jx,b:Double=coordXX*iy+coordXY*jy
 		Local c:Double=coordYX*ix+coordYY*jx,d:Double=coordYX*iy+coordYY*jy
-		xx=cameraXX*a+cameraXY*c;xy=cameraXX*b+cameraXY*d
-		yx=cameraYX*a+cameraYY*c;yy=cameraYX*b+cameraYY*d
+		xx=cameraXX*a+cameraXY*c
+		xy=cameraXX*b+cameraXY*d
+		yx=cameraYX*a+cameraYY*c
+		yy=cameraYX*b+cameraYY*d
 	End Method
 
 	Rem
 	bbdoc: Recalculates the object matrix from the current rotation and scale.
 	End Rem
 	Method Transform()
-		ix = Cos(rotation) * scaleX; iy = -Sin(rotation) * scaleY
-		jx = Sin(rotation) * scaleX; jy = Cos(rotation) * scaleY
+		ix = Cos(rotation) * scaleX
+		iy = -Sin(rotation) * scaleY
+		jx = Sin(rotation) * scaleX
+		jy = Cos(rotation) * scaleY
 	End Method
 
 End Type
@@ -349,7 +377,8 @@ Type TMesh2D
 			If index < 0 Or index >= xy.Length / 2 Then Throw "Max2D: triangle index out of range"
 		Next
 		Local mesh:TMesh2D = New TMesh2D
-		mesh.xy = xy[..]; mesh.indices = indices[..]
+		mesh.xy = xy[..]
+		mesh.indices = indices[..]
 		Return mesh
 	End Function
 
@@ -431,7 +460,8 @@ Type TMax2DGraphics Extends TGraphics
 	Method Close() Override
 		If context.closed Then Return
 		context.Close()
-		saved.Clear(); renderImage = Null
+		saved.Clear()
+		renderImage = Null
 		If selected = Self Then selected = Null
 		If driver.current = Self Then driver.current = Null
 	End Method
@@ -467,7 +497,8 @@ Type TMax2DGraphics Extends TGraphics
 		Local w:Int, h:Int, d:Int, hz:Int, flags:Long, x:Int, y:Int
 		context.graphics.GetSettings(w, h, d, hz, flags, x, y)
 		If context.windowView.automatic Then
-			context.windowView.width = w; context.windowView.height = h
+			context.windowView.width = w
+			context.windowView.height = h
 			If context.windowView.fullClip Then context.windowView.Reset(w, h)
 		End If
 	End Method
@@ -489,7 +520,9 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method SetColor(red:Int, green:Int, blue:Int)
 		state.colorByteAlpha=255
-		state.red = Min(255, Max(0, red)); state.green = Min(255, Max(0, green)); state.blue = Min(255, Max(0, blue))
+		state.red = Min(255, Max(0, red))
+		state.green = Min(255, Max(0, green))
+		state.blue = Min(255, Max(0, blue))
 	End Method
 
 	Rem
@@ -509,7 +542,9 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method SetClsColor(red:Int, green:Int, blue:Int, alpha:Float = 1)
 		state.clsByteAlpha=255
-		state.clsRed = Min(255, Max(0, red)); state.clsGreen = Min(255, Max(0, green)); state.clsBlue = Min(255, Max(0, blue))
+		state.clsRed = Min(255, Max(0, red))
+		state.clsGreen = Min(255, Max(0, green))
+		state.clsBlue = Min(255, Max(0, blue))
 		state.clsAlpha = Min(1.0, Max(0.0, alpha))
 	End Method
 
@@ -532,7 +567,8 @@ Type TMax2DGraphics Extends TGraphics
 		If width <= 0 Or height <= 0 Then Throw "Max2D: logical dimensions must be positive"
 		If presentation < VIRTUAL_STRETCH Or presentation > VIRTUAL_INTEGER Then Throw "Max2D: invalid presentation mode"
 		context.view.presentation = presentation
-		context.view.width = width; context.view.height = height
+		context.view.width = width
+		context.view.height = height
 		context.view.automatic = False
 		If context.view.fullClip Then context.view.Reset(width, height)
 		context.ApplyView()
@@ -547,7 +583,10 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method SetViewport(x:Int, y:Int, w:Int, h:Int)
 		If w < 0 Or h < 0 Then Throw "Max2D: viewport dimensions cannot be negative"
-		context.view.x = x; context.view.y = y; context.view.w = w; context.view.h = h
+		context.view.x = x
+		context.view.y = y
+		context.view.w = w
+		context.view.h = h
 		context.view.fullClip = False
 		context.ApplyView()
 	End Method
@@ -568,13 +607,22 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method PushState:TMax2DSavedState()
 		Local entry:TMax2DSavedState = New TMax2DSavedState
-		entry.state = state.Copy(); entry.font = imageFont; entry.target = renderImage
+		entry.state = state.Copy()
+		entry.font = imageFont
+		entry.target = renderImage
 		Local view:TMax2DView = context.view
-		entry.width = view.width; entry.height = view.height
-		entry.x = view.x; entry.y = view.y; entry.w = view.w; entry.h = view.h
-		entry.automatic = view.automatic; entry.fullClip = view.fullClip
+		entry.width = view.width
+		entry.height = view.height
+		entry.x = view.x
+		entry.y = view.y
+		entry.w = view.w
+		entry.h = view.h
+		entry.automatic = view.automatic
+		entry.fullClip = view.fullClip
 		entry.presentation = view.presentation
-		entry.barRed=view.barRed; entry.barGreen=view.barGreen; entry.barBlue=view.barBlue
+		entry.barRed=view.barRed
+		entry.barGreen=view.barGreen
+		entry.barBlue=view.barBlue
 		saved.AddLast(entry)
 		Return entry
 	End Method
@@ -586,7 +634,8 @@ Type TMax2DGraphics Extends TGraphics
 		If saved.IsEmpty() Then Throw "Max2D: state stack is empty"
 		Local entry:TMax2DSavedState = TMax2DSavedState(saved.Last())
 		If entry.scoped Then Throw "Max2D: close the state scope instead of popping it manually"
-		saved.RemoveLast(); entry.active=False
+		saved.RemoveLast()
+		entry.active=False
 		RestoreState(entry)
 	End Method
 
@@ -596,12 +645,20 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method RestoreState(entry:TMax2DSavedState)
 		SetRenderImage(entry.target)
-		state = entry.state; imageFont = entry.font
-		context.view.width = entry.width; context.view.height = entry.height
-		context.view.x = entry.x; context.view.y = entry.y; context.view.w = entry.w; context.view.h = entry.h
-		context.view.automatic = entry.automatic; context.view.fullClip = entry.fullClip
+		state = entry.state
+		imageFont = entry.font
+		context.view.width = entry.width
+		context.view.height = entry.height
+		context.view.x = entry.x
+		context.view.y = entry.y
+		context.view.w = entry.w
+		context.view.h = entry.h
+		context.view.automatic = entry.automatic
+		context.view.fullClip = entry.fullClip
 		context.view.presentation = entry.presentation
-		context.view.barRed=entry.barRed; context.view.barGreen=entry.barGreen; context.view.barBlue=entry.barBlue
+		context.view.barRed=entry.barRed
+		context.view.barGreen=entry.barGreen
+		context.view.barBlue=entry.barBlue
 		context.ApplyView()
 	End Method
 
@@ -612,11 +669,19 @@ Type TMax2DGraphics Extends TGraphics
 	Method SetCamera(camera:TCamera2D)
 		If camera Then camera.Validate()
 		state.camera=Null
-		state.cameraXX=1; state.cameraXY=0; state.cameraYX=0; state.cameraYY=1; state.cameraTX=0; state.cameraTY=0
+		state.cameraXX=1
+		state.cameraXY=0
+		state.cameraYX=0
+		state.cameraYY=1
+		state.cameraTX=0
+		state.cameraTY=0
 		If Not camera Then Return
 		state.camera=camera.Copy()
 		Local c:Double=Cos(camera.rotation)*camera.zoom,s:Double=Sin(camera.rotation)*camera.zoom
-		state.cameraXX=c; state.cameraXY=s; state.cameraYX=-s; state.cameraYY=c
+		state.cameraXX=c
+		state.cameraXY=s
+		state.cameraYX=-s
+		state.cameraYY=c
 		state.cameraTX=camera.offsetX-c*camera.x-s*camera.y
 		state.cameraTY=camera.offsetY+s*camera.x-c*camera.y
 	End Method
@@ -644,7 +709,8 @@ Type TMax2DGraphics Extends TGraphics
 	bbdoc: Clears the current drawing surface using the clear colour and viewport.
 	End Rem
 	Method Cls()
-		context.CheckOpen(); context.Flush()
+		context.CheckOpen()
+		context.Flush()
 		ValidateSize()
 		context.ApplyView()
 		context.NativeClear(state.clsRed, state.clsGreen, state.clsBlue, state.clsAlpha)
@@ -679,8 +745,12 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method Quad(frame:TImageFrame, x0:Float, y0:Float, x1:Float, y1:Float, tx:Float, ty:Float, u0:Float = 0, v0:Float = 0, u1:Float = 0, v1:Float = 0)
 		context.BeginTriangles(frame, state.blend, 6)
-		AddVertex(x0,y0,tx,ty,u0,v0); AddVertex(x1,y0,tx,ty,u1,v0); AddVertex(x1,y1,tx,ty,u1,v1)
-		AddVertex(x0,y0,tx,ty,u0,v0); AddVertex(x1,y1,tx,ty,u1,v1); AddVertex(x0,y1,tx,ty,u0,v1)
+		AddVertex(x0,y0,tx,ty,u0,v0)
+		AddVertex(x1,y0,tx,ty,u1,v0)
+		AddVertex(x1,y1,tx,ty,u1,v1)
+		AddVertex(x0,y0,tx,ty,u0,v0)
+		AddVertex(x1,y1,tx,ty,u1,v1)
+		AddVertex(x0,y1,tx,ty,u0,v1)
 	End Method
 
 	Rem
@@ -690,7 +760,11 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method Plot(x:Float, y:Float)
 		Local old:TMax2DState = state
-		state = state.Copy(); state.ix = 1; state.iy = 0; state.jx = 0; state.jy = 1
+		state = state.Copy()
+		state.ix = 1
+		state.iy = 0
+		state.jx = 0
+		state.jy = 1
 		Quad(Null, 0,0,1,1, x + state.originX, y + state.originY)
 		state = old
 	End Method
@@ -728,9 +802,17 @@ Type TMax2DGraphics Extends TGraphics
 			If drawLastPixel Then Plot(x, y)
 			Return
 		End If
-		dx :/ length; dy :/ length
-		sx :- dx*0.5; sy :- dy*0.5
-		If drawLastPixel Then ex :+ dx*0.5; ey :+ dy*0.5 Else ex :- dx*0.5; ey :- dy*0.5
+		dx :/ length
+		dy :/ length
+		sx :- dx*0.5
+		sy :- dy*0.5
+		If drawLastPixel Then
+			ex :+ dx*0.5
+			ey :+ dy*0.5
+		Else
+			ex :- dx*0.5
+			ey :- dy*0.5
+		End If
 		Local nx:Float = -dy * state.lineWidth * 0.5, ny:Float = dx * state.lineWidth * 0.5
 		Local points:Float[] = [sx+nx,sy+ny, ex+nx,ey+ny, ex-nx,ey-ny, sx-nx,sy-ny]
 		Local order:Int[] = [0,1,2,0,2,3]
@@ -806,12 +888,17 @@ Type TMax2DGraphics Extends TGraphics
 		Local ox:Int,oy:Int
 		Local trim:TImageTrim=image.Trim(frame)
 		If trim Then
-			ox=trim.x; oy=trim.y
-			left=Max(left,Float(ox)); top=Max(top,Float(oy))
-			right=Min(right,Float(ox+trim.width)); bottom=Min(bottom,Float(oy+trim.height))
+			ox=trim.x
+			oy=trim.y
+			left=Max(left,Float(ox))
+			top=Max(top,Float(oy))
+			right=Min(right,Float(ox+trim.width))
+			bottom=Min(bottom,Float(oy+trim.height))
 			If right<=left Or bottom<=top Then Return
-			x0=-hx+(left-sx)*width/sw; y0=-hy+(top-sy)*height/sh
-			x1=-hx+(right-sx)*width/sw; y1=-hy+(bottom-sy)*height/sh
+			x0=-hx+(left-sx)*width/sw
+			y0=-hy+(top-sy)*height/sh
+			x1=-hx+(right-sx)*width/sw
+			y1=-hy+(bottom-sy)*height/sh
 		End If
 		Local native:TImageFrame=image.Frame(frame,Self)
 		Local source:TImageSource=image.sources[frame]
@@ -868,11 +955,13 @@ Type TMax2DGraphics Extends TGraphics
 			DrawImage(image,x,y)
 			context.Flush()
 		Catch error:Object
-			state=originalState; context.view=originalView
+			state=originalState
+			context.view=originalView
 			context.ApplyView()
 			Throw error
 		End Try
-		state=originalState; context.view=originalView
+		state=originalState
+		context.view=originalView
 		context.ApplyView()
 	End Method
 

@@ -200,7 +200,9 @@ Type TCollisionMask
 		If source.locked And source.writing Then Throw "Max2D: unlock the image before collision testing"
 		If source.collisionMask And source.collisionMask.version=source.version Then Return source.collisionMask
 		Local mask:TCollisionMask=New TCollisionMask
-		mask.width=source.width;mask.height=source.height;mask.version=source.version
+		mask.width=source.width
+		mask.height=source.height
+		mask.version=source.version
 		Local count:Long=Long(mask.width)*mask.height
 		If (count+7)/8>$7fffffff Then Throw "Max2D: collision mask is too large"
 		mask.bits=New Byte[Int((count+7)/8)]
@@ -376,12 +378,16 @@ Type TCollisionShape
 		image.CheckIndex(frame)
 		Local shape:TCollisionShape=New TCollisionShape
 		shape.mask=TCollisionMask.ForSource(image.sources[frame])
-		shape.sourceX=image.sourceX[frame];shape.sourceY=image.sourceY[frame]
+		shape.sourceX=image.sourceX[frame]
+		shape.sourceY=image.sourceY[frame]
 		Local trim:TImageTrim=image.Trim(frame)
 		If trim Then
 			If trim.width=0 Or trim.height=0 Then Return shape
-			shape.trimmed=True; shape.trimX=trim.x; shape.trimY=trim.y
-			shape.trimWidth=trim.width; shape.trimHeight=trim.height
+			shape.trimmed=True
+			shape.trimX=trim.x
+			shape.trimY=trim.y
+			shape.trimWidth=trim.width
+			shape.trimHeight=trim.height
 		End If
 		' Keep the original affine transform, including its rounding at pixel edges.
 		' Only the integer mask lookup changes when pixels are packed elsewhere.
@@ -416,17 +422,27 @@ Type TCollisionShape
 	End Rem
 	Method Init(x:Double,y:Double,w:Double,h:Double,hx:Double,hy:Double,state:TMax2DState)
 		If Not state Then state=New TMax2DState
-		width=w;height=h
-		xx=state.ix;xy=state.iy;yx=state.jx;yy=state.jy
-		tx=x+state.originX-hx*xx-hy*xy;ty=y+state.originY-hx*yx-hy*yy
+		width=w
+		height=h
+		xx=state.ix
+		xy=state.iy
+		yx=state.jx
+		yy=state.jy
+		tx=x+state.originX-hx*xx-hy*xy
+		ty=y+state.originY-hx*yx-hy*yy
 		Local ox:Double=xx,oy:Double=xy,px:Double=yx,py:Double=yy,otx:Double=tx,oty:Double=ty
-		xx=state.coordXX*ox+state.coordXY*px;xy=state.coordXX*oy+state.coordXY*py
-		yx=state.coordYX*ox+state.coordYY*px;yy=state.coordYX*oy+state.coordYY*py
+		xx=state.coordXX*ox+state.coordXY*px
+		xy=state.coordXX*oy+state.coordXY*py
+		yx=state.coordYX*ox+state.coordYY*px
+		yy=state.coordYX*oy+state.coordYY*py
 		tx=state.coordXX*otx+state.coordXY*oty+state.coordTX
 		ty=state.coordYX*otx+state.coordYY*oty+state.coordTY
 		Local determinant:Double=xx*yy-xy*yx
 		If w<=0 Or h<=0 Or determinant=0 Then Return
-		ax=yy/determinant;ay=-xy/determinant;bx=-yx/determinant;by=xx/determinant
+		ax=yy/determinant
+		ay=-xy/determinant
+		bx=-yx/determinant
+		by=xx/determinant
 		minX=Min(Min(tx,tx+w*xx),Min(tx+h*xy,tx+w*xx+h*xy))
 		maxX=Max(Max(tx,tx+w*xx),Max(tx+h*xy,tx+w*xx+h*xy))
 		minY=Min(Min(ty,ty+w*yx),Min(ty+h*yy,ty+w*yx+h*yy))
@@ -448,7 +464,8 @@ Type TCollisionShape
 		If Not mask Then Return True
 		Local px:Int=Int(Floor(u)),py:Int=Int(Floor(v))
 		If trimmed Then
-			px:-trimX; py:-trimY
+			px:-trimX
+			py:-trimY
 			If px<0 Or py<0 Or px>=trimWidth Or py>=trimHeight Then Return False
 		End If
 		Return mask.Solid(sourceX+px,sourceY+py)
@@ -479,7 +496,8 @@ Type TCollisionShape
 	Function Slab:Int(a:Double,b:Double,extent:Double,left:Double Var,right:Double Var)
 		If a=0 Then Return b>=0 And b<extent
 		Local first:Double=-b/a,last:Double=(extent-b)/a
-		left=Max(left,Min(first,last));right=Min(right,Max(first,last))
+		left=Max(left,Min(first,last))
+		right=Min(right,Max(first,last))
 		Return left<right
 	End Function
 
@@ -561,7 +579,8 @@ Type TCollisionWorld
 		Next
 		If writemask And shape.valid Then
 			Local entry:TCollisionEntry=New TCollisionEntry
-			entry.shape=shape;entry.id=id
+			entry.shape=shape
+			entry.id=id
 			For Local i:Int=0 Until 32
 				If Not (writemask & (1 Shl i)) Then Continue
 				If Not layers[i] Then layers[i]=New TList
@@ -571,7 +590,8 @@ Type TCollisionWorld
 		If hits.IsEmpty() Then Return Null
 		Local result:Object[]=New Object[hits.Count()],index:Int
 		For Local entry:TCollisionEntry=EachIn hits
-			result[index]=entry.id;index:+1
+			result[index]=entry.id
+			index:+1
 		Next
 		Return result
 	End Method
@@ -659,8 +679,14 @@ param: Vertical scale of the second image.
 End Rem
 Function ImagesCollide2:Int(image1:TImage,x1:Double,y1:Double,frame1:Int,rot1:Double,scalex1:Double,scaley1:Double,image2:TImage,x2:Double,y2:Double,frame2:Int,rot2:Double,scalex2:Double,scaley2:Double)
 	Local first:TMax2DState=CollisionState().Copy(),second:TMax2DState=first.Copy()
-	first.rotation=Float(rot1);first.scaleX=Float(scalex1);first.scaleY=Float(scaley1);first.Transform()
-	second.rotation=Float(rot2);second.scaleX=Float(scalex2);second.scaleY=Float(scaley2);second.Transform()
+	first.rotation=Float(rot1)
+	first.scaleX=Float(scalex1)
+	first.scaleY=Float(scaley1)
+	first.Transform()
+	second.rotation=Float(rot2)
+	second.scaleX=Float(scalex2)
+	second.scaleY=Float(scaley2)
+	second.Transform()
 	Return TCollisionShape.Image(image1,x1,y1,frame1,first).Intersects(TCollisionShape.Image(image2,x2,y2,frame2,second))
 End Function
 
@@ -681,6 +707,7 @@ Function CreateCollisionImage:TImage(image:TImage,frame:Int=0)
 		Throw error
 	End Try
 	image.Unlock(frame)
-	result.handle_x=image.handle_x;result.handle_y=image.handle_y
+	result.handle_x=image.handle_x
+	result.handle_y=image.handle_y
 	Return result
 End Function

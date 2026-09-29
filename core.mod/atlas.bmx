@@ -48,8 +48,10 @@ Type TAtlasPixels
 	Function Prepare:TAtlasPixels(pixels:TPixmap,trimTransparent:Int,filtered:Int)
 		If Not pixels Then Throw "Max2D: atlas input is null"
 		Local result:TAtlasPixels=New TAtlasPixels
-		result.width=pixels.width; result.height=pixels.height
-		result.contentWidth=pixels.width; result.contentHeight=pixels.height
+		result.width=pixels.width
+		result.height=pixels.height
+		result.contentWidth=pixels.width
+		result.contentHeight=pixels.height
 		result.pixmap=pixels
 		If Not trimTransparent Then Return result
 		If pixels.format<>PF_RGBA8888 And pixels.format<>PF_A8 Then pixels=pixels.Convert(PF_RGBA8888)
@@ -57,23 +59,31 @@ Type TAtlasPixels
 		For Local y:Int=0 Until pixels.height
 			For Local x:Int=0 Until pixels.width
 				If pixels.ReadPixel(x,y) Shr 24 Then
-					left=Min(left,x); top=Min(top,y); right=Max(right,x+1); bottom=Max(bottom,y+1)
+					left=Min(left,x)
+					top=Min(top,y)
+					right=Max(right,x+1)
+					bottom=Max(bottom,y+1)
 				End If
 			Next
 		Next
 		If right<=left Or bottom<=top Then
 			result.pixmap=CreatePixmap(1,1,pixels.format)
 			result.pixmap.ClearPixels(0)
-			result.contentWidth=0; result.contentHeight=0
+			result.contentWidth=0
+			result.contentHeight=0
 			Return result
 		End If
 		' Keep the transparent filtering fringe, separate from atlas extrusion padding.
 		If filtered Then
-			left=Max(0,left-1); top=Max(0,top-1)
-			right=Min(pixels.width,right+1); bottom=Min(pixels.height,bottom+1)
+			left=Max(0,left-1)
+			top=Max(0,top-1)
+			right=Min(pixels.width,right+1)
+			bottom=Min(pixels.height,bottom+1)
 		End If
-		result.x=left; result.y=top
-		result.contentWidth=right-left; result.contentHeight=bottom-top
+		result.x=left
+		result.y=top
+		result.contentWidth=right-left
+		result.contentHeight=bottom-top
 		result.pixmap=pixels.Window(left,top,right-left,bottom-top)
 		Return result
 	End Function
@@ -83,8 +93,11 @@ Type TAtlasPixels
 	param: Image to operate on.
 	End Rem
 	Method Apply(image:TImage)
-		image.width=width; image.height=height
-		If x Or y Or contentWidth<>width Or contentHeight<>height Then image.SetTrim(0,x,y,contentWidth,contentHeight)
+		image.width=width
+		image.height=height
+		If x Or y Or contentWidth<>width Or contentHeight<>height Then
+			image.SetTrim(0,x,y,contentWidth,contentHeight)
+		End If
 	End Method
 
 End Type
@@ -158,7 +171,9 @@ Type TTextureAtlas
 		If pixelFormat<>PF_RGBA8888 And pixelFormat<>PF_A8 Then Throw "Max2D: unsupported atlas storage format"
 		Local atlas:TTextureAtlas=New TTextureAtlas
 		atlas.pixelFormat=pixelFormat
-		atlas.pageSize=pageSize; atlas.flags=flags; atlas.padding=padding
+		atlas.pageSize=pageSize
+		atlas.flags=flags
+		atlas.padding=padding
 		Return atlas
 	End Function
 
@@ -171,7 +186,8 @@ Type TTextureAtlas
 		Local pixmap:TPixmap=CreatePixmap(width,height,pixelFormat)
 		pixmap.ClearPixels(0)
 		Local image:TImage=TImage.FromPixmap(pixmap,flags,pixelFormat)
-		pages=pages[..pages.Length+1]; pages[pages.Length-1]=image
+		pages=pages[..pages.Length+1]
+		pages[pages.Length-1]=image
 		Return image
 	End Method
 
@@ -194,15 +210,26 @@ Type TTextureAtlas
 		Else
 			If Not current Then
 				current=AddPage(pageSize,pageSize)
-				nextX=0; nextY=0; rowHeight=0
+				nextX=0
+				nextY=0
+				rowHeight=0
 			End If
-			If nextX+paddedW>pageSize Then nextX=0; nextY:+rowHeight; rowHeight=0
+			If nextX+paddedW>pageSize Then
+				nextX=0
+				nextY:+rowHeight
+				rowHeight=0
+			End If
 			If nextY+paddedH>pageSize Then
 				current=AddPage(pageSize,pageSize)
-				nextX=0; nextY=0; rowHeight=0
+				nextX=0
+				nextY=0
+				rowHeight=0
 			End If
-			page=current; x=nextX; y=nextY
-			nextX:+paddedW; rowHeight=Max(rowHeight,paddedH)
+			page=current
+			x=nextX
+			y=nextY
+			nextX:+paddedW
+			rowHeight=Max(rowHeight,paddedH)
 		End If
 		Local image:TImage=Place(page,pixmap,x,y,padding)
 		prepared.Apply(image)
@@ -229,7 +256,11 @@ Type TTextureAtlas
 		If source.locked Then Throw "Max2D: unlock the atlas page before inserting images"
 		source.pixmap.Paste(rgba,x+padding,y+padding)
 		Local region:TImageRegion=New TImageRegion
-		region.x=x+padding; region.y=y+padding; region.width=w; region.height=h; region.padding=padding
+		region.x=x+padding
+		region.y=y+padding
+		region.width=w
+		region.height=h
+		region.padding=padding
 		source.regions.AddLast(region)
 		source.Changed(x,y,w+2*padding,h+2*padding)
 		Return TImage.View(page,x+padding,y+padding,w,h)
