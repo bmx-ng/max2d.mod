@@ -14,10 +14,10 @@ int main(int argc,char **argv) {
 	FILE *out=fopen(argv[2],"wb");
 	if(!out) return 1;
 	fprintf(out,"// Generated from shaders/draw.hlsl by shaders/compile.cpp.\n#include <stddef.h>\n");
-	const char *entries[]={"vertexMain","pixelMain"};
-	const char *profiles[]={"vs_5_1","ps_5_1"};
-	const char *names[]={"gpu_vertex_dxbc","gpu_fragment_dxbc"};
-	for(int n=0;n<2;++n) {
+	const char *entries[]={"vertexMain","pixelMain","compactMain"};
+	const char *profiles[]={"vs_5_1","ps_5_1","vs_5_1"};
+	const char *names[]={"gpu_vertex_dxbc","gpu_fragment_dxbc","gpu_compact_dxbc"};
+	for(int n=0;n<3;++n) {
 		ID3DBlob *code=nullptr;
 		ID3DBlob *errors=nullptr;
 		HRESULT hr=D3DCompile(source.data(),source.size(),"draw.hlsl",nullptr,nullptr,entries[n],profiles[n],D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&errors);

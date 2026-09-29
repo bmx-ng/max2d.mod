@@ -2,9 +2,14 @@ SuperStrict
 Framework Max2D.SDL3GPUMax2D
 
 Graphics 640,480,0
+Local compact:Int=TMax2DGraphics.Current().context.compactQuads
 SetVirtualResolution(320,180,VIRTUAL_LETTERBOX)
 SetVirtualBarColor(12,12,16)
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
+	If KeyHit(KEY_C)
+		compact=Not compact
+		SetSDLGPUMax2DCompactSprites(compact)
+	End If
 	SetClsColor(24,32,48)
 	Cls()
 	SetColor(80,180,240)
@@ -13,7 +18,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	DrawText("Hello World",20,90)
 	PushMax2DState()
 	SetNativeResolution()
-	DrawText("SDL GPU: "+SDLGPUMax2DDriverName()+" - Escape to exit",12,12)
+	DrawText("SDL GPU: "+SDLGPUMax2DDriverName()+" - C: compact="+compact+" - Escape to exit",12,12)
 	PopMax2DState()
 	Flip()
 Wend

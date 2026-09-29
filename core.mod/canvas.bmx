@@ -744,6 +744,37 @@ Type TMax2DGraphics Extends TGraphics
 	param: Normalized texture coordinate at the bottom edge.
 	End Rem
 	Method Quad(frame:TImageFrame, x0:Float, y0:Float, x1:Float, y1:Float, tx:Float, ty:Float, u0:Float = 0, v0:Float = 0, u1:Float = 0, v1:Float = 0)
+		If context.compactQuads Then
+			context.BeginQuads(frame,state.blend)
+			Local a:Double,b:Double,c:Double,d:Double
+			state.DrawingMatrix(a,b,c,d)
+			Local ox:Double=state.coordXX*tx+state.coordXY*ty+state.coordTX
+			Local oy:Double=state.coordYX*tx+state.coordYY*ty+state.coordTY
+			If state.camera Then
+				Local wx:Double=ox,wy:Double=oy
+				ox=state.cameraXX*wx+state.cameraXY*wy+state.cameraTX
+				oy=state.cameraYX*wx+state.cameraYY*wy+state.cameraTY
+			End If
+			Local offset:Int=context.batchCount*16
+			context.batch[offset]=Float(a*x0+b*y0+ox)
+			context.batch[offset+1]=Float(c*x0+d*y0+oy)
+			context.batch[offset+2]=Float(a*(x1-x0))
+			context.batch[offset+3]=Float(c*(x1-x0))
+			context.batch[offset+4]=Float(b*(y1-y0))
+			context.batch[offset+5]=Float(d*(y1-y0))
+			context.batch[offset+6]=u0
+			context.batch[offset+7]=v0
+			context.batch[offset+8]=u1
+			context.batch[offset+9]=v1
+			context.batch[offset+10]=0
+			context.batch[offset+11]=0
+			context.batch[offset+12]=state.red/255.0
+			context.batch[offset+13]=state.green/255.0
+			context.batch[offset+14]=state.blue/255.0
+			context.batch[offset+15]=state.alpha
+			context.batchCount:+1
+			Return
+		End If
 		context.BeginTriangles(frame, state.blend, 6)
 		AddVertex(x0,y0,tx,ty,u0,v0)
 		AddVertex(x1,y0,tx,ty,u1,v0)

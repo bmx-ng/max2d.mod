@@ -194,3 +194,49 @@ The Direct3D 12 shader assets compile successfully. Forcing `SDL_GPU_DRIVER=dire
 reports that driver as unsupported, so Direct3D 12 rendering still needs a
 compatible device. Set `SDL_GPU_DRIVER` before launching when testing a specific
 SDL GPU driver.
+
+## Compact sprites
+
+`Max2D.SDL3GPUMax2D` enables compact sprites by default. To use expanded triangles instead:
+
+```blitzmax
+Graphics 960, 540
+SetSDLGPUMax2DCompactSprites(False)
+```
+
+If compact pipelines cannot be created, a new context falls back to expanded
+triangles. Calling `SetSDLGPUMax2DCompactSprites(True)` explicitly enables compact
+submission and reports pipeline-creation failures. The setting belongs to the current
+GPU context; changing it flushes pending Core geometry and does not change other
+windows. Use `False` to return to expanded triangles. It is a backend setting,
+not drawing state, so Push/Pop and Using scopes do not restore it.
+
+Images, glyphs and other rectangles using the common quad drawing path submit a
+64-byte affine record instead of six 32-byte vertices. A vertex shader generates
+the corners. Arbitrary meshes and other primitives retain their triangle path.
+Mixing the two preserves submission order and forces a batch boundary. Clipping,
+blend modes, render targets, texture updates and mipmap dependencies retain the
+same semantics. Atlas images and trimmed images need no API changes.
+
+Transforms, including cameras and pixel-aligned glyph placement, are applied
+before the compact record is submitted. Floating-point evaluation differs from
+CPU-expanded vertices, so non-integral transforms can have small rasterisation
+rounding differences. This is not a text-layout or coordinate-system change.
+
+Fewer uploaded bytes and fewer Core batches can improve CPU-bound scenes, but
+speedups depend on workload and hardware. Very frequent switches between meshes
+and rectangles may offset the benefit. `Max2DStats().vertices` continues to count
+the generated triangle vertices (six per rectangle), not the uploaded record
+count, so it should not be used to calculate upload bytes.
+
+Press **C** in `examples/sdl_gpu_hello.bmx` to toggle the path. The same option
+covers Metal, Vulkan and Direct3D shader variants. Pixel comparisons have passed
+on Metal/macOS and Vulkan in both Linux and Windows VMs. The Direct3D bytecode
+compiles, but this VM selected Vulkan, so Direct3D runtime validation and broad
+real-application performance evaluation are still pending.
+
+`tests/gpu_compact.bmx` compares mixed rendering with the option off/on.
+`tests/gpu_compact_benchmark.bmx` measures public `DrawImage` calls, Core batching,
+command recording and GPU completion via a small readback every three frames.
+The readback cost is included in both modes. It does not measure isolated GPU
+time or window presentation, and synthetic results are not whole-game speedups.
