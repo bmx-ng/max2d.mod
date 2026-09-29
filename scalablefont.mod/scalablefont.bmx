@@ -9,16 +9,55 @@ Import Max2D.Core
 Import Text.HBFreeTypeFont
 Import BRL.Bank
 
+Rem
+bbdoc: A positioned glyph retaining its scalable font and glyph index for density-aware drawing.
+End Rem
 Type TScalablePositionedGlyph Extends TPositionedGlyph
- Field index:Int
- Field baselineX:Float,baselineY:Float
+
+	Rem
+	bbdoc: Glyph index in the font face.
+	End Rem
+	Field index:Int
+
+	Rem
+	bbdoc: Horizontal glyph position relative to the text baseline.
+	End Rem
+	Field baselineX:Float
+
+	Rem
+	bbdoc: Vertical glyph position relative to the text baseline.
+	End Rem
+	Field baselineY:Float
 End Type
 
+Rem
+bbdoc: Retained logical glyph positions that select raster density when drawn.
+End Rem
 Type TScalableTextLayout Extends TTextLayout
- Field font:TScalableImageFont
+
+	Rem
+	bbdoc: Font used to shape and draw this text.
+	End Rem
+	Field font:TScalableImageFont
+
+	Rem
+	bbdoc: Draws text with glyph rasters suited to the current drawing density.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method Draw(canvas:TMax2DGraphics,x:Float,y:Float) Override
 		DrawColored(canvas,x,y,Null)
 	End Method
+
+	Rem
+	bbdoc: Draws retained glyphs with optional per-glyph colour overrides.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Per-glyph colour spans, or Null to use the current drawing colour.
+	param: Starting index in the per-glyph colour array.
+	End Rem
 	Method DrawColored(canvas:TMax2DGraphics,x:Float,y:Float,colors:TTextColorSpan[],colorOffset:Int=0) Override
 		Local red:Int=canvas.state.red,green:Int=canvas.state.green,blue:Int=canvas.state.blue
 		Local alpha:Float=canvas.state.alpha
@@ -48,13 +87,48 @@ Type TScalableTextLayout Extends TTextLayout
 End Type
 
 ' Faces retain their own input buffer; native texture deletion stays with the context.
+
+Rem
+bbdoc: Glyph atlas and FreeType face for one raster density of a scalable font.
+End Rem
 Type TFontRaster
- Field face:Byte Ptr
- Field buffer:Byte[]
- Field density:Int
+
+	Rem
+	bbdoc: Native FreeType face owned by this rasterizer.
+	End Rem
+	Field face:Byte Ptr
+
+	Rem
+	bbdoc: Reusable glyph-raster pixel buffer.
+	End Rem
+	Field buffer:Byte[]
+
+	Rem
+	bbdoc: Raster pixels per logical font unit.
+	End Rem
+	Field density:Int
+
+	Rem
+	bbdoc: Shared texture atlas containing artwork or glyph images.
+	End Rem
 	Field atlas:TTextureAtlas=TTextureAtlas.Create(512,FILTEREDIMAGE,1,PF_A8)
- Field glyphs:TMap=New TMap
- Field glyphBuilds:Long
+
+	Rem
+	bbdoc: Glyph images cached by native glyph index.
+	End Rem
+	Field glyphs:TMap=New TMap
+
+	Rem
+	bbdoc: Number of glyphs rasterized instead of retrieved from cache.
+	End Rem
+	Field glyphBuilds:Long
+
+	Rem
+	bbdoc: Creates a rasterizer from font bytes at a logical size and pixel density.
+	param: Font-file bytes retained while the native face is alive.
+	param: Requested font size.
+	param: Number of raster pixels per logical font unit.
+	End Rem
  Function Create:TFontRaster(data:TBank,size:Float,density:Int)
   Local result:TFontRaster=New TFontRaster
   result.density=density
@@ -62,9 +136,17 @@ Type TFontRaster
   If Not result.face Then Return Null
   Return result
  End Function
+
+	Rem
+	bbdoc: Releases the rasterizer's native font face.
+	End Rem
  Method Delete()
   If face Then FT_Done_Face(face)
  End Method
+
+	Rem
+	bbdoc: Discards cached glyph images for this raster density.
+	End Rem
 	Method Clear()
 		For Local page:TImage=EachIn atlas.pages
 			page.ReleaseFrames()
@@ -72,6 +154,11 @@ Type TFontRaster
 		atlas=TTextureAtlas.Create(512,FILTEREDIMAGE,1,PF_A8)
 		glyphs.Clear()
 	End Method
+
+	Rem
+	bbdoc: Gets or rasterizes a glyph at this raster density.
+	param: Zero-based index.
+	End Rem
 	Method Glyph:TImageGlyph(index:Int)
 		Local key:String=String(index)
 		Local cached:TImageGlyph=TImageGlyph(glyphs.ValueForKey(key))
@@ -109,6 +196,7 @@ Type TFontRaster
 		glyphBuilds:+1
 		Return cached
 	End Method
+
 End Type
 
 Rem
@@ -116,17 +204,78 @@ bbdoc: A logical-size font that selects glyph resolution at drawing time.
 about: Logical layouts stay unchanged across DPI, target, and transform changes. Higher-resolution raster caches use LRU eviction.
 End Rem
 Type TScalableImageFont Extends TImageFont
- Field data:TBank
- Field logicalSize:Float
- Field baseRaster:TFontRaster
- Field hbFont:Byte Ptr,hbBuffer:Byte Ptr,hbFeatures:Byte Ptr
- Field featureCount:Int
- Field lineHeight:Float,ascender:Float
- Field rasterVariants:TMap=New TMap
- Field rasterKeys:TList=New TList
- Field rasterCacheLimit:Int=3
- Field maxDensity:Int=8
 
+	Rem
+	bbdoc: Font-file bytes retained while native shaping and raster faces use them.
+	End Rem
+	Field data:TBank
+
+	Rem
+	bbdoc: Requested font size in logical drawing units.
+	End Rem
+	Field logicalSize:Float
+
+	Rem
+	bbdoc: Base-density raster used for font metrics and shaping.
+	End Rem
+	Field baseRaster:TFontRaster
+
+	Rem
+	bbdoc: Native HarfBuzz font handle owned by this font.
+	End Rem
+	Field hbFont:Byte Ptr
+
+	Rem
+	bbdoc: Reusable native HarfBuzz shaping buffer.
+	End Rem
+	Field hbBuffer:Byte Ptr
+
+	Rem
+	bbdoc: Native array of shaping features enabled by the font style.
+	End Rem
+	Field hbFeatures:Byte Ptr
+
+	Rem
+	bbdoc: Number of active HarfBuzz shaping features.
+	End Rem
+	Field featureCount:Int
+
+	Rem
+	bbdoc: Natural logical distance between text baselines.
+	End Rem
+	Field lineHeight:Float
+
+	Rem
+	bbdoc: Logical distance above the font baseline.
+	End Rem
+	Field ascender:Float
+
+	Rem
+	bbdoc: Cached glyph rasterizers indexed by drawing density.
+	End Rem
+	Field rasterVariants:TMap=New TMap
+
+	Rem
+	bbdoc: Order used to evict cached raster densities.
+	End Rem
+	Field rasterKeys:TList=New TList
+
+	Rem
+	bbdoc: Maximum number of retained raster-density variants.
+	End Rem
+	Field rasterCacheLimit:Int=3
+
+	Rem
+	bbdoc: Maximum raster pixels per logical font unit.
+	End Rem
+	Field maxDensity:Int=8
+
+	Rem
+	bbdoc: Loads a font whose glyph raster density follows the drawing scale.
+	param: Font filename, stream URL or supported readable stream.
+	param: Requested font size.
+	param: Font style flags, such as SMOOTHFONT, BOLDFONT or ITALICFONT.
+	End Rem
  Function LoadScalable:TScalableImageFont(url:Object,size:Float,style:Int=SMOOTHFONT|KERNFONT|LIGATURESFONT)
   If Not (size>0 And size<=512) Then Throw "Max2D scalable font: logical size must be in (0,512]"
   If style & (BOLDFONT|ITALICFONT) Then Throw "Max2D scalable font: load a bold or italic font face instead of synthetic style flags"
@@ -148,17 +297,34 @@ Type TScalableImageFont Extends TImageFont
   result.hbFeatures=bmx_hb_ft_font_features(style,result.featureCount)
   Return result
  End Function
+
+	Rem
+	bbdoc: Releases native shaping and raster resources held by this font.
+	End Rem
  Method Delete()
   If hbFont Then bmx_hb_ft_font_destroy(hbFont)
   If hbBuffer Then bmx_hb_buffer_destroy(hbBuffer)
   If hbFeatures Then bmx_hb_features_destroy(hbFeatures)
  End Method
+
+	Rem
+	bbdoc: Returns the logical distance from the text origin to the font baseline.
+	End Rem
 	Method Baseline:Float() Override
 		Return ascender
 	End Method
+
+	Rem
+	bbdoc: Returns the font's logical line height.
+	End Rem
  Method Height:Int() Override
   Return Ceil(lineHeight)
  End Method
+
+	Rem
+	bbdoc: Chooses glyph pixel density from the canvas transforms and output scale.
+	param: Drawing canvas whose state and rendering context are used.
+	End Rem
  Method DrawingDensity:Int(canvas:TMax2DGraphics)
   ' Largest singular value includes anisotropic scale, rotation, reflection and shear.
   Local state:TMax2DState=canvas.state
@@ -170,6 +336,11 @@ Type TScalableImageFont Extends TImageFont
   Local scale:Double=Sqr((trace+Sqr(Max(0.0,trace*trace-4*determinant*determinant)))*0.5)
   Return Max(1,Int(Ceil(Min(Double(maxDensity),scale))))
  End Method
+
+	Rem
+	bbdoc: Gets or creates the cached glyph rasterizer for a pixel density.
+	param: Number of raster pixels per logical font unit.
+	End Rem
  Method Raster:TFontRaster(density:Int)
   density=Min(maxDensity,Max(1,density))
   If density=1 Then Return baseRaster
@@ -189,6 +360,11 @@ Type TScalableImageFont Extends TImageFont
   rasterVariants.Insert(key,result); rasterKeys.AddLast(key)
   Return result
  End Method
+
+	Rem
+	bbdoc: Limits the number of cached raster densities.
+	param: Maximum cached raster variants; must be at least one.
+	End Rem
  Method SetRasterCacheLimit(limit:Int)
   If limit<1 Then Throw "Max2D scalable font: raster cache limit must be positive"
   rasterCacheLimit=limit
@@ -198,23 +374,34 @@ Type TScalableImageFont Extends TImageFont
    rasterVariants.Remove(oldest)
   Wend
  End Method
+
+	Rem
+	bbdoc: Discards cached raster densities and their glyph images.
+	End Rem
  Method ClearRasterCache()
   For Local value:TFontRaster=EachIn rasterVariants.Values()
    value.Clear()
   Next
   rasterVariants.Clear(); rasterKeys.Clear()
  End Method
+
+	Rem
+	bbdoc: Caps the pixel density used for future glyph rasterization.
+	param: Number of raster pixels per logical font unit.
+	End Rem
  Method SetMaxRasterDensity(density:Int)
   If density<1 Or density>16 Then Throw "Max2D scalable font: maximum raster density must be 1 to 16"
   maxDensity=density
   ClearRasterCache()
  End Method
+
  Rem
  bbdoc: Number of retained raster resolutions, including the 1x metric raster.
  End Rem
  Method RasterCacheCount:Int()
   Return 1+rasterKeys.Count()
  End Method
+
  Rem
  bbdoc: Number of atlas pages currently owned by the font's raster caches.
  about: Application-held layouts may keep older base pages alive after ClearGlyphCache.
@@ -226,9 +413,18 @@ Type TScalableImageFont Extends TImageFont
   Next
   Return count
  End Method
+
+	Rem
+	bbdoc: Discards glyph rasters while keeping logical text layouts.
+	End Rem
  Method ClearGlyphCache()
   ClearLayoutCache(); ClearRasterCache(); baseRaster.Clear()
  End Method
+
+	Rem
+	bbdoc: Builds caret positions at supported text-cluster boundaries.
+	param: Text to lay out, measure or draw.
+	End Rem
 	Method CreateCaretMap:TTextCaretMap(text:String) Override
 		If text.Contains("~n") Or text.Contains("~r") Or text.Contains("~t") Then Throw "Max2D: caret geometry requires a normalized single line"
 		Local result:TTextCaretMap=TTextCaretMap.Create(text.Length)
@@ -238,6 +434,16 @@ Type TScalableImageFont Extends TImageFont
 		Next
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Builds caret positions for a directed run within a larger text string.
+	param: Text to lay out, measure or draw.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Whether the run is shaped right to left.
+	param: Script identifier understood by the shaping provider; zero selects its default.
+	param: Language tag used by the text provider; empty uses its default.
+	End Rem
 	Method CreateRunCaretMap:TTextCaretMap(text:String,first:Int,last:Int,rtl:Int,script:Int=0,language:String="") Override
 		If first<0 Or last<first Or last>text.Length Then Throw "Max2D: invalid directional run range"
 		Local result:TTextCaretMap=TTextCaretMap.Create(last-first)
@@ -248,6 +454,15 @@ Type TScalableImageFont Extends TImageFont
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Shapes a directed source range with its script and language context.
+	param: Text to lay out, measure or draw.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Whether the run is shaped right to left.
+	param: Script identifier understood by the shaping provider; zero selects its default.
+	param: Language tag used by the text provider; empty uses its default.
+	End Rem
 	Method LayoutRun:TTextLayout(text:String,first:Int,last:Int,rtl:Int,script:Int=0,language:String="") Override
 		If first<0 Or last<first Or last>text.Length Then Throw "Max2D: invalid directional run range"
 		Local result:TScalableTextLayout=New TScalableTextLayout
@@ -285,6 +500,11 @@ Type TScalableImageFont Extends TImageFont
 		result.CalculateBounds();layoutBuilds:+1
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Shapes text with logical metrics independent of the current output density.
+	param: Text to lay out, measure or draw.
+	End Rem
  Method Layout:TTextLayout(text:String) Override
   Local cached:TTextLayout=TTextLayout(layouts.ValueForKey(text))
   If cached Then
@@ -339,8 +559,15 @@ Type TScalableImageFont Extends TImageFont
   layoutBuilds:+1
   Return result
  End Method
+
 End Type
 
+Rem
+bbdoc: Loads a density-aware image font for crisp text under scaling and high-DPI output.
+param: Font filename, stream URL or supported readable stream.
+param: Requested font size.
+param: Font style flags, such as SMOOTHFONT, BOLDFONT or ITALICFONT.
+End Rem
 Function LoadScalableImageFont:TScalableImageFont(url:Object,size:Float,style:Int=SMOOTHFONT|KERNFONT|LIGATURESFONT)
  Return TScalableImageFont.LoadScalable(url,size,style)
 End Function

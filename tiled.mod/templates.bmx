@@ -1,5 +1,17 @@
 ' Import-time XML expansion. Cached templates are immutable and freed after loading.
+
+Rem
+bbdoc: Helpers for loading and expanding Tiled object templates.
+End Rem
 Type TTiledTemplates
+
+	Rem
+	bbdoc: Copies template XML into a target node while enforcing import limits.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Source data or object to read.
+	param: Destination XML node to populate.
+	param: Current template-nesting depth, checked against import limits.
+	End Rem
 	Function CopyInto(reader:TTiledReader,source:TxmlNode,target:TxmlNode,depth:Int=0)
 		reader.templateNodes:+1
 		If depth>256 Or reader.templateNodes>1048576 Then Throw "template expansion limit exceeded"
@@ -17,6 +29,12 @@ Type TTiledTemplates
 		Wend
 		If Not hasElements And source.getContent() Then target.setContent(source.getContent())
 	End Function
+
+	Rem
+	bbdoc: Creates a bounded deep copy of an XML node for template expansion.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Source data or object to read.
+	End Rem
 	Function Clone:TxmlNode(reader:TTiledReader,source:TxmlNode)
 		Local result:TxmlNode=TxmlNode.newNode(source.getName())
 		Try
@@ -27,6 +45,13 @@ Type TTiledTemplates
 			Throw error
 		End Try
 	End Function
+
+	Rem
+	bbdoc: Resolves file-valued template properties relative to the template directory.
+	param: Source document node to inspect.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Current document-nesting depth, checked against import limits.
+	End Rem
 	Function NormalizeFiles(node:TxmlNode,base:String,depth:Int=0)
 		If depth>256 Then Throw "template properties nested too deeply"
 		If node.getName()="property" And TTiledReader.Attr(node,"type")="file" Then
@@ -39,6 +64,14 @@ Type TTiledTemplates
 			child=child.nextSibling()
 		Wend
 	End Function
+
+	Rem
+	bbdoc: Merges template and instance properties into a target XML node.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Destination XML node to populate.
+	param: Source data or object to read.
+	param: Current property-nesting depth, checked against import limits.
+	End Rem
 	Function MergeProperties(reader:TTiledReader,target:TxmlNode,source:TxmlNode,depth:Int=0)
 		If depth>64 Then Throw "class properties nested too deeply"
 		Local overrides:TxmlNode=TTiledReader.Child(source,"properties")
@@ -63,6 +96,14 @@ Type TTiledTemplates
 			node=node.nextSibling()
 		Wend
 	End Function
+
+	Rem
+	bbdoc: Expands an object's template and applies its instance overrides.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Source document node to inspect.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Current template-nesting depth, checked against import limits.
+	End Rem
 	Function ExpandObject:TxmlNode(reader:TTiledReader,node:TxmlNode,base:String,depth:Int)
 		If depth>32 Then Throw "object templates nested too deeply"
 		Local own:TxmlNode=Clone(reader,node),result:TxmlNode
@@ -105,6 +146,13 @@ Type TTiledTemplates
 			If own Then own.Free()
 		End Try
 	End Function
+
+	Rem
+	bbdoc: Loads and caches a template while rejecting cyclic references.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Resource filename or filesystem URL.
+	param: Current template-nesting depth, checked against import limits.
+	End Rem
 	Function ReadTemplate:TxmlNode(reader:TTiledReader,path:String,depth:Int)
 		Local cached:TxmlNode
 		If reader.templates.TryGetValue(path,cached) Then Return cached
@@ -146,6 +194,12 @@ Type TTiledTemplates
 			If doc Then doc.Free()
 		End Try
 	End Function
+
+	Rem
+	bbdoc: Finds the map tileset matching an external tileset path.
+	param: Importer state used for resource lookup and allocation limits.
+	param: Resource filename or filesystem URL.
+	End Rem
 	Function FindTileset:TTiledTileset(reader:TTiledReader,path:String)
 		Local nextGID:Long=1
 		For Local set:TTiledTileset=EachIn reader.map.importedTilesets
@@ -165,4 +219,5 @@ Type TTiledTemplates
 			reference.Free()
 		End Try
 	End Function
+
 End Type

@@ -11,25 +11,62 @@ Import Max2D.Core
 Import SDL3.SDL3Graphics
 Import "glue.c"
 
+Rem
+bbdoc: Native SDL3 GPU texture storage owned by a Max2D context.
+End Rem
 Type TSDLGPUImageFrame Extends TImageFrame
+
+	Rem
+	bbdoc: Opaque backend resource handle; managed by the owning graphics context.
+	End Rem
 	Field native:Byte Ptr
+
+	Rem
+	bbdoc: Releases this frame's native graphics resources on the rendering thread.
+	End Rem
 	Method NativeDestroy() Override
 		If native Then m2d_gpu_destroy(native)
 		native=Null
 	End Method
+
 End Type
 
+Rem
+bbdoc: Max2D rendering context implemented with SDL3 GPU.
+End Rem
 Type TSDLGPUMax2DContext Extends TMax2DContext
+
+	Rem
+	bbdoc: Opaque backend resource handle; managed by the owning graphics context.
+	End Rem
 	Field native:Byte Ptr
+
+	Rem
+	bbdoc: Throws the backend's error when a native operation fails.
+	param: Nonzero for native-operation success; zero triggers an exception.
+	End Rem
 	Method Require(ok:Int)
 		If Not ok Then Throw "Max2D SDL GPU: "+SDL_GetError()
 	End Method
+
+	Rem
+	bbdoc: Returns the backend handle for an image frame, or Null for no texture.
+	param: Texture frame to sample, or Null for untextured geometry.
+	End Rem
 	Method NativeFrame:Byte Ptr(frame:TImageFrame)
 		If frame Then Return TSDLGPUImageFrame(frame).native
 	End Method
+
+	Rem
+	bbdoc: Makes this graphics context current for native rendering operations.
+	End Rem
 	Method Activate() Override
 		SDLGraphicsDriver().SetGraphics(graphics)
 	End Method
+
+	Rem
+	bbdoc: Closes the graphics resources owned by this object.
+	End Rem
 	Method Close() Override
 		If closed Then Return
 		Flush()
@@ -41,15 +78,35 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		native=Null
 		Super.Close()
 	End Method
+
+	Rem
+	bbdoc: Reports whether runtime exclusive fullscreen switching is implemented.
+	End Rem
 	Method SupportsFullscreen:Int() Override
 		Return True
 	End Method
+
+	Rem
+	bbdoc: Reports whether runtime borderless fullscreen switching is implemented.
+	End Rem
 	Method SupportsBorderlessFullscreen:Int() Override
 		Return True
 	End Method
+
+	Rem
+	bbdoc: Returns the established windowed, exclusive or borderless fullscreen mode.
+	End Rem
 	Method WindowMode:Int() Override
 		Return TSDLGraphics(graphics).WindowMode()
 	End Method
+
+	Rem
+	bbdoc: Changes the window's presentation mode and refreshes its native resources.
+	param: MAX2D_WINDOWED, MAX2D_FULLSCREEN or MAX2D_BORDERLESS_FULLSCREEN.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Refresh rate in hertz; zero selects the backend default.
+	End Rem
 	Method SetWindowMode(mode:Int,width:Int,height:Int,hertz:Int) Override
 		Local g:TSDLGraphics=TSDLGraphics(graphics)
 		If mode=MAX2D_BORDERLESS_FULLSCREEN Then
@@ -58,9 +115,21 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 			g.SetFullscreen(mode=MAX2D_FULLSCREEN,width,height,hertz)
 		End If
 	End Method
+
+	Rem
+	bbdoc: Gets the window coordinate extent used by mouse input.
+	param: Receives width of the rectangle or drawing surface.
+	param: Receives height of the rectangle or drawing surface.
+	End Rem
 	Method NativeInputSize(width:Int Var,height:Int Var) Override
 		Require(TSDLGraphics(graphics)._context.window.GetSize(width,height))
 	End Method
+
+	Rem
+	bbdoc: Requests a new window size.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	End Rem
 	Method Resize(width:Int,height:Int) Override
 		Try
 			graphics.Resize(width,height)
@@ -70,6 +139,12 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 			Throw error
 		End Try
 	End Method
+
+	Rem
+	bbdoc: Requests a new window position.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method Position(x:Int,y:Int) Override
 		Local window:TSDLWindow=TSDLGraphics(graphics)._context.window
 		Local currentX:Int,currentY:Int
@@ -84,13 +159,29 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		Require(window.GetPosition(currentX,currentY))
 		graphics.Position(currentX,currentY)
 	End Method
+
+	Rem
+	bbdoc: Presents the window backbuffer with the requested synchronization setting.
+	param: Presentation synchronization setting; negative uses the backend default.
+	End Rem
 	Method Present:Int(sync:Int) Override
 		Require(m2d_gpu_present(native,sync))
 		Return True
 	End Method
+
+	Rem
+	bbdoc: Gets the drawable window dimensions in native pixels.
+	param: Receives width of the rectangle or drawing surface.
+	param: Receives height of the rectangle or drawing surface.
+	End Rem
 	Method NativeOutputSize(width:Int Var,height:Int Var) Override
 		Require(m2d_gpu_output(native,Varptr width,Varptr height))
 	End Method
+
+	Rem
+	bbdoc: Maps a pixel format to the native GPU glue's storage-kind identifier.
+	param: Pixel storage format from BRL.PixelFormat.
+	End Rem
 	Method TextureKind:Int(pixelFormat:Int)
 		Select pixelFormat
 			Case PF_RGBA8888
@@ -108,9 +199,26 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		End Select
 		Return -1
 	End Method
+
+	Rem
+	bbdoc: Allocates a native image frame or render target.
+	param: Positive image width in pixels.
+	param: Positive image height in pixels.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Whether to allocate render-target storage.
+	End Rem
 	Method NativeCreate:TImageFrame(width:Int,height:Int,flags:Int,target:Int) Override
 		Return NativeCreateFormat(width,height,flags,target,PF_RGBA8888)
 	End Method
+
+	Rem
+	bbdoc: Allocates a native image frame with the requested storage format.
+	param: Positive image width in pixels.
+	param: Positive image height in pixels.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Whether to allocate render-target storage.
+	param: Pixel storage format from BRL.PixelFormat.
+	End Rem
 	Method NativeCreateFormat:TImageFrame(width:Int,height:Int,flags:Int,target:Int,pixelFormat:Int) Override
 		Local frame:TSDLGPUImageFrame=New TSDLGPUImageFrame
 		frame.native=m2d_gpu_create(native,width,height,flags,target,TextureKind(pixelFormat),0)
@@ -118,6 +226,12 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		frame.pixelFormat=pixelFormat
 		Return frame
 	End Method
+
+	Rem
+	bbdoc: Checks whether supplied texture data can be uploaded by this context.
+	param: Texture storage and mip levels to use.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method TextureDataSupport:ETextureFormatSupport(data:TTextureData,flags:Int) Override
 		If data And (data.Format()=PF_BC1_RGBA Or data.Format()=PF_BC3_RGBA) Then
 			If Not ValidTextureSize(data.Width(),data.Height()) Or data.Width() Mod 4 Or data.Height() Mod 4 Then Return ETextureFormatSupport.Unsupported
@@ -128,6 +242,12 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		If (flags & DYNAMICIMAGE) Or Not ValidTextureSize(data.Width(),data.Height()) Then Return ETextureFormatSupport.Unsupported
 		Return TextureFormatSupport(data.Format(),flags & ~MIPMAPPEDIMAGE)
 	End Method
+
+	Rem
+	bbdoc: Allocates native storage for supplied texture data and mip levels.
+	param: Texture storage and mip levels to use.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method NativeCreateTexture:TImageFrame(data:TTextureData,flags:Int) Override
 		If data.LevelCount()=1 Then Return Super.NativeCreateTexture(data,flags)
 		Local frame:TSDLGPUImageFrame=New TSDLGPUImageFrame
@@ -136,6 +256,12 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		frame.pixelFormat=data.Format()
 		Return frame
 	End Method
+
+	Rem
+	bbdoc: Uploads the supplied texture levels into an existing native frame.
+	param: Native image frame owned by this context.
+	param: Texture storage and mip levels to use.
+	End Rem
 	Method NativeUpdateTexture(frame:TImageFrame,data:TTextureData) Override
 		If data.LevelCount()=1 And data.Format()<>PF_RGBA16F And data.Format()<>PF_RGBA32F And data.Format()<>PF_BC1_RGBA And data.Format()<>PF_BC3_RGBA Then
 			Super.NativeUpdateTexture(frame,data)
@@ -146,38 +272,105 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 			Require(m2d_gpu_update_level(NativeFrame(frame),level.Data(),level.Pitch(),index,0,0,level.Width(),level.Height()))
 		Next
 	End Method
+
+	Rem
+	bbdoc: Uploads a rectangle from a full source pixmap into a native frame.
+	param: Native image frame owned by this context.
+	param: Source pixel data.
+	param: Left edge of the pixel rectangle.
+	param: Top edge of the pixel rectangle.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	End Rem
 	Method NativeUpdateSource(frame:TImageFrame,pixmap:TPixmap,x:Int,y:Int,w:Int,h:Int) Override
 		NativeUpdate(frame,pixmap,x,y,w,h)
 	End Method
+
+	Rem
+	bbdoc: Uploads pixels into a rectangle of a native image frame.
+	param: Native image frame owned by this context.
+	param: Source pixel data.
+	param: Left edge of the pixel rectangle.
+	param: Top edge of the pixel rectangle.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	End Rem
 	Method NativeUpdate(frame:TImageFrame,pixmap:TPixmap,x:Int,y:Int,w:Int,h:Int) Override
 		Local region:TPixmap=UploadRegion(pixmap,x,y,w,h,frame.pixelFormat)
 		Require(m2d_gpu_update(NativeFrame(frame),region.pixels,region.pitch,x,y,w,h))
 	End Method
+
+	Rem
+	bbdoc: Submits an interleaved triangle batch to the native renderer.
+	param: Texture frame to sample, or Null for untextured geometry.
+	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
+	param: Interleaved vertices, with eight floats per vertex: x, y, r, g, b, a, u, v.
+	param: Number of items to process.
+	End Rem
 	Method NativeSubmit(frame:TImageFrame,blend:Int,vertices:Float Ptr,count:Int) Override
 		Local result:Int=m2d_gpu_draw(native,NativeFrame(target),NativeFrame(frame),blend,vertices,count)
 		Require(result)
 		stats.mipmapGenerations:+result-1
 	End Method
+
+	Rem
+	bbdoc: Applies the render target, presentation transform and clipping rectangle.
+	param: Render-target frame, or Null for the window backbuffer.
+	param: Virtual dimensions, presentation and clipping settings.
+	End Rem
 	Method NativeView(frame:TImageFrame,view:TMax2DView) Override
 		Require(m2d_gpu_view(native,NativeFrame(frame),pixelWidth,pixelHeight,pixelOffsetX,pixelOffsetY,pixelViewportWidth,pixelViewportHeight,..
 			pixelScaleX,pixelScaleY,view.x,view.y,view.w,view.h))
 	End Method
+
+	Rem
+	bbdoc: Clears the active native target with the supplied colour.
+	param: Red component, from 0 to 255.
+	param: Green component, from 0 to 255.
+	param: Blue component, from 0 to 255.
+	param: Opacity multiplier, from 0.0 to 1.0.
+	End Rem
 	Method NativeClear(red:Int,green:Int,blue:Int,alpha:Float) Override
 		Require(m2d_gpu_clear(native,NativeFrame(target),view.presentation=VIRTUAL_LETTERBOX Or view.presentation=VIRTUAL_INTEGER,..
 			red,green,blue,alpha,view.barRed,view.barGreen,view.barBlue))
 	End Method
+
+	Rem
+	bbdoc: Reads native target pixels into a pixmap.
+	param: Render-target frame, or Null for the window backbuffer.
+	param: Left edge of the pixel rectangle.
+	param: Top edge of the pixel rectangle.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	End Rem
 	Method NativeRead:TPixmap(frame:TImageFrame,x:Int,y:Int,w:Int,h:Int) Override
 		Local pixels:TPixmap=CreatePixmap(w,h,PF_RGBA8888)
 		Require(m2d_gpu_read(native,NativeFrame(frame),x,y,w,h,pixels.pixels,pixels.pitch))
 		Return pixels
 	End Method
+
+	Rem
+	bbdoc: Reports whether a blend mode is supported by this context.
+	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
+	End Rem
 	Method SupportsBlend:Int(blend:Int) Override
 		Return blend>=MASKBLEND And blend<=SHADEBLEND
 	End Method
+
+	Rem
+	bbdoc: Reports whether an image flag combination is supported by this context.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method SupportsImageFlags:Int(flags:Int) Override
 		If flags & ~(MASKEDIMAGE|FILTEREDIMAGE|DYNAMICIMAGE|MIPMAPPEDIMAGE) Then Return False
 		Return Not (flags & MIPMAPPEDIMAGE) Or m2d_gpu_support(native,False,True)
 	End Method
+
+	Rem
+	bbdoc: Reports native, converted or unsupported storage for a texture format.
+	param: Pixel storage format from BRL.PixelFormat.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method TextureFormatSupport:ETextureFormatSupport(pixelFormat:Int,flags:Int) Override
 		If Not SupportsImageFlags(flags) Then Return ETextureFormatSupport.Unsupported
 		If (pixelFormat=PF_RGBA16F Or pixelFormat=PF_RGBA32F Or pixelFormat=PF_BC1_RGBA Or pixelFormat=PF_BC3_RGBA) And (flags & (MIPMAPPEDIMAGE|DYNAMICIMAGE)) Then Return ETextureFormatSupport.Unsupported
@@ -187,12 +380,25 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		End If
 		Return ETextureFormatSupport.Unsupported
 	End Method
+
+	Rem
+	bbdoc: Checks render-target support for dimensions, image flags and storage format.
+	param: Positive image width in pixels.
+	param: Positive image height in pixels.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Pixel storage format from BRL.PixelFormat.
+	End Rem
 	Method SupportsRenderImageFormat:Int(width:Int,height:Int,flags:Int,pixelFormat:Int) Override
 		If pixelFormat=PF_RGBA8888 Then Return SupportsRenderImage(width,height,flags)
 		If pixelFormat<>PF_RGBA16F And pixelFormat<>PF_RGBA32F Then Return False
 		If (flags & MIPMAPPEDIMAGE) Or Not SupportsImageFlags(flags) Or Not ValidTextureSize(width,height) Then Return False
 		Return m2d_gpu_target_support(native,TextureKind(pixelFormat))
 	End Method
+
+	Rem
+	bbdoc: Reads native render-target storage without reducing floating-point range.
+	param: Native image frame owned by this context.
+	End Rem
 	Method NativeReadTexture:TTextureData(frame:TImageFrame) Override
 		If frame.pixelFormat=PF_RGBA8888 Then Return Super.NativeReadTexture(frame)
 		Local size:Long=GetPixelFormatInfo(PF_RGBA32F).StorageSize(frame.width,frame.height)
@@ -201,15 +407,41 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		Require(m2d_gpu_read_float(native,NativeFrame(frame),bytes))
 		Return TTextureData.Create([TTextureLevel.Create(frame.width,frame.height,PF_RGBA32F,bytes)])
 	End Method
+
+	Rem
+	bbdoc: Checks render-target support for dimensions and image flags.
+	param: Positive image width in pixels.
+	param: Positive image height in pixels.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method SupportsRenderImage:Int(width:Int,height:Int,flags:Int) Override
 		Return SupportsImageFlags(flags) And ValidTextureSize(width,height) And m2d_gpu_support(native,False,True)
 	End Method
+
 End Type
 
+Rem
+bbdoc: Graphics driver for the SDL3 GPU Max2D backend.
+End Rem
 Type TSDLGPUMax2DDriver Extends TMax2DDriver
+
+	Rem
+	bbdoc: Returns display modes reported by the underlying graphics driver.
+	End Rem
 	Method GraphicsModes:TGraphicsMode[]() Override
 		Return SDLGraphicsDriver().GraphicsModes()
 	End Method
+
+	Rem
+	bbdoc: Creates the backend context for a graphics window.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Fullscreen colour depth; zero requests a window.
+	param: Refresh rate in hertz; zero selects the backend default.
+	param: BRL.Graphics window-creation flags.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method CreateContext:TMax2DContext(width:Int,height:Int,depth:Int,hertz:Int,flags:Long,x:Int,y:Int) Override
 		If flags & SDL_GRAPHICS_GL Then Throw "Max2D SDL GPU: OpenGL flags are unsupported"
 		Local graphics:TSDLGraphics=SDLGraphicsDriver().CreateGraphics(width,height,depth,hertz,flags|SDL_GRAPHICS_GPU,x,y)
@@ -224,17 +456,30 @@ Type TSDLGPUMax2DDriver Extends TMax2DDriver
 		End If
 		Return context
 	End Method
+
+	Rem
+	bbdoc: Returns the renderer's descriptive name.
+	End Rem
 	Method ToString:String() Override
 		Return "Max2D SDL3 GPU"
 	End Method
+
+	Rem
+	bbdoc: Gets the local handle used for drawing primitives.
+	param: Kind of native graphics handle requested.
+	End Rem
 	Method GetHandle:Byte Ptr(handleType:EGraphicsHandleType=EGraphicsHandleType.Window) Override
 		If Not current Then Return Null
 		Local window:TSDLWindow=TSDLGraphics(current.context.graphics)._context.window
 		If handleType=EGraphicsHandleType.Display Then Return window.GetDisplayHandle()
 		Return window.GetHandle()
 	End Method
+
 End Type
 
+Rem
+bbdoc: Returns the shared SDL3 GPU Max2D graphics driver.
+End Rem
 Function SDLGPUMax2DDriver:TSDLGPUMax2DDriver()
 	Global driver:TSDLGPUMax2DDriver=New TSDLGPUMax2DDriver
 	Return driver

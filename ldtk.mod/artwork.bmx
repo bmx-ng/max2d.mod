@@ -1,15 +1,72 @@
+
 Rem
 bbdoc: LDtk entity artwork, drawn independently of its gameplay rectangle.
 about: Set visible=False to replace the editor artwork with game visuals. mode is the exported LDtk tileRenderMode name. The entity object's transform, opacity and visibility apply to both placement and rendering.
 End Rem
 Type TLDTKEntityArtwork Extends TTileObjectArtwork
-	Field image:TImage,mode:String
-	Field pivotX:Float,pivotY:Float,opacity:Float=1
-	Field left:Int,right:Int,top:Int,bottom:Int
+
+	Rem
+	bbdoc: Image or animation supplying this object's artwork.
+	End Rem
+	Field image:TImage
+
+	Rem
+	bbdoc: Imported artwork drawing mode, such as stretch, repeat or nine-slice.
+	End Rem
+	Field mode:String
+
+	Rem
+	bbdoc: Normalized horizontal artwork pivot.
+	End Rem
+	Field pivotX:Float
+
+	Rem
+	bbdoc: Normalized vertical artwork pivot.
+	End Rem
+	Field pivotY:Float
+
+	Rem
+	bbdoc: Opacity multiplier from 0.0 to 1.0.
+	End Rem
+	Field opacity:Float=1
+
+	Rem
+	bbdoc: Left nine-slice border width in source pixels.
+	End Rem
+	Field left:Int
+
+	Rem
+	bbdoc: Right nine-slice border width in source pixels.
+	End Rem
+	Field right:Int
+
+	Rem
+	bbdoc: Top nine-slice border height in source pixels.
+	End Rem
+	Field top:Int
+
+	Rem
+	bbdoc: Bottom nine-slice border height in source pixels.
+	End Rem
+	Field bottom:Int
+
+	Rem
+	bbdoc: Checks that the entity dimensions can accommodate its nine-slice borders.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	End Rem
 	Method ValidateNineSlice(width:Float,height:Float)
 		If left<0 Or right<0 Or top<0 Or bottom<0 Or Long(left)+right>=image.width Or Long(top)+bottom>=image.height Then Throw "Max2D.LDTK: nine-slice borders must leave a positive source centre"
 		If width<left+right Or height<top+bottom Then Throw "Max2D.LDTK: nine-slice entity is smaller than its borders"
 	End Method
+
+	Rem
+	bbdoc: Draws the imported entity artwork into its logical rectangle.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Elapsed animation time in milliseconds; negative values are treated as zero.
+	End Rem
 	Method Draw(canvas:TMax2DGraphics,width:Float,height:Float,elapsed:Long) Override
 		If Not image Or Not visible Or opacity=0 Or width<=0 Or height<=0 Then Return
 		If Not (opacity>=0 And opacity<=1 And pivotX>=0 And pivotX<=1 And pivotY>=0 And pivotY<=1) Then Throw "Max2D.LDTK: invalid entity artwork properties"
@@ -64,6 +121,7 @@ Type TLDTKEntityArtwork Extends TTileObjectArtwork
 			canvas.state.alpha=alpha
 		End Try
 	End Method
+
 End Type
 
 Private
@@ -97,5 +155,7 @@ Type TLDTKImageDrawing
 		Next
 		Return count
 	End Function
+
 End Type
+
 Public

@@ -1,7 +1,40 @@
 ' A padded atlas region belongs to the shared source, so edits through any
 ' subview (or the page itself) can refresh its border before the next upload.
+
+Rem
+bbdoc: An atlas rectangle with extruded padding maintained by its shared image source.
+End Rem
 Type TImageRegion
-	Field x:Int,y:Int,width:Int,height:Int,padding:Int
+
+	Rem
+	bbdoc: Left edge of the content region on the atlas page, excluding padding.
+	End Rem
+	Field x:Int
+
+	Rem
+	bbdoc: Top edge of the content region on the atlas page, excluding padding.
+	End Rem
+	Field y:Int
+
+	Rem
+	bbdoc: Logical width of this object or region.
+	End Rem
+	Field width:Int
+
+	Rem
+	bbdoc: Logical height of this object or region.
+	End Rem
+	Field height:Int
+
+	Rem
+	bbdoc: Number of extruded border pixels surrounding each atlas region.
+	End Rem
+	Field padding:Int
+
+	Rem
+	bbdoc: Copies edge pixels into the padding around this atlas region.
+	param: Source pixel data.
+	End Rem
 	Method Extrude(pixmap:TPixmap)
 		For Local py:Int=y-padding Until y+height+padding
 			Local cy:Int=Min(y+height-1,Max(y,py))
@@ -17,30 +50,150 @@ Type TImageRegion
 			Next
 		Next
 	End Method
+
 End Type
 
+Rem
+bbdoc: Placement of stored pixels within an image's original logical dimensions.
+End Rem
 Type TImageTrim
-	Field x:Int, y:Int, width:Int, height:Int
+
+	Rem
+	bbdoc: Stored-pixel left offset within the original logical image.
+	End Rem
+	Field x:Int
+
+	Rem
+	bbdoc: Stored-pixel top offset within the original logical image.
+	End Rem
+	Field y:Int
+
+	Rem
+	bbdoc: Stored-pixel width; zero denotes a fully transparent frame.
+	End Rem
+	Field width:Int
+
+	Rem
+	bbdoc: Stored-pixel height; zero denotes a fully transparent frame.
+	End Rem
+	Field height:Int
 End Type
 
+Rem
+bbdoc: Shared CPU image storage and the native frames created from it.
+End Rem
 Type TImageSource
+
+	Rem
+	bbdoc: CPU pixel storage shared by this image source or atlas entry.
+	End Rem
 	Field pixmap:TPixmap
+
+	Rem
+	bbdoc: Owned texture data retained for uploads and context recreation.
+	End Rem
 	Field textureData:TTextureData
-	Field width:Int, height:Int, flags:Int
+
+	Rem
+	bbdoc: Width of shared source storage in pixels.
+	End Rem
+	Field width:Int
+
+	Rem
+	bbdoc: Height of shared source storage in pixels.
+	End Rem
+	Field height:Int
+
+	Rem
+	bbdoc: Image creation and sampling flags.
+	End Rem
+	Field flags:Int
+
+	Rem
+	bbdoc: Whether the source represents a render image instead of CPU image pixels.
+	End Rem
 	Field renderTarget:Int
+
+	Rem
+	bbdoc: Requested render-target pixel format.
+	End Rem
 	Field targetFormat:Int=PF_RGBA8888
+
+	Rem
+	bbdoc: Context to which a render image is bound after native allocation.
+	End Rem
 	Field targetOwner:TMax2DContext
+
+	Rem
+	bbdoc: Revision used to track cached or uploaded source data.
+	End Rem
 	Field version:Long = 1
-	Field dirtyX:Int, dirtyY:Int, dirtyW:Int, dirtyH:Int
+
+	Rem
+	bbdoc: Left edge of the pending pixel upload rectangle.
+	End Rem
+	Field dirtyX:Int
+
+	Rem
+	bbdoc: Top edge of the pending pixel upload rectangle.
+	End Rem
+	Field dirtyY:Int
+
+	Rem
+	bbdoc: Width of the pending pixel upload rectangle; zero means no pending region.
+	End Rem
+	Field dirtyW:Int
+
+	Rem
+	bbdoc: Height of the pending pixel upload rectangle; zero means no pending region.
+	End Rem
+	Field dirtyH:Int
+
+	Rem
+	bbdoc: Image view currently holding a lock on this shared source.
+	End Rem
 	Field lockImage:TImage
+
+	Rem
+	bbdoc: Frame index of the active image lock.
+	End Rem
 	Field lockIndex:Int
+
+	Rem
+	bbdoc: Pixmap exposed by the current CPU image lock.
+	End Rem
 	Field lockPixels:TPixmap
-	Field locked:Int, writing:Int
+
+	Rem
+	bbdoc: Whether a CPU image lock is active.
+	End Rem
+	Field locked:Int
+
+	Rem
+	bbdoc: Whether the active lock allows pixel edits.
+	End Rem
+	Field writing:Int
+
+	Rem
+	bbdoc: Native frames associated with this owner.
+	End Rem
 	Field frames:TList = New TList
+
+	Rem
+	bbdoc: Padded atlas regions whose borders must be refreshed after pixel edits.
+	End Rem
 	Field regions:TList = New TList
+
+	Rem
+	bbdoc: Cached CPU collision mask for the current source revision.
+	End Rem
 	Field collisionMask:TCollisionMask
 
 	' Existing CPU algorithms can read byte-addressable texture storage through a borrowed view.
+
+	Rem
+	bbdoc: Returns borrowed CPU pixels when the image storage supports a pixmap view.
+	End Rem
 	Method ReadPixels:TPixmap()
 		If pixmap Then Return pixmap
 		If Not textureData Then Throw "Max2D: image has no CPU pixels"
@@ -51,6 +204,13 @@ Type TImageSource
 		Return pixels
 	End Method
 
+	Rem
+	bbdoc: Marks a changed pixel rectangle and refreshes affected atlas padding.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	End Rem
 	Method Changed(x:Int, y:Int, w:Int, h:Int)
 		Local left:Int=x,top:Int=y,right:Int=x+w,bottom:Int=y+h
 		For Local region:TImageRegion=EachIn regions
@@ -78,6 +238,10 @@ Type TImageSource
 		Next
 	End Method
 
+	Rem
+	bbdoc: Gets or creates the native frame for a context and uploads pending changes.
+	param: Rendering context that owns the native resources.
+	End Rem
 	Method Frame:TImageFrame(context:TMax2DContext)
 		context.CheckOpen()
 		If locked And writing Then Throw "Max2D: unlock the image before drawing"
@@ -116,6 +280,9 @@ Type TImageSource
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Queues native image frames for release by their owning rendering contexts.
+	End Rem
 	Method ReleaseFrames()
 		For Local frame:TImageFrame = EachIn frames
 			frame.releasePending = True
@@ -123,28 +290,88 @@ Type TImageSource
 		frames.Clear()
 	End Method
 
+	Rem
+	bbdoc: Queues native frame release without performing graphics work in the finalizer.
+	End Rem
 	Method Delete()
 		' Managed bookkeeping only. The rendering thread drains the release queue.
 		ReleaseFrames()
 	End Method
+
 End Type
 
 Rem
 bbdoc: A view of one or more image regions. Native resources are context-specific.
 End Rem
 Type TImage
-	Field width:Int, height:Int, flags:Int
-	Field handle_x:Float, handle_y:Float
+
+	Rem
+	bbdoc: Logical width in pixels, including any trimmed transparent borders; treat as read-only.
+	End Rem
+	Field width:Int
+
+	Rem
+	bbdoc: Logical height in pixels, including any trimmed transparent borders; treat as read-only.
+	End Rem
+	Field height:Int
+
+	Rem
+	bbdoc: Image creation and sampling flags; configure through image factories.
+	End Rem
+	Field flags:Int
+
+	Rem
+	bbdoc: Horizontal drawing handle measured from the logical image's left edge.
+	End Rem
+	Field handle_x:Float
+
+	Rem
+	bbdoc: Vertical drawing handle measured from the logical image's top edge.
+	End Rem
+	Field handle_y:Float
+
+	Rem
+	bbdoc: Shared source storage for each animation frame; maintained by image factories.
+	End Rem
 	Field sources:TImageSource[]
-	Field sourceX:Int[], sourceY:Int[]
+
+	Rem
+	bbdoc: Per-frame left edges within shared source storage; maintained by image factories.
+	End Rem
+	Field sourceX:Int[]
+
+	Rem
+	bbdoc: Per-frame top edges within shared source storage; maintained by image factories.
+	End Rem
+	Field sourceY:Int[]
+
+	Rem
+	bbdoc: Per-frame durations in milliseconds; zero means no timing was supplied.
+	End Rem
 	Field frameDuration:Int[]
+
+	Rem
+	bbdoc: Optional per-frame trim placement within the original logical dimensions.
+	End Rem
 	Field trims:TImageTrim[]
 
+	Rem
+	bbdoc: Returns a frame's trim metadata, or Null when the full logical image is stored.
+	param: Zero-based index.
+	End Rem
 	Method Trim:TImageTrim(index:Int=0)
 		If trims Then Return trims[index]
 		Return Null
 	End Method
 
+	Rem
+	bbdoc: Sets a frame's stored-pixel rectangle within its original logical dimensions.
+	param: Zero-based index.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	End Rem
 	Method SetTrim(index:Int,x:Int,y:Int,w:Int,h:Int)
 		CheckIndex(index)
 		If x<0 Or y<0 Or w<0 Or h<0 Or Long(x)+w>width Or Long(y)+h>height Or ((w=0) <> (h=0)) Then Throw "Max2D: invalid image trim"
@@ -167,6 +394,11 @@ Type TImage
 		Return total
 	End Method
 
+	Rem
+	bbdoc: Selects an animation frame using elapsed time in milliseconds.
+	param: Elapsed animation time in milliseconds; negative values are treated as zero.
+	param: Whether to wrap at the end; False holds the final frame.
+	End Rem
 	Method FrameAtTime:Int(elapsed:Long,loop:Int=True)
 		Local total:Long=AnimationDuration()
 		If elapsed<0 Then elapsed=0
@@ -182,6 +414,11 @@ Type TImage
 		Return sources.Length-1
 	End Method
 
+	Rem
+	bbdoc: Creates an animation from image views and positive per-frame durations.
+	param: Animation frame images in playback order.
+	param: Positive duration of each animation frame in milliseconds.
+	End Rem
 	Function Animation:TImage(frames:TImage[],durations:Int[])
 		If frames.Length=0 Or frames.Length<>durations.Length Then Throw "Max2D: animation frames and durations must match"
 		Local result:TImage=New TImage
@@ -206,6 +443,12 @@ Type TImage
 	End Function
 
 	' Validate first, so a failed update leaves both pixels and version unchanged.
+
+	Rem
+	bbdoc: Replaces a frame's pixels while preserving its logical size and trim placement.
+	param: Source pixel data.
+	param: Zero-based index.
+	End Rem
 	Method ReplacePixels(pixmap:TPixmap,index:Int=0)
 		CheckIndex(index)
 		If sources[index].textureData Then Throw "Max2D: texture-data images are read-only; create a new image to replace their storage"
@@ -231,16 +474,31 @@ Type TImage
 		source.Changed(sourceX[index],sourceY[index],w,h)
 	End Method
 
+	Rem
+	bbdoc: Throws if the image frame index is out of range.
+	param: Zero-based index.
+	End Rem
 	Method CheckIndex(index:Int)
 		If index < 0 Or index >= sources.Length Then Throw "Max2D: image frame index out of range"
 	End Method
 
+	Rem
+	bbdoc: Gets the native frame for the requested canvas, defaulting to the current canvas.
+	param: Zero-based index.
+	param: Canvas whose context will own the frame, or Null for the current canvas.
+	End Rem
 	Method Frame:TImageFrame(index:Int = 0, graphics:TMax2DGraphics = Null)
 		CheckIndex(index)
 		If Not graphics Then graphics = TMax2DGraphics.Current()
 		Return sources[index].Frame(graphics.context)
 	End Method
 
+	Rem
+	bbdoc: Locks a frame for CPU reading or writing until Unlock is called.
+	param: Zero-based index.
+	param: Whether the existing pixels are required for reading.
+	param: Whether pixels will be modified before unlocking.
+	End Rem
 	Method Lock:TPixmap(index:Int = 0, read:Int = True, write:Int = True)
 		CheckIndex(index)
 		Local source:TImageSource = sources[index]
@@ -270,6 +528,10 @@ Type TImage
 		Return pixels
 	End Method
 
+	Rem
+	bbdoc: Releases a CPU lock and marks written pixels for upload.
+	param: Zero-based index.
+	End Rem
 	Method Unlock(index:Int = 0)
 		CheckIndex(index)
 		Local source:TImageSource = sources[index]
@@ -288,6 +550,9 @@ Type TImage
 		End If
 	End Method
 
+	Rem
+	bbdoc: Queues native image frames for release by their owning rendering contexts.
+	End Rem
 	Method ReleaseFrames()
 		For Local source:TImageSource = EachIn sources
 			source.ReleaseFrames()
@@ -296,6 +561,9 @@ Type TImage
 
 	Rem
 	bbdoc: Creates an independent image, optionally storing alpha coverage only.
+	param: Source pixel data.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Pixel storage format from BRL.PixelFormat.
 	about: pixelFormat may be PF_RGBA8888 (the default) or PF_A8. PF_A8 discards colour and draws white modulated by the drawing colour. Unsupported native formats are expanded during upload. Locks expose the selected CPU format.
 	End Rem
 	Function FromPixmap:TImage(pixmap:TPixmap, flags:Int = 0, pixelFormat:Int=PF_RGBA8888)
@@ -316,6 +584,8 @@ Type TImage
 
 	Rem
 	bbdoc: Creates an image from an independent snapshot of owned texture data.
+	param: Texture storage and mip levels to use.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
 	about: Accepts RGBA8888, A8, RGBA16F, RGBA32F, BC1_RGBA or BC3_RGBA data, subject to backend support. Multiple levels enable MIPMAPPEDIMAGE automatically and are uploaded unchanged, including partial chains. Supplied levels use straight alpha. DYNAMICIMAGE is rejected. Uncompressed byte formats support read-lock snapshots and collisions; floating-point and compressed formats do not expose pixmap operations. Write locks and ReplacePixels are unavailable. With a single level, MIPMAPPEDIMAGE requests backend-generated mipmaps only for supported byte formats. Use Max2DTextureDataSupport to check the data and flags. Unsupported formats fail explicitly without altering their bytes.
 	End Rem
 	Function FromTextureData:TImage(data:TTextureData,flags:Int=0)
@@ -340,6 +610,15 @@ Type TImage
 		Return image
 	End Function
 
+	Rem
+	bbdoc: Creates a rectangular view sharing an existing image frame's storage.
+	param: Image to operate on.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Zero-based image frame index.
+	End Rem
 	Function View:TImage(image:TImage, x:Int, y:Int, width:Int, height:Int, frame:Int = 0)
 		image.CheckIndex(frame)
 		If width <= 0 Or height <= 0 Or x < 0 Or y < 0 Or Long(x) + width > image.width Or Long(y) + height > image.height Then Throw "Max2D: image view out of bounds"
@@ -366,9 +645,21 @@ Type TImage
 		End If
 		Return result
 	End Function
+
 End Type
 
+Rem
+bbdoc: An image that can receive drawing commands as a render target.
+End Rem
 Type TRenderImage Extends TImage
+
+	Rem
+	bbdoc: Creates a render-image description whose native storage is allocated on first use.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Pixel storage format from BRL.PixelFormat.
+	End Rem
 	Function Create:TRenderImage(width:Int, height:Int, flags:Int,pixelFormat:Int=PF_RGBA8888)
 		If width <= 0 Or height <= 0 Then Throw "Max2D: image dimensions must be positive"
 		Local image:TRenderImage = New TRenderImage
@@ -384,4 +675,5 @@ Type TRenderImage Extends TImage
 		image.sources[0] = source
 		Return image
 	End Function
+
 End Type

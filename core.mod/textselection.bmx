@@ -1,9 +1,22 @@
+
 Rem
 bbdoc: Selection granularity used by the optional text selection controller.
 End Rem
 Enum ETextSelectionUnit
+
+	Rem
+	bbdoc: Extends selection between supported text-cluster caret stops.
+	End Rem
 	Character
+
+	Rem
+	bbdoc: Extends selection in whole words.
+	End Rem
 	Word
+
+	Rem
+	bbdoc: Extends selection in whole visual lines.
+	End Rem
 	Line
 End Enum
 
@@ -12,12 +25,55 @@ bbdoc: Optional input-independent controller for character, word and visual-line
 about: Supply paragraph-local pointer positions and monotonic milliseconds. Begin gestures only inside the text viewport; route move/up events while captured. Drawing, OS capture, focus loss and edge scrolling belong to the host. Fields describing selection are read-only; configure clickInterval, clickDistance and tripleClickEnabled as needed.
 End Rem
 Type TTextSelectionController
+
+	Rem
+	bbdoc: Retained text layout associated with this object.
+	End Rem
 	Field layout:TParagraphLayout
-	Field anchor:Int,active:Int,dragging:Int
-	Field anchorAffinity:ETextCaretAffinity,activeAffinity:ETextCaretAffinity
+
+	Rem
+	bbdoc: Fixed selection endpoint in original UTF-16 source coordinates; maintained by the controller.
+	End Rem
+	Field anchor:Int
+
+	Rem
+	bbdoc: Moving selection endpoint in original UTF-16 source coordinates; maintained by the controller.
+	End Rem
+	Field active:Int
+
+	Rem
+	bbdoc: Whether a pointer selection gesture is active; maintained by the controller.
+	End Rem
+	Field dragging:Int
+
+	Rem
+	bbdoc: Visual-side affinity of the fixed selection endpoint.
+	End Rem
+	Field anchorAffinity:ETextCaretAffinity
+
+	Rem
+	bbdoc: Visual-side affinity of the moving selection endpoint.
+	End Rem
+	Field activeAffinity:ETextCaretAffinity
+
+	Rem
+	bbdoc: Current selection granularity: character, word or visual line.
+	End Rem
 	Field unit:ETextSelectionUnit=ETextSelectionUnit.Character
+
+	Rem
+	bbdoc: Maximum interval between repeated clicks in milliseconds.
+	End Rem
 	Field clickInterval:Int=500
+
+	Rem
+	bbdoc: Maximum repeated-click distance in paragraph-local units.
+	End Rem
 	Field clickDistance:Float=4
+
+	Rem
+	bbdoc: Whether automatic triple-click gestures select a whole visual line.
+	End Rem
 	Field tripleClickEnabled:Int=True
 	Private
 	Field anchorStart:Int,anchorEnd:Int
@@ -29,6 +85,7 @@ Type TTextSelectionController
 
 	Rem
 	bbdoc: Attaches an interactive layout. Reflow of the same prepared source preserves selection; a different source resets it.
+	param: Interactive layout to attach, or Null to detach.
 	End Rem
 	Method SetLayout(value:TParagraphLayout)
 		If value And Not value.interaction Then Throw "Max2D: selection controller requires interactive text"
@@ -43,15 +100,26 @@ Type TTextSelectionController
 		End If
 	End Method
 
+	Rem
+	bbdoc: Returns the smaller selection endpoint as a UTF-16 source offset.
+	End Rem
 	Method SelectionStart:Int()
 		Return Min(anchor,active)
 	End Method
+
+	Rem
+	bbdoc: Returns the larger selection endpoint as an exclusive UTF-16 source offset.
+	End Rem
 	Method SelectionEnd:Int()
 		Return Max(anchor,active)
 	End Method
 
 	Rem
 	bbdoc: Begins a selection gesture. Optional clickCount=1/2/3 overrides automatic click counting for toolkit integrations.
+	param: Horizontal paragraph-local pointer coordinate.
+	param: Vertical paragraph-local pointer coordinate.
+	param: Monotonic pointer-event time in milliseconds.
+	param: Explicit click count from 1 to 3, or zero for automatic counting.
 	about: Automatic counting uses configurable time and distance thresholds, cycles after a triple click, and resets after a drag. It does not query platform preferences. Returns False when no caret is available.
 	End Rem
 	Method PointerDown:Int(x:Float,y:Float,timeMillis:Long,clickCount:Int=0)
@@ -95,6 +163,8 @@ Type TTextSelectionController
 
 	Rem
 	bbdoc: Extends a captured selection. Word/line dragging retains the entire initial unit when reversing direction.
+	param: Horizontal paragraph-local pointer coordinate.
+	param: Vertical paragraph-local pointer coordinate.
 	End Rem
 	Method PointerMove(x:Float,y:Float)
 		If Not dragging Or Not layout Then Return
@@ -121,6 +191,9 @@ Type TTextSelectionController
 		End If
 	End Method
 
+	Rem
+	bbdoc: Ends the active selection drag while preserving the selection and click history.
+	End Rem
 	Method PointerUp()
 		dragging=False
 	End Method
@@ -131,4 +204,5 @@ Type TTextSelectionController
 	Method CancelDrag()
 		dragging=False;havePrevious=False
 	End Method
+
 End Type

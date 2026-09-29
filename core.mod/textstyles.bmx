@@ -1,21 +1,82 @@
+
 Rem
 bbdoc: A font object applied to a half-open original UTF-16 source range.
 about: Use actual regular/bold/italic faces or differently sized fonts. SetFontSpans snapshots these ranges; font objects themselves must remain unchanged while layouts are held. Later overlapping spans win.
 End Rem
 Type TTextFontSpan
-	Field sourceStart:Int,sourceEnd:Int
+
+	Rem
+	bbdoc: Inclusive UTF-16 source offset.
+	End Rem
+	Field sourceStart:Int
+
+	Rem
+	bbdoc: Exclusive UTF-16 source offset.
+	End Rem
+	Field sourceEnd:Int
+
+	Rem
+	bbdoc: Font used to shape and draw this text.
+	End Rem
 	Field font:TImageFont
+
+	Rem
+	bbdoc: Creates a font span over a half-open original-source range.
+	param: Inclusive UTF-16 start offset in the original source.
+	param: Exclusive UTF-16 end offset in the original source.
+	param: Font applied to this range; keep it unchanged while layouts retain it.
+	End Rem
 	Function Create:TTextFontSpan(first:Int,last:Int,font:TImageFont)
 		Local result:TTextFontSpan=New TTextFontSpan
 		result.sourceStart=first;result.sourceEnd=last;result.font=font
 		Return result
 	End Function
+
 End Type
 
+Rem
+bbdoc: A font-specific shaped run positioned on a shared text baseline.
+End Rem
 Type TStyledTextRun
-	Field first:Int,last:Int,glyphStart:Int
-	Field x:Float,y:Float,baseline:Float
+
+	Rem
+	bbdoc: Inclusive start index or source offset.
+	End Rem
+	Field first:Int
+
+	Rem
+	bbdoc: Exclusive end index or source offset.
+	End Rem
+	Field last:Int
+
+	Rem
+	bbdoc: Index of this run's first glyph in the combined layout.
+	End Rem
+	Field glyphStart:Int
+
+	Rem
+	bbdoc: Horizontal run offset within the combined text layout.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Vertical run offset used to align its baseline with the combined layout.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Logical distance from the layout origin to the shared baseline.
+	End Rem
+	Field baseline:Float
+
+	Rem
+	bbdoc: Font used to shape and draw this text.
+	End Rem
 	Field font:TImageFont
+
+	Rem
+	bbdoc: Retained text layout associated with this object.
+	End Rem
 	Field layout:TTextLayout
 End Type
 
@@ -23,12 +84,40 @@ Rem
 bbdoc: A retained single line containing font-specific shaped runs sharing a baseline.
 End Rem
 Type TStyledTextLayout Extends TTextLayout
+
+	Rem
+	bbdoc: Font-specific shaped runs in visual drawing order.
+	End Rem
 	Field runs:TStyledTextRun[]
+
+	Rem
+	bbdoc: Text represented by this layout or imported object.
+	End Rem
 	Field text:String
+
+	Rem
+	bbdoc: Logical distance from the layout origin to the shared baseline.
+	End Rem
 	Field baseline:Float
+
+	Rem
+	bbdoc: Draws all font-specific runs at their retained positions.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method Draw(canvas:TMax2DGraphics,x:Float,y:Float) Override
 		DrawColored(canvas,x,y,Null)
 	End Method
+
+	Rem
+	bbdoc: Draws retained glyphs with optional per-glyph colour overrides.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Per-glyph colour spans, or Null to use the current drawing colour.
+	param: Starting index in the per-glyph colour array.
+	End Rem
 	Method DrawColored(canvas:TMax2DGraphics,x:Float,y:Float,colors:TTextColorSpan[],colorOffset:Int=0) Override
 		For Local run:TStyledTextRun=EachIn runs
 			Local tx:Float=x+run.x*canvas.state.ix+run.y*canvas.state.iy
@@ -41,6 +130,9 @@ Type TStyledTextLayout Extends TTextLayout
 		Next
 	End Method
 
+	Rem
+	bbdoc: Builds caret positions at supported text-cluster boundaries.
+	End Rem
 	Method CreateCaretMap:TTextCaretMap()
 		Local result:TTextCaretMap=TTextCaretMap.Create(text.Length)
 		For Local run:TStyledTextRun=EachIn runs
@@ -59,6 +151,13 @@ Type TStyledTextLayout Extends TTextLayout
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Shapes font spans into runs aligned on a common baseline.
+	param: Prepared source text, font spans and provider settings.
+	param: Text to lay out, measure or draw.
+	param: Mapping from display-text UTF-16 boundaries to original-source offsets.
+	param: Length of actual source text before any appended overflow marker.
+	End Rem
 	Function Create:TStyledTextLayout(prepared:TPreparedText,text:String,offsets:Int[],contentLength:Int)
 		Local result:TStyledTextLayout=New TStyledTextLayout
 		result.text=text
@@ -111,4 +210,5 @@ Type TStyledTextLayout Extends TTextLayout
 		result.CalculateBounds()
 		Return result
 	End Function
+
 End Type

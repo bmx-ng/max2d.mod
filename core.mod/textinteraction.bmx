@@ -1,9 +1,24 @@
+
 Rem
 bbdoc: A half-open range in the original UTF-16 input.
 about: valid distinguishes an empty range (such as a blank line) from no target.
 End Rem
 Struct STextRange
-	Field sourceStart:Int,sourceEnd:Int,valid:Int
+
+	Rem
+	bbdoc: Inclusive UTF-16 source offset.
+	End Rem
+	Field sourceStart:Int
+
+	Rem
+	bbdoc: Exclusive UTF-16 source offset.
+	End Rem
+	Field sourceEnd:Int
+
+	Rem
+	bbdoc: Whether this result contains a usable mapping or source range.
+	End Rem
+	Field valid:Int
 End Struct
 
 Rem
@@ -11,9 +26,36 @@ bbdoc: A retained, read-only caret in paragraph-local logical coordinates.
 about: sourceOffset indexes the original UTF-16 input. lineIndex identifies the visible line. height is the logical line height. Transform local coordinates through the same drawing state as the paragraph when positioning screen UI.
 End Rem
 Type TTextCaret
+
+	Rem
+	bbdoc: Visual-side preference at an ambiguous bidirectional caret boundary.
+	End Rem
 	Field affinity:ETextCaretAffinity
-	Field sourceOffset:Int,lineIndex:Int
-	Field x:Float,y:Float,height:Float
+
+	Rem
+	bbdoc: Read-only caret boundary in the original UTF-16 source string.
+	End Rem
+	Field sourceOffset:Int
+
+	Rem
+	bbdoc: Zero-based visual paragraph line index.
+	End Rem
+	Field lineIndex:Int
+
+	Rem
+	bbdoc: Read-only horizontal caret position in paragraph-local logical coordinates.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Read-only top of the caret in paragraph-local logical coordinates.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Read-only logical caret height for its visual line.
+	End Rem
+	Field height:Float
 End Type
 
 Rem
@@ -21,30 +63,141 @@ bbdoc: A read-only selection rectangle in paragraph-local logical coordinates.
 about: Source ranges are half-open and expanded to supported cluster edges. Rectangles describe advance coverage, not glyph ink, and use logical line height.
 End Rem
 Type TTextSelectionRect
-	Field sourceStart:Int,sourceEnd:Int,lineIndex:Int
-	Field x:Float,y:Float,width:Float,height:Float
+
+	Rem
+	bbdoc: Inclusive UTF-16 source offset.
+	End Rem
+	Field sourceStart:Int
+
+	Rem
+	bbdoc: Exclusive UTF-16 source offset.
+	End Rem
+	Field sourceEnd:Int
+
+	Rem
+	bbdoc: Zero-based visual paragraph line index.
+	End Rem
+	Field lineIndex:Int
+
+	Rem
+	bbdoc: Read-only left edge of the selection rectangle in paragraph-local coordinates.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Read-only top edge of the selection rectangle in paragraph-local coordinates.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Read-only logical selection width, measured from advances rather than glyph ink.
+	End Rem
+	Field width:Float
+
+	Rem
+	bbdoc: Read-only logical selection height for the visual line.
+	End Rem
+	Field height:Float
 End Type
 
 ' Internal construction helpers. Arrays are allocated only for interactive text.
+
+Rem
+bbdoc: Cached caret stops belonging to one visual paragraph line.
+End Rem
 Type TTextCaretLine
+
+	Rem
+	bbdoc: Supported caret stops for this line.
+	End Rem
 	Field items:TTextCaret[]
 End Type
 
+Rem
+bbdoc: Maps normalized display text back to the original UTF-16 source and styles.
+End Rem
 Type TTextSourceMap
-	Field normalized:String
-	Field offsets:Int[]
-	Field graphemes:Byte[]
-	Field font:TImageFont
-	Field fontHeight:Float
-	Field sourceLength:Int
-	Field unicode:Int
-	Field sourceText:String,language:String
-	Field provider:TTextBoundaryProvider
-	Field wordBreaks:Byte[]
-	Field wordBuilds:Int
-	Field colorSpans:TTextColorSpan[]
-	Field paintRevision:Int,hasBackgrounds:Int
 
+	Rem
+	bbdoc: Text after normalization used by the display-to-source mapping.
+	End Rem
+	Field normalized:String
+
+	Rem
+	bbdoc: Original-source UTF-16 offset for each normalized-text boundary.
+	End Rem
+	Field offsets:Int[]
+
+	Rem
+	bbdoc: Optional boundary flags indexed by original UTF-16 source position.
+	End Rem
+	Field graphemes:Byte[]
+
+	Rem
+	bbdoc: Font used to shape and draw this text.
+	End Rem
+	Field font:TImageFont
+
+	Rem
+	bbdoc: Default logical line height used for interaction geometry.
+	End Rem
+	Field fontHeight:Float
+
+	Rem
+	bbdoc: Length of the original text in UTF-16 code units.
+	End Rem
+	Field sourceLength:Int
+
+	Rem
+	bbdoc: Whether source mapping uses a Unicode boundary provider.
+	End Rem
+	Field unicode:Int
+
+	Rem
+	bbdoc: Original unnormalized source string.
+	End Rem
+	Field sourceText:String
+
+	Rem
+	bbdoc: Language tag passed to text providers.
+	End Rem
+	Field language:String
+
+	Rem
+	bbdoc: Boundary provider retained for lazy interaction queries.
+	End Rem
+	Field provider:TTextBoundaryProvider
+
+	Rem
+	bbdoc: Lazily allocated word-boundary flags indexed by source offset.
+	End Rem
+	Field wordBreaks:Byte[]
+
+	Rem
+	bbdoc: Number of word-boundary map builds.
+	End Rem
+	Field wordBuilds:Int
+
+	Rem
+	bbdoc: Snapshot of source foreground and background colour spans.
+	End Rem
+	Field colorSpans:TTextColorSpan[]
+
+	Rem
+	bbdoc: Revision used to invalidate cached line paint.
+	End Rem
+	Field paintRevision:Int
+
+	Rem
+	bbdoc: Whether at least one source colour span supplies a background.
+	End Rem
+	Field hasBackgrounds:Int
+
+	Rem
+	bbdoc: Builds original-source mappings for a prepared interactive paragraph.
+	param: Text to lay out, measure or draw.
+	param: Prepared source text, font spans and provider settings.
+	End Rem
 	Function Create:TTextSourceMap(text:String,prepared:TPreparedText)
 		Local result:TTextSourceMap=New TTextSourceMap
 		result.font=prepared.font;result.fontHeight=prepared.naturalLineHeight
@@ -96,6 +249,10 @@ Type TTextSourceMap
 		Return result
 	End Function
 
+	Rem
+	bbdoc: Copies source colour spans and invalidates cached paint information.
+	param: Source ranges and styles to copy; later overlaps take precedence.
+	End Rem
 	Method SetColorSpans(spans:TTextColorSpan[])
 		Local copy:TTextColorSpan[]=New TTextColorSpan[spans.Length]
 		Local backgrounds:Int
@@ -108,6 +265,11 @@ Type TTextSourceMap
 		colorSpans=copy;hasBackgrounds=backgrounds;paintRevision:+1
 	End Method
 
+	Rem
+	bbdoc: Returns the last applicable foreground or background span at a cluster's source start.
+	param: Offset in the original UTF-16 source string.
+	param: True to look up background paint; False to look up foreground paint.
+	End Rem
 	Method ColorAt:TTextColorSpan(offset:Int,background:Int=False)
 		If graphemes Then
 			While offset>0 And Not graphemes[offset]
@@ -122,6 +284,9 @@ Type TTextSourceMap
 		Return Null
 	End Method
 
+	Rem
+	bbdoc: Lazily builds original-source word boundaries for word selection.
+	End Rem
 	Method PrepareWords()
 		If wordBreaks Then Return
 		Local map:Byte[]
@@ -139,12 +304,20 @@ Type TTextSourceMap
 		wordBreaks=map;wordBuilds:+1
 	End Method
 
+	Rem
+	bbdoc: Classifies a UTF-16 unit as whitespace, word content or punctuation for fallback selection.
+	param: UTF-16 code unit to classify.
+	End Rem
 	Function BasicWordClass:Int(ch:Int)
 		If ch=32 Or ch=9 Or ch=10 Or ch=13 Then Return 0
 		If ch>=128 Or ch=95 Or (ch>=48 And ch<=57) Or (ch>=65 And ch<=90) Or (ch>=97 And ch<=122) Then Return 1
 		Return 2
 	End Function
 
+	Rem
+	bbdoc: Checks a prepared word boundary without splitting graphemes or surrogate pairs.
+	param: Offset in the original UTF-16 source string.
+	End Rem
 	Method IsWordBoundary:Int(offset:Int)
 		If offset=0 Or offset=sourceLength Then Return True
 		If graphemes And Not graphemes[offset] Then Return False
@@ -152,6 +325,10 @@ Type TTextSourceMap
 		Return wordBreaks[offset]<>0
 	End Method
 
+	Rem
+	bbdoc: Returns the original-source word range containing an offset.
+	param: Offset in the original UTF-16 source string.
+	End Rem
 	Method WordAt:STextRange(offset:Int)
 		Local result:STextRange
 		If Not sourceLength Then Return result
@@ -168,6 +345,13 @@ Type TTextSourceMap
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Maps the visible line's UTF-16 boundaries to original-source offsets.
+	param: Prepared paragraph block containing the source segments.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Text to lay out, measure or draw.
+	End Rem
 	Method LineOffsets:Int[](block:TPreparedTextBlock,first:Int,last:Int,text:String)
 		Local start:Int=block.wordOffsets[first]
 		Local finish:Int=block.wordOffsets[last-1]+block.words[last-1].Length
@@ -208,6 +392,11 @@ Type TTextSourceMap
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Builds valid caret stops for a shaped line and its original-source mapping.
+	param: Prepared visual paragraph line.
+	param: Zero-based visual line index.
+	End Rem
 	Method BuildCarets:TTextCaretLine(line:TParagraphLine,lineIndex:Int)
 		Local map:TTextCaretMap
 		Local styled:TStyledTextLayout=TStyledTextLayout(line.layout)
@@ -245,4 +434,5 @@ Type TTextSourceMap
 		Next
 		Return result
 	End Method
+
 End Type

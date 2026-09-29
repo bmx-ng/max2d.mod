@@ -1,23 +1,92 @@
+
+Rem
+bbdoc: Aligns text to the left edge of its layout box.
+End Rem
 Const TEXT_ALIGN_LEFT:Int=0
+
+Rem
+bbdoc: Centres text horizontally in its layout box.
+End Rem
 Const TEXT_ALIGN_CENTER:Int=1
+
+Rem
+bbdoc: Aligns text to the right edge of its layout box.
+End Rem
 Const TEXT_ALIGN_RIGHT:Int=2
+
+Rem
+bbdoc: Aligns fitted text to the top of its layout box.
+End Rem
 Const TEXT_ALIGN_TOP:Int=0
+
+Rem
+bbdoc: Centres fitted text vertically in its layout box.
+End Rem
 Const TEXT_ALIGN_MIDDLE:Int=1
+
+Rem
+bbdoc: Aligns fitted text to the bottom of its layout box.
+End Rem
 Const TEXT_ALIGN_BOTTOM:Int=2
 
 Rem
 bbdoc: One retained paragraph line, with its offset and shaped layout.
 End Rem
 Type TParagraphLine
+
+	Rem
+	bbdoc: Text represented by this layout or imported object.
+	End Rem
 	Field text:String
-	Field x:Float,y:Float
+
+	Rem
+	bbdoc: Horizontal line origin in paragraph-local logical coordinates.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Vertical line origin in paragraph-local logical coordinates.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Retained text layout associated with this object.
+	End Rem
 	Field layout:TTextLayout
+
+	Rem
+	bbdoc: Cached candidate source ends used when fitting an overflow marker.
+	End Rem
 	Field trimEnds:Int[]
+
+	Rem
+	bbdoc: Cached display text used by overflow fitting.
+	End Rem
 	Field trimText:String
+
+	Rem
+	bbdoc: Mapping from visible UTF-16 boundaries to original-source offsets.
+	End Rem
 	Field sourceOffsets:Int[]
+
+	Rem
+	bbdoc: Lazily built valid caret stops for this visual line.
+	End Rem
 	Field carets:TTextCaret[]
+
+	Rem
+	bbdoc: Lazily built bidirectional cell and caret mappings for this line.
+	End Rem
 	Field bidiCarets:TBidiTextInteraction
+
+	Rem
+	bbdoc: Visible source-text length before any synthetic overflow marker.
+	End Rem
 	Field sourceContentLength:Int
+
+	Rem
+	bbdoc: Cached glyph colours and background rectangles for this line.
+	End Rem
 	Field paint:TTextPaint
 End Type
 
@@ -26,21 +95,122 @@ bbdoc: A reusable composite text layout. Inspect lines for individual glyph layo
 about: width is the widest line advance; boxWidth is the requested wrapping width. Fields should be treated as read-only. The inherited glyphs array is empty because each line retains its font-specific layout.
 End Rem
 Type TParagraphLayout Extends TTextLayout
+
+	Rem
+	bbdoc: Visual paragraph lines in top-to-bottom order; treat as read-only.
+	End Rem
 	Field lines:TParagraphLine[]
-	Field boxWidth:Float,lineSpacing:Float
+
+	Rem
+	bbdoc: Requested layout box width in logical text units.
+	End Rem
+	Field boxWidth:Float
+
+	Rem
+	bbdoc: Requested distance between line origins; zero uses natural metrics.
+	End Rem
+	Field lineSpacing:Float
+
+	Rem
+	bbdoc: Horizontal text alignment.
+	End Rem
 	Field alignment:Int
+
+	Rem
+	bbdoc: Whether lines require individual vertical metrics.
+	End Rem
 	Field variableLines:Int
-	Field verticalAlignment:Int,contentY:Float
+
+	Rem
+	bbdoc: Vertical alignment within a fitted text box.
+	End Rem
+	Field verticalAlignment:Int
+
+	Rem
+	bbdoc: Vertical offset applied to content by box alignment.
+	End Rem
+	Field contentY:Float
+
+	Rem
+	bbdoc: Requested box height, or -1 when height is unconstrained.
+	End Rem
 	Field boxHeight:Float=-1
-	Field maxLines:Int,totalLineCount:Int,truncated:Int
+
+	Rem
+	bbdoc: Maximum visible lines requested for box layout; zero means no separate limit.
+	End Rem
+	Field maxLines:Int
+
+	Rem
+	bbdoc: Number of lines before box truncation.
+	End Rem
+	Field totalLineCount:Int
+
+	Rem
+	bbdoc: Whether the fitted box omits some source text.
+	End Rem
+	Field truncated:Int
+
+	Rem
+	bbdoc: Overflow marker used when content is truncated.
+	End Rem
 	Field ellipsis:String
+
+	Rem
+	bbdoc: Optional source mapping retained for text hit testing and selection.
+	End Rem
 	Field interaction:TTextSourceMap
+
+	Rem
+	bbdoc: Number of line-interaction cache builds, useful for profiling.
+	End Rem
 	Field interactionBuilds:Int
-	Field minLineY:Float,maxLineY:Float
+
+	Rem
+	bbdoc: Minimum logical y extent of paragraph content.
+	End Rem
+	Field minLineY:Float
+
+	Rem
+	bbdoc: Maximum logical y extent of paragraph content.
+	End Rem
+	Field maxLineY:Float
+
+	Rem
+	bbdoc: Cached selection rectangles; maintained by selection queries.
+	End Rem
 	Field selectionCache:TTextSelectionRect[]
-	Field selectionStart:Int,selectionEnd:Int,selectionCached:Int
-	Field selectionTop:Float,selectionBottom:Float
+
+	Rem
+	bbdoc: Inclusive source endpoint used by the cached selection query.
+	End Rem
+	Field selectionStart:Int
+
+	Rem
+	bbdoc: Exclusive source endpoint used by the cached selection query.
+	End Rem
+	Field selectionEnd:Int
+
+	Rem
+	bbdoc: Whether cached selection rectangles match a previous query.
+	End Rem
+	Field selectionCached:Int
+
+	Rem
+	bbdoc: Top of the vertical band used by the cached selection query.
+	End Rem
+	Field selectionTop:Float
+
+	Rem
+	bbdoc: Bottom of the vertical band used by the cached selection query.
+	End Rem
+	Field selectionBottom:Float
+
+	Rem
+	bbdoc: Number of selection-rectangle cache builds.
+	End Rem
 	Field selectionBuilds:Int
+
 	Rem
 	bbdoc: Builds and caches caret geometry for an explicitly interactive paragraph.
 	about: HitTest and CaretAt build only the lines needed; this method prewarms all lines. Call it beforehand to avoid first-query shaping work. Coordinates are paragraph-local logical units; no camera or drawing transform is applied.
@@ -52,6 +222,10 @@ Type TParagraphLayout Extends TTextLayout
 		Next
 	End Method
 
+	Rem
+	bbdoc: Builds and caches caret information for one paragraph line when needed.
+	param: Zero-based index.
+	End Rem
 	Method PrepareLineInteraction(index:Int)
 		If Not interaction Then Throw "Max2D: prepare text with interactive=True to use caret geometry"
 		If lines[index].carets Then Return
@@ -67,6 +241,8 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns the nearest supported caret to a paragraph-local point, or Null for no visible lines.
+	param: Horizontal paragraph-local pointer coordinate.
+	param: Vertical paragraph-local pointer coordinate.
 	about: Returned caret objects are cached and read-only. Outside points clamp to the nearest line/edge. Source offsets refer to the original UTF-16 string, including normalization differences.
 	End Rem
 	Method HitTest:TTextCaret(x:Float,y:Float)
@@ -103,6 +279,9 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns the nearest visible supported caret for an original UTF-16 source offset.
+	param: Offset in the original UTF-16 source string.
+	param: Whether a shared wrap-boundary offset selects the following visual line.
+	param: Which visual side to prefer when a source offset has two bidi caret positions.
 	about: Offsets inside clusters or omitted text snap to a supported stop. preferNextLine chooses the later line when equally close; False chooses the earlier one. affinity chooses the following or preceding logical run at a bidi boundary. No per-query allocation or shaping is performed after preparation.
 	End Rem
 	Method CaretAt:TTextCaret(sourceOffset:Int,preferNextLine:Int=True,affinity:ETextCaretAffinity=ETextCaretAffinity.Following)
@@ -133,6 +312,7 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns the source word segment containing an offset; word analysis is lazy.
+	param: Offset in the original UTF-16 source string.
 	about: At a boundary the following segment is chosen; the source end chooses the preceding segment. Whitespace and punctuation are selectable segments. Unicode rules come from the captured provider; Basic mode groups ASCII word characters/non-ASCII code points and ASCII whitespace, with individual ASCII punctuation.
 	End Rem
 	Method WordAt:STextRange(sourceOffset:Int)
@@ -142,6 +322,8 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns the word under a paragraph-local point, using cluster coverage rather than the nearest insertion point.
+	param: Horizontal paragraph-local pointer coordinate.
+	param: Vertical paragraph-local pointer coordinate.
 	End Rem
 	Method WordAtPoint:STextRange(x:Float,y:Float)
 		Local result:STextRange
@@ -171,6 +353,7 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns the visible source range of a wrapped visual line, excluding newline separators and synthetic ellipsis.
+	param: Zero-based visual line index.
 	End Rem
 	Method LineRange:STextRange(lineIndex:Int)
 		If Not interaction Then Throw "Max2D: prepare text with interactive=True to select lines"
@@ -181,6 +364,11 @@ Type TParagraphLayout Extends TTextLayout
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Returns the original-source range of the visual line nearest a local point.
+	param: Horizontal paragraph-local pointer coordinate.
+	param: Vertical paragraph-local pointer coordinate.
+	End Rem
 	Method LineAtPoint:STextRange(x:Float,y:Float)
 		Local caret:TTextCaret=HitTest(x,y)
 		If caret Then Return LineRange(caret.lineIndex)
@@ -188,6 +376,11 @@ Type TParagraphLayout Extends TTextLayout
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Returns the distance from a source offset to a line's source range.
+	param: Prepared visual paragraph line.
+	param: Offset in the original UTF-16 source string.
+	End Rem
 	Function SourceDistance:Int(line:TParagraphLine,offset:Int)
 		Local first:Int=line.sourceOffsets[0],last:Int=line.sourceOffsets[line.sourceOffsets.Length-1]
 		If offset<first Then Return first-offset
@@ -195,6 +388,12 @@ Type TParagraphLayout Extends TTextLayout
 		Return 0
 	End Function
 
+	Rem
+	bbdoc: Finds the closest supported caret on a line for a source offset and affinity.
+	param: Prepared visual paragraph line.
+	param: Offset in the original UTF-16 source string.
+	param: Which visual side to prefer when a source offset has two bidi caret positions.
+	End Rem
 	Function LineCaretAt:TTextCaret(line:TParagraphLine,offset:Int,affinity:ETextCaretAffinity=ETextCaretAffinity.Following)
 		If line.bidiCarets Then Return line.bidiCarets.CaretAt(offset,affinity)
 		Local points:TTextCaret[]=line.carets
@@ -210,6 +409,8 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns cached selection rectangles for a half-open original-source range.
+	param: Inclusive start offset in the original UTF-16 source.
+	param: Exclusive end offset in the original UTF-16 source.
 	about: Reversed ranges are accepted. Partial clusters expand outward. Empty ranges, invisible separators and synthetic ellipsis do not add rectangles. Results are read-only and remain valid after subsequent queries.
 	End Rem
 	Method SelectionRects:TTextSelectionRect[](sourceStart:Int,sourceEnd:Int)
@@ -218,6 +419,10 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Returns selection rectangles only for lines intersecting a local vertical band.
+	param: Inclusive start offset in the original UTF-16 source.
+	param: Exclusive end offset in the original UTF-16 source.
+	param: Inclusive top of the visible band in paragraph-local coordinates.
+	param: Exclusive bottom of the visible band in paragraph-local coordinates.
 	about: Rectangles retain full line height; use viewport clipping at the edges. Only intersecting selected lines build caret geometry. The most recent range/band result is cached, independently of drawing colour.
 	End Rem
 	Method SelectionRectsVisible:TTextSelectionRect[](sourceStart:Int,sourceEnd:Int,top:Float,bottom:Float)
@@ -285,6 +490,10 @@ Type TParagraphLayout Extends TTextLayout
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Builds or refreshes cached glyph colours and background rectangles for one line.
+	param: Zero-based index.
+	End Rem
 	Method PrepareLinePaint:TTextPaint(index:Int)
 		Local line:TParagraphLine=lines[index]
 		If Not interaction Or Not interaction.colorSpans.Length Then
@@ -346,6 +555,14 @@ Type TParagraphLayout Extends TTextLayout
 		Return paint
 	End Method
 
+	Rem
+	bbdoc: Draws span backgrounds on lines intersecting a paragraph-local vertical band.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Inclusive top of the visible band in paragraph-local coordinates.
+	param: Exclusive bottom of the visible band in paragraph-local coordinates.
+	End Rem
 	Method DrawBackgroundsVisible(canvas:TMax2DGraphics,x:Float,y:Float,top:Float,bottom:Float)
 		If IsNan(top) Or IsInf(top) Or IsNan(bottom) Or IsInf(bottom) Then Throw "Max2D: visible text bounds must be finite"
 		If Not interaction Or Not interaction.hasBackgrounds Or bottom<=top Then Return
@@ -356,6 +573,13 @@ Type TParagraphLayout Extends TTextLayout
 		Next
 	End Method
 
+	Rem
+	bbdoc: Draws a line using the current colour, line width and transform.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Zero-based index.
+	param: Horizontal drawing position before the active transforms.
+	param: Vertical drawing position before the active transforms.
+	End Rem
 	Method DrawLine(canvas:TMax2DGraphics,index:Int,x:Float,y:Float)
 		Local line:TParagraphLine=lines[index]
 		Local paint:TTextPaint=PrepareLinePaint(index)
@@ -365,6 +589,12 @@ Type TParagraphLayout Extends TTextLayout
 
 	Rem
 	bbdoc: Draws only lines intersecting a paragraph-local vertical band.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Inclusive top of the visible band in paragraph-local coordinates.
+	param: Exclusive bottom of the visible band in paragraph-local coordinates.
+	param: Whether to draw span backgrounds before glyphs.
 	about: Use a viewport as well to clip partially visible glyphs. top and bottom are local coordinates before drawing transforms, and bottom is exclusive. Layout and source mapping still cover the entire paragraph.
 	End Rem
 	Method DrawVisible(canvas:TMax2DGraphics,x:Float,y:Float,top:Float,bottom:Float,backgrounds:Int=True)
@@ -388,6 +618,11 @@ Type TParagraphLayout Extends TTextLayout
 		Next
 	End Method
 
+	Rem
+	bbdoc: Finds a line by its vertical extent using a binary search.
+	param: Vertical coordinate.
+	param: Whether a line starting exactly at the supplied y is skipped.
+	End Rem
 	Method LineAfter:Int(y:Float,strict:Int)
 		Local first:Int,last:Int=lines.Length
 		While first<last
@@ -397,6 +632,12 @@ Type TParagraphLayout Extends TTextLayout
 		Return first
 	End Method
 
+	Rem
+	bbdoc: Draws every paragraph line using the supplied canvas state.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method Draw(canvas:TMax2DGraphics,x:Float,y:Float) Override
 		DrawBackgroundsVisible(canvas,x,y,contentY,contentY+height)
 		For Local i:Int=0 Until lines.Length
@@ -406,14 +647,52 @@ Type TParagraphLayout Extends TTextLayout
 
 End Type
 
+Rem
+bbdoc: Prepared word or break segments for one hard-break-delimited paragraph.
+End Rem
 Type TPreparedTextBlock
+
+	Rem
+	bbdoc: Prepared words or Unicode break segments in source order.
+	End Rem
 	Field words:String[]
+
+	Rem
+	bbdoc: Cached logical advance widths of prepared segments.
+	End Rem
 	Field widths:Float[]
+
+	Rem
+	bbdoc: Cached logical spacing between prepared segments.
+	End Rem
 	Field gaps:Float[]
+
+	Rem
+	bbdoc: Text inserted when joining prepared segments.
+	End Rem
 	Field joiner:String=" "
+
+	Rem
+	bbdoc: Inclusive UTF-16 source offset.
+	End Rem
 	Field sourceStart:Int
+
+	Rem
+	bbdoc: Offsets of prepared segments within normalized text.
+	End Rem
 	Field wordOffsets:Int[]
+
+	Rem
+	bbdoc: Optional resolved bidirectional data for this paragraph block.
+	End Rem
 	Field bidi:TParagraphBidiBlock
+
+	Rem
+	bbdoc: Joins a segment range into display text, including an optional discretionary hyphen.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Whether to show a discretionary hyphen when the range ends at its break.
+	End Rem
 	Method Text:String(first:Int,last:Int,hyphenate:Int=True)
 		Local value:String=joiner.Join(words[first..last])
 		If joiner="" Then
@@ -423,6 +702,11 @@ Type TPreparedTextBlock
 		End If
 		Return value
 	End Method
+
+	Rem
+	bbdoc: Removes leading and trailing ordinary spaces from a string.
+	param: Value to read, convert or store.
+	End Rem
 	Function TrimSpaces:String(value:String)
 		Local first:Int,last:Int=value.Length
 		While first<last And value[first]=32
@@ -433,6 +717,7 @@ Type TPreparedTextBlock
 		Wend
 		Return value[first..last]
 	End Function
+
 End Type
 
 Rem
@@ -440,22 +725,101 @@ bbdoc: Prepared words and measurements for reusable paragraph reflow.
 about: Ordinary spaces and tabs collapse; explicit newlines are retained. Optional providers add Unicode break opportunities. Font settings must remain unchanged while this object is used.
 End Rem
 Type TPreparedText
+
+	Rem
+	bbdoc: Font used to shape and draw this text.
+	End Rem
 	Field font:TImageFont
+
+	Rem
+	bbdoc: Snapshot of font spans applied to the prepared source.
+	End Rem
 	Field fontSpans:TTextFontSpan[]
+
+	Rem
+	bbdoc: Optional provider used to resolve bidirectional ordering.
+	End Rem
 	Field bidiProvider:TTextBidiProvider
+
+	Rem
+	bbdoc: Requested base text direction.
+	End Rem
 	Field direction:ETextDirection
-	Field breakMode:ETextBreakMode,language:String
+
+	Rem
+	bbdoc: Requested line-breaking mode.
+	End Rem
+	Field breakMode:ETextBreakMode
+
+	Rem
+	bbdoc: Language tag passed to text providers.
+	End Rem
+	Field language:String
+
+	Rem
+	bbdoc: Optional provider used for Unicode line, word and grapheme boundaries.
+	End Rem
 	Field boundaryProvider:TTextBoundaryProvider
+
+	Rem
+	bbdoc: Boundary maps prepared by the selected Unicode provider.
+	End Rem
 	Field boundaries:TTextBoundaries
+
+	Rem
+	bbdoc: Source text after whitespace and line-break normalization.
+	End Rem
 	Field normalizedText:String
+
+	Rem
+	bbdoc: Optional source mapping retained for text hit testing and selection.
+	End Rem
 	Field interaction:TTextSourceMap
+
+	Rem
+	bbdoc: Prepared blocks separated by mandatory paragraph breaks.
+	End Rem
 	Field blocks:TPreparedTextBlock[]
-	Field naturalLineHeight:Float,spaceWidth:Float
+
+	Rem
+	bbdoc: Logical line height used when no explicit spacing is supplied.
+	End Rem
+	Field naturalLineHeight:Float
+
+	Rem
+	bbdoc: Logical advance of an ordinary space in the default font.
+	End Rem
+	Field spaceWidth:Float
+
+	Rem
+	bbdoc: Number of fitted paragraph-box layouts built.
+	End Rem
 	Field boxBuilds:Long
+
+	Rem
+	bbdoc: Number of paragraph reflows performed instead of returned from cache.
+	End Rem
 	Field reflowBuilds:Long
+
+	Rem
+	bbdoc: Retained layout cache; use cache-control methods rather than editing it directly.
+	End Rem
 	Field cache:TList=New TList
+
+	Rem
+	bbdoc: Maximum number of retained paragraph layouts.
+	End Rem
 	Field cacheLimit:Int=8
 
+	Rem
+	bbdoc: Prepares reusable text, font metrics and optional Unicode, bidi and interaction data.
+	param: Text to lay out, measure or draw.
+	param: Default font for the prepared source; must not be Null.
+	param: Basic, Unicode or automatically selected line-breaking behaviour.
+	param: Language tag used by the text provider; empty uses its default.
+	param: Whether to retain source mappings for hit testing and selection.
+	param: Requested paragraph direction; Auto lets the bidi provider determine it.
+	End Rem
 	Function Create:TPreparedText(text:String,font:TImageFont,breakMode:ETextBreakMode=ETextBreakMode.Auto,language:String="",interactive:Int=False,direction:ETextDirection=ETextDirection.Auto)
 		If Not font Then Throw "Max2D: paragraph font is null"
 		Local result:TPreparedText=New TPreparedText
@@ -500,12 +864,19 @@ Type TPreparedText
 		Return result
 	End Function
 
+	Rem
+	bbdoc: Resolves bidirectional paragraph information using the selected provider.
+	End Rem
 	Method PrepareBidi()
 		For Local block:TPreparedTextBlock=EachIn blocks
 			block.bidi=TParagraphBidiBlock.Create(block,bidiProvider,direction)
 		Next
 	End Method
 
+	Rem
+	bbdoc: Splits normalized text using the selected Unicode boundary provider.
+	param: Text to lay out, measure or draw.
+	End Rem
 	Method PrepareUnicode(text:String)
 		Local parts:TList=New TList
 		For Local part:String=EachIn text.Replace("~r~n","~n").Replace("~r","~n").Replace("~t"," ").Split(" ")
@@ -548,6 +919,10 @@ Type TPreparedText
 		Next
 	End Method
 
+	Rem
+	bbdoc: Builds a prepared block from Unicode break segments.
+	param: Prepared break segments in source order.
+	End Rem
 	Method UnicodeBlock:TPreparedTextBlock(segments:TList)
 		Local block:TPreparedTextBlock=New TPreparedTextBlock
 		block.joiner=""
@@ -565,6 +940,7 @@ Type TPreparedText
 
 	Rem
 	bbdoc: Replaces optional foreground/background spans without reflowing held layouts.
+	param: Source ranges and styles to copy; later overlaps take precedence.
 	about: Requires source mapping (interactive=True at preparation). Null clears spans. Input spans are copied. All layouts from this prepared text see the new paints lazily, including layouts held after cache eviction.
 	End Rem
 	Method SetColorSpans(spans:TTextColorSpan[])
@@ -574,6 +950,7 @@ Type TPreparedText
 
 	Rem
 	bbdoc: Replaces font spans and clears the reflow cache. Previously returned layouts retain their original fonts and geometry.
+	param: Source ranges and styles to copy; later overlaps take precedence.
 	about: Requires source mapping (interactive=True). Ranges are copied; later spans win. Font objects must remain unchanged while layouts are held. Null restores the default font. Adjacent identical fonts shape together; colour spans do not split shaping runs.
 	End Rem
 	Method SetFontSpans(spans:TTextFontSpan[])
@@ -589,6 +966,10 @@ Type TPreparedText
 		ClearCache()
 	End Method
 
+	Rem
+	bbdoc: Returns the font selected by the last matching font span at a source offset.
+	param: Offset in the original UTF-16 source string.
+	End Rem
 	Method FontAt:TImageFont(offset:Int)
 		If interaction.graphemes Then
 			While offset>0 And Not interaction.graphemes[offset]
@@ -604,6 +985,13 @@ Type TPreparedText
 		Return font
 	End Method
 
+	Rem
+	bbdoc: Shapes the visible segment range using its font spans and bidi information.
+	param: Prepared paragraph block containing the source segments.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Text to lay out, measure or draw.
+	End Rem
 	Method ShapeBlock:TTextLayout(block:TPreparedTextBlock,first:Int,last:Int,text:String)
 		If block.bidi Then
 			Local offsets:Int[]
@@ -614,6 +1002,12 @@ Type TPreparedText
 		Return TStyledTextLayout.Create(Self,text,interaction.LineOffsets(block,first,last,text),text.Length)
 	End Method
 
+	Rem
+	bbdoc: Shapes a shortened line and its overflow marker with the original source styles.
+	param: Text to lay out, measure or draw.
+	param: Original layout or line supplying source context and metrics.
+	param: Length of actual source text before any appended overflow marker.
+	End Rem
 	Method ShapeFitted:TTextLayout(text:String,original:TParagraphLine,contentLength:Int)
 		Local bidi:TBidiTextLayout=TBidiTextLayout(original.layout)
 		If Not fontSpans.Length And Not bidi Then Return font.Layout(text)
@@ -628,6 +1022,10 @@ Type TPreparedText
 		Return TStyledTextLayout.Create(Self,text,offsets,contentLength)
 	End Method
 
+	Rem
+	bbdoc: Sets the maximum number of retained paragraph layouts; zero disables caching.
+	param: Maximum retained layouts; zero disables layout caching.
+	End Rem
 	Method SetCacheLimit(limit:Int)
 		If limit<0 Then Throw "Max2D: paragraph cache limit must not be negative"
 		cacheLimit=limit
@@ -635,10 +1033,20 @@ Type TPreparedText
 			cache.RemoveFirst()
 		Wend
 	End Method
+
+	Rem
+	bbdoc: Discards cached paragraph layouts while keeping the prepared source.
+	End Rem
 	Method ClearCache()
 		cache.Clear()
 	End Method
 
+	Rem
+	bbdoc: Wraps prepared text to a width and reuses a matching cached layout when available.
+	param: Maximum line width in logical text units.
+	param: Horizontal text alignment, such as TEXT_ALIGN_LEFT.
+	param: Distance between line origins; zero uses the natural line height.
+	End Rem
 	Method Layout:TParagraphLayout(maxWidth:Float,alignment:Int=TEXT_ALIGN_LEFT,lineSpacing:Float=0)
 		If IsNan(maxWidth) Or IsInf(maxWidth) Or maxWidth<0 Then Throw "Max2D: paragraph width must be finite and nonnegative"
 		If IsNan(lineSpacing) Or IsInf(lineSpacing) Or lineSpacing<0 Then Throw "Max2D: line spacing must be finite and nonnegative"
@@ -730,6 +1138,13 @@ Type TPreparedText
 
 	Rem
 	bbdoc: Fits a paragraph into a width and logical height, optionally limiting its line count.
+	param: Maximum line width in logical text units.
+	param: Height available for visible lines in logical text units.
+	param: Horizontal text alignment, such as TEXT_ALIGN_LEFT.
+	param: Distance between line origins; zero uses the natural line height.
+	param: Maximum visible line count; zero imposes no separate line-count limit.
+	param: Overflow marker appended when text is omitted.
+	param: TEXT_ALIGN_TOP, TEXT_ALIGN_MIDDLE or TEXT_ALIGN_BOTTOM.
 	about: Omitted content is marked with an ellipsis on the last retained line. Whole words are removed to fit the marker; an empty marker silently truncates. Glyph overhangs still require viewport clipping.
 	End Rem
 	Method LayoutBox:TParagraphLayout(maxWidth:Float,maxHeight:Float,alignment:Int=TEXT_ALIGN_LEFT,lineSpacing:Float=0,maxLines:Int=0,ellipsis:String="...",verticalAlignment:Int=TEXT_ALIGN_TOP)
@@ -827,6 +1242,11 @@ Type TPreparedText
 		Return result
 	End Method
 
+	Rem
+	bbdoc: Finalizes paragraph lines, bounds and layout-cache bookkeeping.
+	param: Result object to fill; optional reusable query results are cleared before use.
+	param: Collection of paragraph lines in drawing order.
+	End Rem
 	Method FinishLayout(result:TParagraphLayout,lines:TList)
 		Local maxWidth:Float=result.boxWidth,lineSpacing:Float=result.lineSpacing
 		Local alignment:Int=result.alignment
@@ -861,15 +1281,28 @@ Type TPreparedText
 		If hasBounds Then result.boundsWidth=right-result.boundsX;result.boundsHeight=bottom-result.boundsY
 	End Method
 
+	Rem
+	bbdoc: Appends a shaped line to the paragraph under construction.
+	param: Collection of paragraph lines in drawing order.
+	param: Text to lay out, measure or draw.
+	param: Retained text layout to draw or inspect.
+	End Rem
 	Function AddLine:TParagraphLine(lines:TList,text:String,layout:TTextLayout)
 		Local line:TParagraphLine=New TParagraphLine
 		line.text=text;line.layout=layout;lines.AddLast(line)
 		Return line
 	End Function
+
 End Type
 
 Rem
 bbdoc: Prepares text for repeated paragraph layouts. Retain the result when resizing.
+param: Text to lay out, measure or draw.
+param: Default font, or Null for the current image font.
+param: Basic, Unicode or automatically selected line-breaking behaviour.
+param: Language tag used by the text provider; empty uses its default.
+param: Whether to retain source mappings for hit testing and selection.
+param: Requested paragraph direction; Auto lets the bidi provider determine it.
 about: AUTO selects an imported Unicode boundary provider or the basic space-based fallback. BASIC forces the fallback. UNICODE requires an available provider. Set interactive=True to retain source mapping for optional caret geometry; ordinary preparation does not allocate it. Direction Auto uses an imported Text.Bidi provider; Disabled skips bidi entirely. Explicit LTR/RTL require a provider.
 End Rem
 Function PrepareText:TPreparedText(text:String,font:TImageFont=Null,breakMode:ETextBreakMode=ETextBreakMode.Auto,language:String="",interactive:Int=False,direction:ETextDirection=ETextDirection.Auto)

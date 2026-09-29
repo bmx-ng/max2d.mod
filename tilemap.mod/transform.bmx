@@ -1,16 +1,56 @@
+
 Rem
 bbdoc: Affine artwork transform relative to the original canvas top-left.
 about: Diagonal exchanges axes with bottom-left anchoring. Rotation flags combine to 60/120/180 degrees clockwise about the canvas centre, after source-axis flips.
 End Rem
 Struct STileImageTransform
-	Field xx:Float,xy:Float,yx:Float,yy:Float,tx:Float,ty:Float
+
+	Rem
+	bbdoc: Affine coefficient mapping input x to output x.
+	End Rem
+	Field xx:Float
+
+	Rem
+	bbdoc: Affine coefficient mapping input y to output x.
+	End Rem
+	Field xy:Float
+
+	Rem
+	bbdoc: Affine coefficient mapping input x to output y.
+	End Rem
+	Field yx:Float
+
+	Rem
+	bbdoc: Affine coefficient mapping input y to output y.
+	End Rem
+	Field yy:Float
+
+	Rem
+	bbdoc: Horizontal affine translation.
+	End Rem
+	Field tx:Float
+
+	Rem
+	bbdoc: Vertical affine translation.
+	End Rem
+	Field ty:Float
 End Struct
 
+Rem
+bbdoc: Rejects unsupported combinations of tile transformation flags.
+param: Tile reflection and rotation flags.
+End Rem
 Function ValidateTileFlip(flip:ETileFlip)
 	If Int(flip) & ~31 Then Throw "Max2D tilemap: unsupported tile transformation"
 	If (flip & ETileFlip.Diagonal)<>ETileFlip.None And (flip & (ETileFlip.Rotate60|ETileFlip.Rotate120))<>ETileFlip.None Then Throw "Max2D tilemap: diagonal and rotation flags cannot be combined"
 End Function
 
+Rem
+bbdoc: Builds the affine transform for reflected or rotated tile artwork.
+param: Width of the rectangle or drawing surface.
+param: Height of the rectangle or drawing surface.
+param: Tile reflection and rotation flags.
+End Rem
 Function TileImageTransform:STileImageTransform(width:Float,height:Float,flip:ETileFlip)
 	ValidateTileFlip(flip)
 	Local t:STileImageTransform
@@ -38,6 +78,16 @@ Function TileImageTransform:STileImageTransform(width:Float,height:Float,flip:ET
 	Return t
 End Function
 
+Rem
+bbdoc: Gets the bounding rectangle of transformed tile artwork.
+param: Width of the rectangle or drawing surface.
+param: Height of the rectangle or drawing surface.
+param: Tile reflection and rotation flags.
+param: Receives left boundary of the region.
+param: Receives inclusive top of the visible band in paragraph-local coordinates.
+param: Receives right boundary of the region.
+param: Receives exclusive bottom of the visible band in paragraph-local coordinates.
+End Rem
 Function TileImageBounds(width:Float,height:Float,flip:ETileFlip,left:Float Var,top:Float Var,right:Float Var,bottom:Float Var)
 	If (Int(flip) & ~3)=0 Then
 		left=0; top=0; right=width; bottom=height
@@ -51,6 +101,19 @@ Function TileImageBounds(width:Float,height:Float,flip:ETileFlip,left:Float Var,
 End Function
 
 ' Image-to-display-box mapping, shared by drawing and collision geometry.
+
+Rem
+bbdoc: Calculates scale and centring offsets for artwork fitted into a destination box.
+param: Width of the rectangle or drawing surface.
+param: Height of the rectangle or drawing surface.
+param: Destination box width in logical drawing units.
+param: Destination box height in logical drawing units.
+param: Stretch or PreserveAspectFit artwork placement.
+param: Receives horizontal artwork scale factor.
+param: Receives vertical artwork scale factor.
+param: Receives horizontal centring offset within the destination box.
+param: Receives vertical centring offset within the destination box.
+End Rem
 Function TileImageFit(width:Float,height:Float,boxWidth:Float,boxHeight:Float,mode:ETileFillMode,sx:Float Var,sy:Float Var,px:Float Var,py:Float Var)
 	sx=boxWidth/width; sy=boxHeight/height
 	If mode=ETileFillMode.PreserveAspectFit Then

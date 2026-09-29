@@ -1,34 +1,174 @@
+
 Rem
 bbdoc: A movable image attached to a tile layer. x/y are its map-local ground-contact point.
 about: The default artwork anchor is bottom-centre. GroundDepth layers interleave sprites with tiles; Grid layers draw sprites after their tiles in insertion order.
 End Rem
 Type TTileSprite
+
+	Rem
+	bbdoc: Image or animation supplying this object's artwork.
+	End Rem
 	Field image:TImage
-	Field x:Float,y:Float,anchorX:Float,anchorY:Float
-	Field frame:Int,animated:Int,visible:Int=True
+
+	Rem
+	bbdoc: Horizontal sprite anchor position in layer-local map units.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Vertical sprite anchor position in layer-local map units.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Horizontal artwork anchor in image units; defaults to the image centre.
+	End Rem
+	Field anchorX:Float
+
+	Rem
+	bbdoc: Vertical artwork anchor in image units; defaults to the image bottom.
+	End Rem
+	Field anchorY:Float
+
+	Rem
+	bbdoc: Zero-based image frame selected when animation is disabled.
+	End Rem
+	Field frame:Int
+
+	Rem
+	bbdoc: Whether the frame is chosen from elapsed time and image frame durations.
+	End Rem
+	Field animated:Int
+
+	Rem
+	bbdoc: Whether this artwork, object or layer participates in drawing.
+	End Rem
+	Field visible:Int=True
+
+	Rem
+	bbdoc: Reflection and rotation flags applied to tile artwork.
+	End Rem
 	Field flip:ETileFlip
-	Field depthOffset:Float,sortOrder:Int
+
+	Rem
+	bbdoc: Offset added to the artwork's ground-depth sorting coordinate.
+	End Rem
+	Field depthOffset:Float
+
+	Rem
+	bbdoc: Explicit tie-break order for artwork at the same depth.
+	End Rem
+	Field sortOrder:Int
+
+	Rem
+	bbdoc: Checks object settings and throws when a value is invalid.
+	End Rem
 	Method Validate()
 		If Not image Then Throw "Max2D tilemap: sprite image is null"
 		image.CheckIndex(frame)
 		If IsNan(x) Or IsInf(x) Or IsNan(y) Or IsInf(y) Or IsNan(anchorX) Or IsInf(anchorX) Or IsNan(anchorY) Or IsInf(anchorY) Or IsNan(depthOffset) Or IsInf(depthOffset) Then Throw "Max2D tilemap: invalid sprite position or depth"
 		ValidateTileFlip(flip)
 	End Method
+
 End Type
 
+Rem
+bbdoc: One tile or sprite queued with its stable drawing-order keys.
+End Rem
 Struct STileDrawItem
+
+	Rem
+	bbdoc: Image or animation supplying this object's artwork.
+	End Rem
 	Field image:TImage
-	Field frame:Int,x:Float,y:Float
-	Field width:Float,height:Float,fillMode:ETileFillMode
+
+	Rem
+	bbdoc: Zero-based image frame selected when animation is disabled.
+	End Rem
+	Field frame:Int
+
+	Rem
+	bbdoc: Horizontal position in the coordinate space described by the containing type.
+	End Rem
+	Field x:Float
+
+	Rem
+	bbdoc: Vertical position in the coordinate space described by the containing type.
+	End Rem
+	Field y:Float
+
+	Rem
+	bbdoc: Logical width of this object or region.
+	End Rem
+	Field width:Float
+
+	Rem
+	bbdoc: Logical height of this object or region.
+	End Rem
+	Field height:Float
+
+	Rem
+	bbdoc: Whether artwork stretches or preserves its aspect ratio inside its drawing box.
+	End Rem
+	Field fillMode:ETileFillMode
+
+	Rem
+	bbdoc: Reflection and rotation flags applied to tile artwork.
+	End Rem
 	Field flip:ETileFlip
-	Field depth:Double,sortX:Double
-	Field order:Int,sequence:Int
+
+	Rem
+	bbdoc: Ground-depth sorting key.
+	End Rem
+	Field depth:Double
+
+	Rem
+	bbdoc: Horizontal tie-break coordinate for equal-depth artwork.
+	End Rem
+	Field sortX:Double
+
+	Rem
+	bbdoc: Explicit drawing-order tie-break key.
+	End Rem
+	Field order:Int
+
+	Rem
+	bbdoc: Insertion sequence used to keep equal-key drawing order stable.
+	End Rem
+	Field sequence:Int
 End Struct
 
 ' Retained scratch storage: sorting creates no objects per item after growth.
+
+Rem
+bbdoc: Reusable queue for sorting tile and sprite artwork before drawing.
+End Rem
 Type TTileDrawQueue
+
+	Rem
+	bbdoc: Reusable draw-item storage; only entries below count are populated.
+	End Rem
 	Field items:STileDrawItem[]
+
+	Rem
+	bbdoc: Number of populated entries; backing storage may have extra capacity.
+	End Rem
 	Field count:Int
+
+	Rem
+	bbdoc: Queues artwork and its placement, sizing and sort keys.
+	param: Image to operate on.
+	param: Zero-based image frame index.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Tile reflection and rotation flags.
+	param: Ground-depth sorting coordinate.
+	param: Horizontal tie-break coordinate for equal-depth artwork.
+	param: Stable drawing-order tie-break value.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Whether artwork stretches to the box or preserves its aspect ratio.
+	End Rem
 	Method Add(image:TImage,frame:Int,x:Float,y:Float,flip:ETileFlip,depth:Double,sortX:Double,order:Int,width:Float=0,height:Float=0,fillMode:ETileFillMode=ETileFillMode.Stretch)
 		If IsNan(depth) Or IsInf(depth) Or IsNan(sortX) Or IsInf(sortX) Then Throw "Max2D tilemap: invalid sorting key"
 		If count=items.Length Then items=items[..Max(32,items.Length*2)]
@@ -38,18 +178,32 @@ Type TTileDrawQueue
 		item.depth=depth; item.sortX=sortX; item.order=order; item.sequence=count
 		items[count]=item; count:+1
 	End Method
+
+	Rem
+	bbdoc: Clears queued drawing items while retaining storage.
+	End Rem
 	Method Clear()
 		For Local i:Int=0 Until count
 			items[i].image=Null
 		Next
 		count=0
 	End Method
+
+	Rem
+	bbdoc: Compares two drawing items by depth and stable tie-breaking keys.
+	param: First drawing item to compare.
+	param: Second drawing item to compare.
+	End Rem
 	Function After:Int(a:STileDrawItem,b:STileDrawItem)
 		If a.depth<>b.depth Then Return a.depth>b.depth
 		If a.order<>b.order Then Return a.order>b.order
 		If a.sortX<>b.sortX Then Return a.sortX>b.sortX
 		Return a.sequence>b.sequence
 	End Function
+
+	Rem
+	bbdoc: Sorts queued artwork by ground depth and stable tie-breaking keys.
+	End Rem
 	Method Sort()
 		' Heap sort with insertion sequence as the final key gives stable ties.
 		For Local root:Int=count/2-1 To 0 Step -1
@@ -61,6 +215,12 @@ Type TTileDrawQueue
 			Sift(0,finish)
 		Next
 	End Method
+
+	Rem
+	bbdoc: Restores the heap ordering used by the drawing queue's in-place sort.
+	param: Root element or heap index from which processing begins.
+	param: Maximum number of cached entries or range of items to process.
+	End Rem
 	Method Sift(root:Int,limit:Int)
 		While root<limit/2
 			Local child:Int=root*2+1
@@ -71,6 +231,19 @@ Type TTileDrawQueue
 			root=child
 		Wend
 	End Method
+
+	Rem
+	bbdoc: Draws tile artwork with flip flags and optional fitting, without using the image handle.
+	param: Drawing canvas whose state and rendering context are used.
+	param: Image to operate on.
+	param: Zero-based image frame index.
+	param: Horizontal drawing position before the active transforms.
+	param: Vertical drawing position before the active transforms.
+	param: Tile reflection and rotation flags.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Whether artwork stretches to the box or preserves its aspect ratio.
+	End Rem
 	Function DrawImage(canvas:TMax2DGraphics,image:TImage,frame:Int,x:Float,y:Float,flip:ETileFlip,width:Float=0,height:Float=0,fillMode:ETileFillMode=ETileFillMode.Stretch)
 		If width=0 Then width=image.width
 		If height=0 Then height=image.height
@@ -97,4 +270,5 @@ Type TTileDrawQueue
 			state.ix=ix; state.iy=iy; state.jx=jx; state.jy=jy
 		End Try
 	End Function
+
 End Type

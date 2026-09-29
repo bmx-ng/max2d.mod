@@ -19,6 +19,7 @@ Function AtlasInteger:Int(obj:TJSONObject,key:String,minimum:Int=0,maximum:Int=$
 	If number<minimum Or number>maximum Then Throw "Max2D atlas: integer out of range: "+key
 	Return Int(number)
 End Function
+
 Function AtlasNumber:Float(obj:TJSONObject,key:String)
 	Local value:TJSON=obj.Get(key)
 	Local number:Double
@@ -32,16 +33,19 @@ Function AtlasNumber:Float(obj:TJSONObject,key:String)
 	If Abs(number)>3.4028234e38 Then Throw "Max2D atlas: number out of range: "+key
 	Return Float(number)
 End Function
+
 Function AtlasObject:TJSONObject(value:TJSON)
 	Local obj:TJSONObject=TJSONObject(value)
 	If Not obj Then Throw "Max2D atlas: expected an object"
 	Return obj
 End Function
+
 Function AtlasArray:TJSONArray(obj:TJSONObject,key:String)
 	Local array:TJSONArray=TJSONArray(obj.Get(key))
 	If Not array Then Throw "Max2D atlas: missing or invalid array: "+key
 	Return array
 End Function
+
 Function AtlasRect(obj:TJSONObject,width:Int,height:Int,x:Int Var,y:Int Var,w:Int Var,h:Int Var,padding:Int=0)
 	x=AtlasInteger(obj,"x",padding,width)
 	y=AtlasInteger(obj,"y",padding,height)
@@ -49,14 +53,17 @@ Function AtlasRect(obj:TJSONObject,width:Int,height:Int,x:Int Var,y:Int Var,w:In
 	h=AtlasInteger(obj,"height",1,height)
 	If Long(x)+w+padding>width Or Long(y)+h+padding>height Then Throw "Max2D atlas: region outside page"
 End Function
+
 Function AtlasRectJSON:TJSONObject(x:Int,y:Int,w:Int,h:Int)
 	Local result:TJSONObject=New TJSONObject.Create()
 	result.Set("x",x); result.Set("y",y); result.Set("width",w); result.Set("height",h)
 	Return result
 End Function
+
 Function AtlasPagePath:String(directory:String,index:Int)
 	Return directory+"/page-"+index+".png"
 End Function
+
 Function CheckAtlasPNGHeader(path:String,width:Int,height:Int)
 	Local stream:TStream=ReadFile(path)
 	If Not stream Then Throw "Max2D atlas: cannot open PNG page"
@@ -79,10 +86,13 @@ Function CheckAtlasPNGHeader(path:String,width:Int,height:Int)
 	End Try
 	stream.Close()
 End Function
+
 Public
 
 Rem
 bbdoc: Saves PNG pages and atlas.json into a new directory. Existing paths are rejected.
+param: Atlas whose pages and named entries will be saved.
+param: Atlas package directory or supported filesystem URL.
 about: Saves all named image views, their handles, and all padding regions. No graphics context is needed.
 End Rem
 Function SaveTextureAtlas:Int(atlas:TTextureAtlas,directory:String)
@@ -178,6 +188,8 @@ End Function
 
 Rem
 bbdoc: Loads an atlas package directory, preserving named views and editable borders.
+param: Atlas package directory or supported filesystem URL.
+param: Maximum total decoded page pixels allowed when loading the atlas.
 about: Validates the manifest and page dimensions. The sum of page pixel counts is limited by maxPixels (64 million by default).
 End Rem
 Function LoadTextureAtlas:TTextureAtlas(directory:String,maxPixels:Long=64000000)
