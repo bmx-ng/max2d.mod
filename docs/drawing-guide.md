@@ -390,6 +390,20 @@ The result works with the familiar `SetImageFont`, `DrawText`, measurement and
 retained-layout APIs. Built-in and legacy image fonts keep their existing
 fixed-resolution behaviour.
 
+Smoothing is enabled by default. To draw monochrome glyphs, omit `SMOOTHFONT`:
+
+```blitzmax
+Local font:TScalableImageFont=LoadScalableImageFont("assets/NotoSans-Regular.ttf",18,KERNFONT | LIGATURESFONT)
+```
+
+This preserves kerning and ligatures, rasterises glyphs with binary coverage,
+and uses nearest-neighbour atlas sampling. Pass `0` to disable all three flags.
+Monochrome fonts still adapt their raster resolution to the display: they have
+hard edges, but do not preserve deliberately enlarged low-resolution pixels.
+For that look, use a fixed-resolution `LoadImageFont(..., 0)` and integer scaling.
+Rendering into a texture and later filtering that texture can smooth either
+kind of font again. `examples/scalable_text.bmx` lets you toggle smoothing with M.
+
 Size is in logical units and may be fractional. Shaping and line metrics are
 computed at that size, independently of graphics state. Glyphs are rasterized
 again at the resolution required for drawing, including virtual-to-output

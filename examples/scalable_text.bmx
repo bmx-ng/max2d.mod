@@ -8,7 +8,10 @@ If AppArgs.Length<>2 Then
 	EndWithCode(1)
 End If
 Local font:TScalableImageFont=LoadScalableImageFont(AppArgs[1],18)
-If Not font Then Throw "Could not load font"
+Local mono:TScalableImageFont=LoadScalableImageFont(AppArgs[1],18,KERNFONT | LIGATURESFONT)
+If Not font Or Not mono Then Throw "Could not load font"
+Local smooth:TScalableImageFont=font
+Local monochrome:Int
 AppTitle="Max2D scalable text"
 
 Graphics 1000,700,0
@@ -19,6 +22,11 @@ Local low:TRenderImage=CreateRenderImage(400,90,0)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If KeyHit(KEY_SPACE) Then narrow=Not narrow
+	If KeyHit(KEY_M)
+		monochrome=Not monochrome
+		If monochrome Then font=mono Else font=smooth
+		SetImageFont(font)
+	End If
 	If KeyHit(KEY_C) Then font.ClearGlyphCache()
 	If narrow Then SetVirtualResolution(400,280,VIRTUAL_LETTERBOX) Else SetVirtualResolution(600,420,VIRTUAL_LETTERBOX)
 	SetClsColor(24,32,48); Cls()
@@ -38,7 +46,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	PushMax2DState()
 	SetNativeResolution()
 	SetColor(255,255,255)
-	DrawText("Native overlay — Space: change virtual size, C: clear glyph caches",16,16)
+	DrawText("Native overlay — Space: virtual size, M: smooth/monochrome, C: clear caches",16,16)
 	DrawText("Raster resolutions: "+font.RasterCacheCount()+"   Atlas pages: "+font.RasterPageCount(),16,NativeResolutionHeight()-40)
 	PopMax2DState()
 
