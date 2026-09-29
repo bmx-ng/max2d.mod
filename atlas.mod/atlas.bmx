@@ -8,21 +8,77 @@ ModuleInfo "License: zlib/libpng"
 Import Max2D.Core
 Import BRL.RectPacker
 
+Rem
+bbdoc: Named animation frames and durations waiting to be packed by an atlas builder.
+End Rem
 Type TAtlasAnimationInput
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
 	Field name:String
-	Field start:Int,count:Int
+
+	Rem
+	bbdoc: Zero-based starting index in the associated source array.
+	End Rem
+	Field start:Int
+
+	Rem
+	bbdoc: Number of populated entries; backing storage may have extra capacity.
+	End Rem
+	Field count:Int
+
+	Rem
+	bbdoc: Per-frame animation durations in milliseconds.
+	End Rem
 	Field durations:Int[]
 End Type
 
+Rem
+bbdoc: Collects sprites and animations for rectangle-packed atlas construction.
+End Rem
 Type TAtlasBuilder
+
+	Rem
+	bbdoc: Source pixmaps collected for the next atlas build.
+	End Rem
 	Field inputs:TPixmap[] = New TPixmap[0]
+
+	Rem
+	bbdoc: Names corresponding to collected atlas input images.
+	End Rem
 	Field names:String[] = New String[0]
+
+	Rem
+	bbdoc: Animation definitions waiting for atlas construction.
+	End Rem
 	Field animations:TList=New TList
+
+	Rem
+	bbdoc: Whether atlas construction removes transparent borders while preserving logical placement.
+	End Rem
 	Field trimTransparent:Int=False
+
+	Rem
+	bbdoc: Preferred square atlas-page size in pixels.
+	End Rem
 	Field pageSize:Int = 1024
+
+	Rem
+	bbdoc: Number of extruded border pixels surrounding each atlas region.
+	End Rem
 	Field padding:Int = 1
+
+	Rem
+	bbdoc: Image creation and sampling flags.
+	End Rem
 	Field flags:Int = FILTEREDIMAGE
 
+	Rem
+	bbdoc: Adds named source pixels to the next atlas build.
+	param: Source pixel data.
+	param: Name used to register or look up the item.
+	End Rem
 	Method Add(pixmap:TPixmap,name:String)
 		If Not pixmap Or Not name Then Throw "Max2D atlas: each input needs pixels and a name"
 		CheckName(name)
@@ -30,6 +86,10 @@ Type TAtlasBuilder
 		inputs[inputs.Length-1]=pixmap.Copy(); names[names.Length-1]=name
 	End Method
 
+	Rem
+	bbdoc: Rejects an empty or duplicate atlas entry name.
+	param: Name used to register or look up the item.
+	End Rem
 	Method CheckName(name:String)
 		If Not name Then Throw "Max2D atlas: image name is empty"
 		For Local existing:String=EachIn names
@@ -42,6 +102,9 @@ Type TAtlasBuilder
 
 	Rem
 	bbdoc: Adds animation frames with a common logical canvas and positive durations in milliseconds.
+	param: Unique nonempty name for the packed animation.
+	param: Source frame pixmaps in playback order.
+	param: Positive duration of each animation frame in milliseconds.
 	End Rem
 	Method AddAnimation(name:String,frames:TPixmap[],durations:Int[])
 		CheckName(name)
@@ -60,6 +123,9 @@ Type TAtlasBuilder
 		animations.AddLast(animation)
 	End Method
 
+	Rem
+	bbdoc: Packs the collected source images into a new texture atlas.
+	End Rem
 	Method Build:TTextureAtlas()
 		Local atlas:TTextureAtlas=TTextureAtlas.Create(pageSize,flags,padding)
 		If Not inputs.Length Then Return atlas
@@ -95,4 +161,5 @@ Type TAtlasBuilder
 		Next
 		Return atlas
 	End Method
+
 End Type

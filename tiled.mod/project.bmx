@@ -1,15 +1,63 @@
+
 Rem
 bbdoc: A project member declaration. Treat schema definitions as read-only after loading.
 End Rem
 Type TTiledMember
-	Field name:String,valueType:String,propertyType:String
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
+	Field name:String
+
+	Rem
+	bbdoc: Original document's property or field type name.
+	End Rem
+	Field valueType:String
+
+	Rem
+	bbdoc: Named custom class or enum assigned to a Tiled property.
+	End Rem
+	Field propertyType:String
+
+	Rem
+	bbdoc: Default JSON value declared for a custom class member.
+	End Rem
 	Field defaultValue:TJSON
 End Type
 
+Rem
+bbdoc: Named Tiled custom class with its declared property members.
+End Rem
 Type TTiledClass
-	Field id:Int,name:String,color:String
+
+	Rem
+	bbdoc: Identifier associated with this object or definition.
+	End Rem
+	Field id:Int
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
+	Field name:String
+
+	Rem
+	bbdoc: Colour span or imported colour metadata associated with this item.
+	End Rem
+	Field color:String
+
+	Rem
+	bbdoc: Tiled object kinds for which the custom class is available.
+	End Rem
 	Field useAs:String[]
+
+	Rem
+	bbdoc: Declared members of the imported custom class.
+	End Rem
 	Field members:TTiledMember[]
+
+	Rem
+	bbdoc: Internal lookup of declared class members by name.
+	End Rem
 	Field _memberLookup:TTreeMap<String,TTiledMember>=New TTreeMap<String,TTiledMember>
 End Type
 
@@ -18,7 +66,30 @@ bbdoc: An enum schema. Values remain strings or integers in native properties.
 about: For integer enums a value is a zero-based index, or a bitmask when valuesAsFlags is True. String flags remain comma-separated labels.
 End Rem
 Type TTiledEnum
-	Field id:Int,name:String,storageType:String,valuesAsFlags:Int
+
+	Rem
+	bbdoc: Identifier associated with this object or definition.
+	End Rem
+	Field id:Int
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
+	Field name:String
+
+	Rem
+	bbdoc: Tiled enum storage representation, such as string or integer.
+	End Rem
+	Field storageType:String
+
+	Rem
+	bbdoc: Whether enum values can be combined as flags.
+	End Rem
+	Field valuesAsFlags:Int
+
+	Rem
+	bbdoc: Declared enum labels in their source order.
+	End Rem
 	Field values:String[]
 End Type
 
@@ -26,6 +97,10 @@ Rem
 bbdoc: Explicit, reusable Tiled project schemas. No project is installed globally.
 End Rem
 Type TTiledProject
+
+	Rem
+	bbdoc: Logical source filename used to resolve relative resources.
+	End Rem
 	Field sourcePath:String
 	Private
 	Field classes:TTreeMap<String,TTiledClass>=New TTreeMap<String,TTiledClass>
@@ -34,8 +109,11 @@ Type TTiledProject
 	Field loading:TTreeMap<String,Int>=New TTreeMap<String,Int>
 	Field work:Int
 	Public
+
 	Rem
 	bbdoc: Loads a .tiled-project from a path, stream URL or caller-owned stream.
+	param: Filename, stream URL or caller-owned readable stream.
+	param: Logical source filename used to resolve relative resources for stream input.
 	about: sourcePath gives the logical project filename for stream-relative file defaults. Caller streams remain open.
 	End Rem
 	Function Load:TTiledProject(source:Object,sourcePath:String="")
@@ -114,36 +192,72 @@ Type TTiledProject
 		End Try
 	End Function
 
+	Rem
+	bbdoc: Returns a named project class definition, or Null when absent.
+	param: Name used to register or look up the item.
+	End Rem
 	Method ClassType:TTiledClass(name:String)
 		Local result:TTiledClass
 		classes.TryGetValue(name,result)
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Returns a named project enum definition, or Null when absent.
+	param: Name used to register or look up the item.
+	End Rem
 	Method EnumType:TTiledEnum(name:String)
 		Local result:TTiledEnum
 		enums.TryGetValue(name,result)
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Returns a named member of a project class, or Null when absent.
+	param: Name of the imported custom class.
+	param: Name used to register or look up the item.
+	End Rem
 	Method Member:TTiledMember(className:String,name:String)
 		Local definition:TTiledClass=ClassType(className)
 		Local member:TTiledMember
 		If definition Then definition._memberLookup.TryGetValue(name,member)
 		Return member
 	End Method
+
 	Rem
 	bbdoc: Returns an independent snapshot of resolved class defaults, or an empty collection for an unknown class.
+	param: Name used to register or look up the item.
 	End Rem
 	Method ClassDefaults:TTileProperties(name:String)
 		Return CachedDefaults(name,0).Copy()
 	End Method
+
+	Rem
+	bbdoc: Loads a Tiled map using this project's classes and enum definitions.
+	param: Filename, stream URL or caller-owned readable stream.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Logical source filename used to resolve relative resources for stream input.
+	param: Optional application font resolver for imported text objects.
+	End Rem
 	Method LoadMap:TTiledMap(source:Object,flags:Int=FILTEREDIMAGE,sourcePath:String="",fontResolver:TTiledFontResolver=Null)
 		Return LoadTiledMap(source,flags,sourcePath,Self,fontResolver)
 	End Method
 
 	' Import helpers. Resolution happens only while loading, never while drawing.
+
+	Rem
+	bbdoc: Resets counters used to bound recursive project-property expansion.
+	End Rem
 	Method BeginImport()
 		work=0
 	End Method
+
+	Rem
+	bbdoc: Merges class defaults with instance properties, including nested class values.
+	param: Name of the imported custom class.
+	param: Property collection to populate or merge.
+	param: Current nested-class depth, checked against import limits.
+	End Rem
 	Method Apply:TTileProperties(className:String,properties:TTileProperties,depth:Int=0)
 		If depth>64 Then Throw "project defaults nested too deeply"
 		Local result:TTileProperties=CachedDefaults(className,depth).Copy()
@@ -159,6 +273,7 @@ Type TTiledProject
 		Next
 		Return result
 	End Method
+
 	Private
 	Method CachedDefaults:TTileProperties(name:String,depth:Int)
 		Local result:TTileProperties
@@ -185,6 +300,7 @@ Type TTiledProject
 			root.Free(); loading.Remove(name)
 		End Try
 	End Method
+
 	Function Strings:String[](value:TJSON)
 		Local array:TJSONArray=TTiledJSON.ArrayValue(value)
 		If array.Size()>65536 Then Throw "too many project strings"
@@ -196,4 +312,5 @@ Type TTiledProject
 		Next
 		Return result
 	End Function
+
 End Type

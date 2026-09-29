@@ -18,9 +18,11 @@ Type TTiledZstdDecompressor Extends TTiledDecompressor
 	Method CanDecode:Int(compression:String) Override
 		Return compression="zstd"
 	End Method
+
 	Method Decode:Int(source:Byte[],destination:Byte[]) Override
 		Return max2d_tiled_zstd_decode(source,source.Length,destination,destination.Length)
 	End Method
+
 End Type
 
 Global _tiledZstd:TTiledDecompressor=New TTiledZstdDecompressor

@@ -1,8 +1,36 @@
 ' Optional paragraph state: allocated only when a bidi provider is captured.
+
+Rem
+bbdoc: Resolved bidirectional ordering for one prepared paragraph block.
+End Rem
 Type TParagraphBidiBlock
+
+	Rem
+	bbdoc: Resolved bidirectional paragraph data.
+	End Rem
 	Field paragraph:TTextBidiParagraph
+
+	Rem
+	bbdoc: Text represented by this layout or imported object.
+	End Rem
 	Field text:String
-	Field starts:Int[],ends:Int[]
+
+	Rem
+	bbdoc: UTF-16 starts of prepared segments within the bidi paragraph.
+	End Rem
+	Field starts:Int[]
+
+	Rem
+	bbdoc: Exclusive UTF-16 ends of prepared segments within the bidi paragraph.
+	End Rem
+	Field ends:Int[]
+
+	Rem
+	bbdoc: Resolves paragraph direction and embedding levels for a prepared block.
+	param: Prepared paragraph block containing the source segments.
+	param: Optional text provider used to resolve Unicode behaviour.
+	param: Requested paragraph direction; Auto lets the bidi provider determine it.
+	End Rem
 	Function Create:TParagraphBidiBlock(block:TPreparedTextBlock,provider:TTextBidiProvider,direction:ETextDirection)
 		Local result:TParagraphBidiBlock=New TParagraphBidiBlock
 		result.starts=New Int[block.words.Length];result.ends=New Int[block.words.Length]
@@ -18,6 +46,15 @@ Type TParagraphBidiBlock
 		If Not result.paragraph Or result.paragraph.length<>result.text.Length Then Throw "Max2D: invalid bidi paragraph"
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Shapes a visible line using this block's resolved bidirectional ordering.
+	param: Prepared source text, font spans and provider settings.
+	param: Inclusive start index of the requested range.
+	param: Exclusive end index of the requested range.
+	param: Visible display text for the requested line.
+	param: Mapping from display-text UTF-16 boundaries to original-source offsets.
+	End Rem
 	Method Shape:TTextLayout(prepared:TPreparedText,first:Int,last:Int,visible:String,offsets:Int[])
 		Local start:Int=starts[first],finish:Int=ends[last-1]
 		While start<finish And text[start]=32
@@ -28,20 +65,70 @@ Type TParagraphBidiBlock
 		Wend
 		Return TBidiTextLayout.CreateBidi(prepared,visible,offsets,visible.Length,paragraph,start,finish-start,False)
 	End Method
+
 End Type
 
+Rem
+bbdoc: A styled text run with direction, script and source placement.
+End Rem
 Type TBidiTextRun Extends TStyledTextRun
-	Field rtl:Int,script:Int
+
+	Rem
+	bbdoc: Whether this shaped run reads right to left.
+	End Rem
+	Field rtl:Int
+
+	Rem
+	bbdoc: Script identifier used by the shaping provider.
+	End Rem
+	Field script:Int
 End Type
 
 ' Reuses retained font-specific rendering; only visual ordering and lazy interaction differ.
+
+Rem
+bbdoc: Retained text runs arranged in visual order for bidirectional drawing.
+End Rem
 Type TBidiTextLayout Extends TStyledTextLayout
+
+	Rem
+	bbdoc: Resolved bidirectional paragraph data.
+	End Rem
 	Field paragraph:TTextBidiParagraph
-	Field paragraphStart:Int,paragraphLength:Int
+
+	Rem
+	bbdoc: Start offset of this line within its resolved bidi paragraph.
+	End Rem
+	Field paragraphStart:Int
+
+	Rem
+	bbdoc: Length of this line within its resolved bidi paragraph.
+	End Rem
+	Field paragraphLength:Int
+
+	Rem
+	bbdoc: Language tag passed to text providers.
+	End Rem
 	Field language:String
+
+	Rem
+	bbdoc: Builds caret positions at supported text-cluster boundaries.
+	End Rem
 	Method CreateCaretMap:TTextCaretMap() Override
 		Throw "Max2D: bidi boundaries can have two caret positions; use paragraph CaretAt/HitTest"
 	End Method
+
+	Rem
+	bbdoc: Builds a visually ordered layout from resolved bidi text and font spans.
+	param: Prepared source text, font spans and provider settings.
+	param: Text to lay out, measure or draw.
+	param: Mapping from display-text UTF-16 boundaries to original-source offsets.
+	param: Length of actual source text before any appended overflow marker.
+	param: Resolved bidirectional paragraph containing the requested run.
+	param: Starting UTF-16 offset within the paragraph.
+	param: Number of UTF-16 code units in the requested text range.
+	param: Whether the line includes a separately shaped overflow marker.
+	End Rem
 	Function CreateBidi:TBidiTextLayout(prepared:TPreparedText,text:String,offsets:Int[],contentLength:Int,paragraph:TTextBidiParagraph,start:Int,length:Int,marker:Int)
 		Local result:TBidiTextLayout=New TBidiTextLayout
 		result.text=text;result.language=prepared.language
@@ -106,33 +193,87 @@ Type TBidiTextLayout Extends TStyledTextLayout
 		result.CalculateBounds()
 		Return result
 	End Function
+
 End Type
 
 Rem
 bbdoc: Which side of a logical insertion offset to use at a directional run boundary.
 End Rem
 Enum ETextCaretAffinity
+
+	Rem
+	bbdoc: Prefers the visual caret associated with following logical text.
+	End Rem
 	Following
+
+	Rem
+	bbdoc: Prefers the visual caret associated with preceding logical text.
+	End Rem
 	Preceding
 End Enum
 
+Rem
+bbdoc: One visually ordered text cell with its source range and edge carets.
+End Rem
 Type TBidiTextCell
-	Field left:TTextCaret,right:TTextCaret
-	Field first:Int,last:Int
+
+	Rem
+	bbdoc: Caret at the cell's visual left edge.
+	End Rem
+	Field left:TTextCaret
+
+	Rem
+	bbdoc: Caret at the cell's visual right edge.
+	End Rem
+	Field right:TTextCaret
+
+	Rem
+	bbdoc: Inclusive start index or source offset.
+	End Rem
+	Field first:Int
+
+	Rem
+	bbdoc: Exclusive end index or source offset.
+	End Rem
+	Field last:Int
 End Type
 
 ' Created only on first interaction with a bidi line. Cells are in visual order;
 ' items are in source order, retaining both positions at directional boundaries.
+
+Rem
+bbdoc: Cached source-to-visual mappings for hit testing a bidirectional line.
+End Rem
 Type TBidiTextInteraction
+
+	Rem
+	bbdoc: Caret stops sorted by logical source position.
+	End Rem
 	Field items:TTextCaret[]
+
+	Rem
+	bbdoc: Text cells in visual left-to-right order.
+	End Rem
 	Field cells:TBidiTextCell[]
 
+	Rem
+	bbdoc: Compares carets by their logical source offsets for sorting.
+	param: First caret to compare by logical source offset.
+	param: Second caret to compare by logical source offset.
+	End Rem
 	Function SourceCompare:Int(a:Object,b:Object)
 		Local first:TTextCaret=TTextCaret(a),last:TTextCaret=TTextCaret(b)
 		If first.sourceOffset<>last.sourceOffset Then Return first.sourceOffset-last.sourceOffset
 		Return Int(first.affinity)-Int(last.affinity)
 	End Function
 
+	Rem
+	bbdoc: Builds visual cells and source-sorted carets for one bidirectional line.
+	param: Retained text layout to draw or inspect.
+	param: Prepared visual paragraph line.
+	param: Zero-based visual line index.
+	param: Source data or object to read.
+	End Rem
 	Function Create:TBidiTextInteraction(layout:TBidiTextLayout,line:TParagraphLine,lineIndex:Int,source:TTextSourceMap)
 		Local result:TBidiTextInteraction=New TBidiTextInteraction
 		Local points:TList=New TList,visual:TList=New TList
@@ -188,6 +329,10 @@ Type TBidiTextInteraction
 		Return result
 	End Function
 
+	Rem
+	bbdoc: Returns the visual text cell nearest a horizontal line coordinate.
+	param: Horizontal coordinate.
+	End Rem
 	Method CellAt:TBidiTextCell(x:Float)
 		If Not cells.Length Then Return Null
 		Local first:Int,last:Int=cells.Length-1
@@ -197,12 +342,23 @@ Type TBidiTextInteraction
 		Wend
 		Return cells[first]
 	End Method
+
+	Rem
+	bbdoc: Returns the nearest visual caret at a horizontal line coordinate.
+	param: Horizontal paragraph-local pointer coordinate.
+	End Rem
 	Method HitTest:TTextCaret(x:Float)
 		Local cell:TBidiTextCell=CellAt(x)
 		If Not cell Then Return items[0]
 		If Abs(x-cell.left.x)<=Abs(x-cell.right.x) Then Return cell.left
 		Return cell.right
 	End Method
+
+	Rem
+	bbdoc: Returns the nearest logical caret with the requested bidi affinity.
+	param: Offset in the original UTF-16 source string.
+	param: Which visual side to prefer when a source offset has two bidi caret positions.
+	End Rem
 	Method CaretAt:TTextCaret(offset:Int,affinity:ETextCaretAffinity)
 		Local first:Int,last:Int=items.Length-1
 		While first<last
@@ -221,4 +377,5 @@ Type TBidiTextInteraction
 		Wend
 		Return items[first]
 	End Method
+
 End Type

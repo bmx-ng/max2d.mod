@@ -1,12 +1,68 @@
+
+Rem
+bbdoc: Shared tile artwork, animation, drawing placement, properties and collision objects.
+End Rem
 Type TTileDefinition
+
+	Rem
+	bbdoc: Tile-local collision objects shared by every instance of this tile definition.
+	End Rem
 	Field collisions:TTileObject[]=New TTileObject[0]
+
+	Rem
+	bbdoc: Mutable application properties associated with this item.
+	End Rem
 	Field properties:TTileProperties=New TTileProperties
+
+	Rem
+	bbdoc: Image or animation supplying this object's artwork.
+	End Rem
 	Field image:TImage
-	Field frame:Int,animated:Int
-	Field drawWidth:Float,drawHeight:Float
+
+	Rem
+	bbdoc: Zero-based image frame selected when animation is disabled.
+	End Rem
+	Field frame:Int
+
+	Rem
+	bbdoc: Whether the frame is chosen from elapsed time and image frame durations.
+	End Rem
+	Field animated:Int
+
+	Rem
+	bbdoc: Logical width of the artwork's destination box; zero uses its natural width.
+	End Rem
+	Field drawWidth:Float
+
+	Rem
+	bbdoc: Logical height of the artwork's destination box; zero uses its natural height.
+	End Rem
+	Field drawHeight:Float
+
+	Rem
+	bbdoc: Whether artwork stretches or preserves its aspect ratio inside its drawing box.
+	End Rem
 	Field fillMode:ETileFillMode
-	Field offsetX:Float,offsetY:Float
-	Field depthOffset:Float,sortOrder:Int
+
+	Rem
+	bbdoc: Horizontal artwork offset relative to the cell drawing position.
+	End Rem
+	Field offsetX:Float
+
+	Rem
+	bbdoc: Vertical artwork offset relative to the cell drawing position.
+	End Rem
+	Field offsetY:Float
+
+	Rem
+	bbdoc: Offset added to the artwork's ground-depth sorting coordinate.
+	End Rem
+	Field depthOffset:Float
+
+	Rem
+	bbdoc: Explicit tie-break order for artwork at the same depth.
+	End Rem
+	Field sortOrder:Int
 End Type
 
 Rem
@@ -14,7 +70,19 @@ bbdoc: Shared artwork definitions. Tile ID zero denotes an empty cell.
 about: Artwork is positioned relative to the cell bounding-box origin; image handles are ignored. Treat registered artwork fields as read-only; use Properties and SetDepth for metadata and depth changes.
 End Rem
 Type TTileSet
+
+	Rem
+	bbdoc: Tile definitions indexed by native tile ID; entry zero is reserved for empty cells.
+	End Rem
 	Field tiles:TTileDefinition[]=New TTileDefinition[1]
+
+	Rem
+	bbdoc: Adds image artwork to the tileset and returns its nonzero tile ID.
+	param: Image to operate on.
+	param: Zero-based image frame index.
+	param: Horizontal placement offset in map units.
+	param: Vertical placement offset in map units.
+	End Rem
 	Method Add:Int(image:TImage,frame:Int=0,offsetX:Float=0,offsetY:Float=0)
 		If Not image Then Throw "Max2D tilemap: tile image is null"
 		image.CheckIndex(frame)
@@ -25,8 +93,13 @@ Type TTileSet
 		tiles=tiles[..id+1]; tiles[id]=tile
 		Return id
 	End Method
+
 	Rem
 	bbdoc: Sets the displayed tile canvas. Aspect-fit artwork is centred within it; offsets remain in map units.
+	param: Native tile ID; zero represents an empty cell where supported.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Whether artwork stretches to the box or preserves its aspect ratio.
 	End Rem
 	Method SetSize(tile:Int,width:Float,height:Float,fillMode:ETileFillMode=ETileFillMode.Stretch)
 		If tile<=0 Or tile>=tiles.Length Then Throw "Max2D tilemap: tile ID out of range"
@@ -34,10 +107,22 @@ Type TTileSet
 		If fillMode<>ETileFillMode.Stretch And fillMode<>ETileFillMode.PreserveAspectFit Then Throw "Max2D tilemap: invalid fill mode"
 		tiles[tile].drawWidth=width; tiles[tile].drawHeight=height; tiles[tile].fillMode=fillMode
 	End Method
+
+	Rem
+	bbdoc: Returns the mutable properties of a tile definition.
+	param: Native tile ID; zero represents an empty cell where supported.
+	End Rem
 	Method Properties:TTileProperties(tile:Int)
 		If tile<=0 Or tile>=tiles.Length Then Throw "Max2D tilemap: tile ID out of range"
 		Return tiles[tile].properties
 	End Method
+
+	Rem
+	bbdoc: Adds a timed image animation as a tile definition and returns its native tile ID.
+	param: Timed image animation whose frames supply the tile artwork.
+	param: Horizontal placement offset in map units.
+	param: Vertical placement offset in map units.
+	End Rem
 	Method AddAnimation:Int(image:TImage,offsetX:Float=0,offsetY:Float=0)
 		If Not image Then Throw "Max2D tilemap: tile image is null"
 		image.AnimationDuration()
@@ -45,8 +130,12 @@ Type TTileSet
 		tiles[id].animated=True
 		Return id
 	End Method
+
 	Rem
 	bbdoc: Sets depth relative to the cell bottom, plus an explicit tie-break order.
+	param: Native tile ID; zero represents an empty cell where supported.
+	param: Offset added to the tile's ground-depth sorting coordinate.
+	param: Stable drawing-order tie-break value.
 	End Rem
 	Method SetDepth(tile:Int,offset:Float=0,order:Int=0)
 		If tile<=0 Or tile>=tiles.Length Then Throw "Max2D tilemap: tile ID out of range"
@@ -56,10 +145,29 @@ Type TTileSet
 
 End Type
 
+Rem
+bbdoc: Sparse storage block containing tile IDs and transformation flags.
+End Rem
 Type TTileChunk
+
+	Rem
+	bbdoc: Tile IDs indexed by local row times TILE_CHUNK_SIZE plus local column.
+	End Rem
 	Field cells:Int[]=New Int[TILE_CHUNK_SIZE*TILE_CHUNK_SIZE]
+
+	Rem
+	bbdoc: Per-cell reflection and rotation flags in row-major chunk order.
+	End Rem
 	Field flips:ETileFlip[]=New ETileFlip[TILE_CHUNK_SIZE*TILE_CHUNK_SIZE]
+
+	Rem
+	bbdoc: Number of nonempty tile cells in this chunk.
+	End Rem
 	Field count:Int
+
+	Rem
+	bbdoc: Optional per-cell properties indexed by local cell position.
+	End Rem
 	Field properties:TTreeMap<Int,TTileProperties>
 End Type
 
@@ -67,24 +175,97 @@ Rem
 bbdoc: Sparse tile layer, divided into 32 by 32 chunks. Negative columns and rows are supported.
 End Rem
 Type TTileLayer
-	Field image:TImage,repeatX:Int,repeatY:Int
-	Field tintRed:Float=1,tintGreen:Float=1,tintBlue:Float=1,tintAlpha:Float=1
-	Field parallaxX:Double=1,parallaxY:Double=1
+
+	Rem
+	bbdoc: Optional image-layer artwork drawn in addition to the layer's cells and objects.
+	End Rem
+	Field image:TImage
+
+	Rem
+	bbdoc: Whether the layer image repeats horizontally.
+	End Rem
+	Field repeatX:Int
+
+	Rem
+	bbdoc: Whether the layer image repeats vertically.
+	End Rem
+	Field repeatY:Int
+
+	Rem
+	bbdoc: Red tint multiplier, normally from 0.0 to 1.0.
+	End Rem
+	Field tintRed:Float=1
+
+	Rem
+	bbdoc: Green tint multiplier, normally from 0.0 to 1.0.
+	End Rem
+	Field tintGreen:Float=1
+
+	Rem
+	bbdoc: Blue tint multiplier, normally from 0.0 to 1.0.
+	End Rem
+	Field tintBlue:Float=1
+
+	Rem
+	bbdoc: Alpha tint multiplier, normally from 0.0 to 1.0.
+	End Rem
+	Field tintAlpha:Float=1
+
+	Rem
+	bbdoc: Horizontal layer parallax factor; one follows the map normally.
+	End Rem
+	Field parallaxX:Double=1
+
+	Rem
+	bbdoc: Vertical layer parallax factor; one follows the map normally.
+	End Rem
+	Field parallaxY:Double=1
 	' Visual scale only; gameplay geometry remains in nominal layer coordinates.
+
+	Rem
+	bbdoc: Additional uniform drawing scale applied to the layer.
+	End Rem
 	Field drawScale:Double=1
+
+	Rem
+	bbdoc: Objects attached to the layer.
+	End Rem
 	Field objects:TTileObject[]=New TTileObject[0]
+
+	Rem
+	bbdoc: Whether objects are drawn in top-down depth order rather than insertion order.
+	End Rem
 	Field objectTopDown:Int=True
+
+	Rem
+	bbdoc: Adds a map object to this layer.
+	param: Object or draw item to append or test.
+	End Rem
 	Method AddObject(item:TTileObject)
 		If Not item Then Throw "Max2D tilemap: null object"
 		item.Validate()
 		If item.tile<0 Or item.tile>=_tiles.tiles.Length Then Throw "Max2D tilemap: invalid object tile"
 		objects=objects[..objects.Length+1]; objects[objects.Length-1]=item
 	End Method
+
+	Rem
+	bbdoc: Finds a map object by its numeric identifier, or Null when absent.
+	param: Caller identifier attached to the object or shape.
+	End Rem
 	Method ObjectByID:TTileObject(id:Int)
 		For Local item:TTileObject=EachIn objects
 			If item.id=id Then Return item
 		Next
 	End Method
+
+	Rem
+	bbdoc: Collects object instances whose bounds overlap a map-space rectangle.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Result object to fill; optional reusable query results are cleared before use.
+	End Rem
 	Method QueryObjects:TTileObjectQueryResult(x:Double,y:Double,width:Double,height:Double,result:TTileObjectQueryResult=Null)
 		CheckTileObjectRegion(x,y,width,height)
 		If Not result Then result=New TTileObjectQueryResult
@@ -96,6 +277,14 @@ Type TTileLayer
 		Next
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Collects object instances containing a map-space point within the supplied tolerance.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Nonnegative point-picking tolerance in map units.
+	param: Result object to fill; optional reusable query results are cleared before use.
+	End Rem
 	Method QueryObjectsAtPoint:TTileObjectQueryResult(x:Double,y:Double,tolerance:Double=0,result:TTileObjectQueryResult=Null)
 		If Not (tolerance>=0) Or IsInf(tolerance) Then Throw "Max2D tilemap: invalid picking tolerance"
 		CheckTileObjectRegion(x,y,0,0)
@@ -108,44 +297,115 @@ Type TTileLayer
 		Next
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Mutable application properties associated with this item.
+	End Rem
 	Field properties:TTileProperties=New TTileProperties
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
 	Field name:String
+
+	Rem
+	bbdoc: Grid traversal or ground-depth sorting used to draw the layer.
+	End Rem
 	Field sortMode:ETileSort=ETileSort.Grid
+
+	Rem
+	bbdoc: Row and column traversal order for rectangular grids.
+	End Rem
 	Field renderOrder:ETileRenderOrder=ETileRenderOrder.RightDown
+
+	Rem
+	bbdoc: Free-positioned sprites attached to this layer.
+	End Rem
 	Field sprites:TTileSprite[]=New TTileSprite[0]
+
+	Rem
+	bbdoc: Whether this artwork, object or layer participates in drawing.
+	End Rem
 	Field visible:Int=True
+
+	Rem
+	bbdoc: Opacity multiplier from 0.0 to 1.0.
+	End Rem
 	Field opacity:Float=1
-	Field offsetX:Float,offsetY:Float
+
+	Rem
+	bbdoc: Horizontal layer offset in map units.
+	End Rem
+	Field offsetX:Float
+
+	Rem
+	bbdoc: Vertical layer offset in map units.
+	End Rem
+	Field offsetY:Float
 	Private
 	Field _tiles:TTileSet
 	Field _chunks:TTreeMap<Long,TTileChunk>=New TTreeMap<Long,TTileChunk>
 	Field _count:Int
 	Field _left:Int,_top:Int,_right:Int,_bottom:Int
 	Public
+
+	Rem
+	bbdoc: Creates an empty layer using the supplied shared tileset.
+	param: Shared artwork and tile definitions.
+	param: Name used to register or look up the item.
+	End Rem
 	Function Create:TTileLayer(tileset:TTileSet,name:String="")
 		If Not tileset Then Throw "Max2D tilemap: tileset is required"
 		Local layer:TTileLayer=New TTileLayer
 		layer._tiles=tileset; layer.name=name
 		Return layer
 	End Function
+
 	Rem
 	bbdoc: Returns conservative inclusive cell bounds, or False for an empty layer. Removing cells may leave wider bounds until Clear.
+	param: Receives inclusive first occupied column.
+	param: Receives inclusive first occupied row.
+	param: Receives inclusive last column.
+	param: Receives inclusive last row.
 	End Rem
 	Method Bounds:Int(left:Int Var,top:Int Var,right:Int Var,bottom:Int Var)
 		left=_left; top=_top; right=_right; bottom=_bottom
 		Return _count>0
 	End Method
+
+	Rem
+	bbdoc: Converts a cell coordinate to a chunk coordinate using floor division.
+	param: Signed cell coordinate.
+	End Rem
 	Function ChunkCoordinate:Int(cell:Int)
 		Return Int(Floor(Double(cell)/TILE_CHUNK_SIZE))
 	End Function
+
+	Rem
+	bbdoc: Combines signed chunk coordinates into a lookup key.
+	param: Integer grid column.
+	param: Integer grid row.
+	End Rem
 	Function ChunkKey:Long(column:Int,row:Int)
 		Return (Long(column) Shl 32) | Long(UInt(row))
 	End Function
+
+	Rem
+	bbdoc: Returns the storage chunk containing a cell, or Null when unallocated.
+	param: Integer grid column.
+	param: Integer grid row.
+	End Rem
 	Method Chunk:TTileChunk(column:Int,row:Int)
 		Local chunk:TTileChunk
 		_chunks.TryGetValue(ChunkKey(column,row),chunk)
 		Return chunk
 	End Method
+
+	Rem
+	bbdoc: Returns the tile ID at a cell, or zero for an empty cell.
+	param: Integer grid column.
+	param: Integer grid row.
+	End Rem
 	Method Cell:Int(column:Int,row:Int)
 		TTileGrid.CheckCell(column,row)
 		Local cx:Int=ChunkCoordinate(column),cy:Int=ChunkCoordinate(row)
@@ -153,6 +413,12 @@ Type TTileLayer
 		If Not chunk Then Return 0
 		Return chunk.cells[(row-cy*TILE_CHUNK_SIZE)*TILE_CHUNK_SIZE+column-cx*TILE_CHUNK_SIZE]
 	End Method
+
+	Rem
+	bbdoc: Returns the tile transformation flags stored at a cell.
+	param: Integer grid column.
+	param: Integer grid row.
+	End Rem
 	Method CellFlip:ETileFlip(column:Int,row:Int)
 		TTileGrid.CheckCell(column,row)
 		Local cx:Int=ChunkCoordinate(column),cy:Int=ChunkCoordinate(row)
@@ -160,6 +426,14 @@ Type TTileLayer
 		If Not chunk Then Return ETileFlip.None
 		Return chunk.flips[(row-cy*TILE_CHUNK_SIZE)*TILE_CHUNK_SIZE+column-cx*TILE_CHUNK_SIZE]
 	End Method
+
+	Rem
+	bbdoc: Sets a cell's tile and transform, or clears it when the tile ID is zero.
+	param: Integer grid column.
+	param: Integer grid row.
+	param: Native tile ID; zero represents an empty cell where supported.
+	param: Tile reflection and rotation flags.
+	End Rem
 	Method SetCell(column:Int,row:Int,tile:Int,flip:ETileFlip=ETileFlip.None)
 		TTileGrid.CheckCell(column,row)
 		If Not _tiles Or tile<0 Or tile>=_tiles.tiles.Length Then Throw "Max2D tilemap: tile ID out of range"
@@ -183,8 +457,12 @@ Type TTileLayer
 		chunk.count:+change; _count:+change
 		If chunk.count=0 Then _chunks.Remove(ChunkKey(cx,cy))
 	End Method
+
 	Rem
 	bbdoc: Returns optional per-cell overrides. Creating overrides requires an occupied cell.
+	param: Integer grid column.
+	param: Integer grid row.
+	param: Whether to create a missing per-cell property collection.
 	End Rem
 	Method CellProperties:TTileProperties(column:Int,row:Int,create:Int=False)
 		Local id:Int=Cell(column,row)
@@ -204,8 +482,12 @@ Type TTileLayer
 		End If
 		Return result
 	End Method
+
 	Rem
 	bbdoc: Resolves a cell override first, then the shared tile definition. Missing properties return Null.
+	param: Integer grid column.
+	param: Integer grid row.
+	param: Name used to register or look up the item.
 	End Rem
 	Method Property:TTileProperty(column:Int,row:Int,name:String)
 		Local properties:TTileProperties=CellProperties(column,row)
@@ -216,8 +498,14 @@ Type TTileLayer
 		If id Then Return _tiles.Properties(id).Get(name)
 		Return Null
 	End Method
+
 	Rem
 	bbdoc: Collects occupied cells within inclusive integer bounds. Reuses and clears result when supplied.
+	param: Inclusive first column.
+	param: Inclusive first row.
+	param: Inclusive last column.
+	param: Inclusive last row.
+	param: Result object to fill; optional reusable query results are cleared before use.
 	End Rem
 	Method QueryCells:TTileQueryResult(left:Int,top:Int,right:Int,bottom:Int,result:TTileQueryResult=Null)
 		TTileGrid.CheckCell(left,top); TTileGrid.CheckCell(right,bottom)
@@ -243,6 +531,7 @@ Type TTileLayer
 		End If
 		Return result
 	End Method
+
 	Private
 	Method CollectChunk(chunk:TTileChunk,cx:Int,cy:Int,left:Int,top:Int,right:Int,bottom:Int,result:TTileQueryResult)
 		Local x:Int=cx*TILE_CHUNK_SIZE,y:Int=cy*TILE_CHUNK_SIZE
@@ -253,7 +542,15 @@ Type TTileLayer
 			Next
 		Next
 	End Method
+
 	Public
+
+	Rem
+	bbdoc: Adds a drawable sprite to the layer and returns its mutable settings.
+	param: Image to operate on.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	End Rem
 	Method AddSprite:TTileSprite(image:TImage,x:Float=0,y:Float=0)
 		If Not image Then Throw "Max2D tilemap: sprite image is null"
 		Local sprite:TTileSprite=New TTileSprite
@@ -262,6 +559,11 @@ Type TTileLayer
 		sprites=sprites[..sprites.Length+1]; sprites[sprites.Length-1]=sprite
 		Return sprite
 	End Method
+
+	Rem
+	bbdoc: Removes a sprite from the layer and reports whether it was present.
+	param: Layer sprite to remove.
+	End Rem
 	Method RemoveSprite:Int(sprite:TTileSprite)
 		For Local i:Int=0 Until sprites.Length
 			If sprites[i]<>sprite Then Continue
@@ -273,22 +575,42 @@ Type TTileLayer
 		Next
 		Return False
 	End Method
+
+	Rem
+	bbdoc: Removes every free-positioned sprite from the layer.
+	End Rem
 	Method ClearSprites()
 		sprites=New TTileSprite[0]
 	End Method
 
+	Rem
+	bbdoc: Clears the layer's stored cells.
+	End Rem
 	Method Clear()
 		_chunks.Clear(); _count=0
 	End Method
+
+	Rem
+	bbdoc: Returns the tileset shared by this layer.
+	End Rem
 	Method TileSet:TTileSet()
 		Return _tiles
 	End Method
+
+	Rem
+	bbdoc: Returns the number of occupied cells.
+	End Rem
 	Method CellCount:Int()
 		Return _count
 	End Method
+
+	Rem
+	bbdoc: Returns the number of allocated cell-storage chunks.
+	End Rem
 	Method ChunkCount:Int()
 		Return _chunks.Count()
 	End Method
+
 End Type
 
 Rem
@@ -296,9 +618,24 @@ bbdoc: Layered tilemap sharing a grid and tileset. Rendering uses the current Ma
 about: Draw does not advance a clock: pass elapsed milliseconds explicitly. Draw and Pick use matching map position arguments. Layer offsets are map-local.
 End Rem
 Type TTileMap
-	Field parallaxOriginX:Double,parallaxOriginY:Double
+
+	Rem
+	bbdoc: Horizontal reference origin for layer parallax.
+	End Rem
+	Field parallaxOriginX:Double
+
+	Rem
+	bbdoc: Vertical reference origin for layer parallax.
+	End Rem
+	Field parallaxOriginY:Double
+
 	Rem
 	bbdoc: Returns the visual layer offset for the active viewport and drawing transform.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Receives horizontal offset.
+	param: Receives vertical offset.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
 	about: Physics/region queries remain in nominal map coordinates. x/y must match the map's Draw call.
 	End Rem
 	Method LayerDrawOffset(layer:TTileLayer,ox:Double Var,oy:Double Var,x:Float=0,y:Float=0)
@@ -306,6 +643,15 @@ Type TTileMap
 		Local transform:TMax2DDrawTransform=TMax2DDrawTransform.Create(canvas.state,x,y,0,0)
 		LayerOffsetForView(layer,transform,canvas.context.view,ox,oy)
 	End Method
+
+	Rem
+	bbdoc: Calculates the layer offset for the current view, including parallax.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Captured drawing transform used for view and map conversion.
+	param: Virtual dimensions, presentation and clipping settings.
+	param: Receives horizontal offset.
+	param: Receives vertical offset.
+	End Rem
 	Method LayerOffsetForView(layer:TTileLayer,transform:TMax2DDrawTransform,view:TMax2DView,ox:Double Var,oy:Double Var)
 		ox=layer.offsetX; oy=layer.offsetY
 		If layer.parallaxX=1 And layer.parallaxY=1 Then Return
@@ -316,8 +662,17 @@ Type TTileMap
 		oy:+(Double(cy)-parallaxOriginY)*(1-layer.parallaxY)
 		If IsNan(ox) Or IsInf(ox) Or IsNan(oy) Or IsInf(oy) Then Throw "Max2D tilemap: parallax offset overflow"
 	End Method
+
 	Rem
 	bbdoc: Converts a virtual-surface point into layer-local coordinates, including parallax.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Horizontal virtual coordinate.
+	param: Vertical virtual coordinate.
+	param: Receives horizontal local drawing coordinate.
+	param: Receives vertical local drawing coordinate.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Whether to require the point to be inside the clipping viewport as well as the scene.
 	End Rem
 	Method VirtualToLayer:Int(layer:TTileLayer,virtualX:Float,virtualY:Float,localX:Float Var,localY:Float Var,x:Float=0,y:Float=0,checkViewport:Int=True)
 		localX=0; localY=0
@@ -332,12 +687,25 @@ Type TTileMap
 		localX=Float((localX-ox)/layer.drawScale); localY=Float((localY-oy)/layer.drawScale)
 		Return True
 	End Method
+
+	Rem
+	bbdoc: Finds a map object by its numeric identifier, or Null when absent.
+	param: Caller identifier attached to the object or shape.
+	End Rem
 	Method ObjectByID:TTileObject(id:Int)
 		For Local layer:TTileLayer=EachIn layers
 			Local item:TTileObject=layer.ObjectByID(id)
 			If item Then Return item
 		Next
 	End Method
+
+	Rem
+	bbdoc: Returns one tile-local collision object placed and transformed at a map cell.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Integer grid column.
+	param: Integer grid row.
+	param: Zero-based index.
+	End Rem
 	Method CellCollision:STileObjectInstance(layer:TTileLayer,column:Int,row:Int,index:Int)
 		If Not layer Or layer.TileSet()<>tileset Then Throw "Max2D tilemap: incompatible collision layer"
 		Local id:Int=layer.Cell(column,row)
@@ -355,8 +723,15 @@ Type TTileMap
 		item.layer=layer; item.column=column; item.row=row
 		Return item
 	End Method
+
 	Rem
 	bbdoc: Returns tile collision shapes whose map-local bounds touch the query rectangle.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Result object to fill; optional reusable query results are cleared before use.
 	about: Results are broad-phase candidates, not physics contacts. Collision geometry is static across animation frames. Output and candidate-cell storage can be reused. Includes invisible layers/shapes.
 	End Rem
 	Method QueryTileCollisions:TTileObjectQueryResult(layer:TTileLayer,x:Double,y:Double,width:Double,height:Double,result:TTileObjectQueryResult=Null)
@@ -399,29 +774,99 @@ Type TTileMap
 		Next
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Mutable application properties associated with this item.
+	End Rem
 	Field properties:TTileProperties=New TTileProperties
+
+	Rem
+	bbdoc: Grid geometry used for cell placement and picking.
+	End Rem
 	Field grid:TTileGrid
+
+	Rem
+	bbdoc: Shared tile artwork and definitions used by this map.
+	End Rem
 	Field tileset:TTileSet
+
+	Rem
+	bbdoc: Layers owned by this map or collision world.
+	End Rem
 	Field layers:TTileLayer[]=New TTileLayer[0]
-	Field drawnTexts:Int,drawnImages:Int,drawnTiles:Int,drawnSprites:Int,sortedItems:Int,visitedCells:Int,chunkLookups:Int
+
+	Rem
+	bbdoc: Text objects drawn during the latest map draw.
+	End Rem
+	Field drawnTexts:Int
+
+	Rem
+	bbdoc: Image-layer draws during the latest map draw.
+	End Rem
+	Field drawnImages:Int
+
+	Rem
+	bbdoc: Tile instances drawn during the latest map draw.
+	End Rem
+	Field drawnTiles:Int
+
+	Rem
+	bbdoc: Free-positioned sprites drawn during the latest map draw.
+	End Rem
+	Field drawnSprites:Int
+
+	Rem
+	bbdoc: Artwork items sorted during the latest map draw.
+	End Rem
+	Field sortedItems:Int
+
+	Rem
+	bbdoc: Cell positions examined during the latest map draw.
+	End Rem
+	Field visitedCells:Int
+
+	Rem
+	bbdoc: Sparse chunk lookups performed during the latest map draw.
+	End Rem
+	Field chunkLookups:Int
 	Private
 	Field _frames:Int[]
 	Field _queue:TTileDrawQueue=New TTileDrawQueue
 	Field _sorting:Int
 	Public
+
+	Rem
+	bbdoc: Creates an empty map with a grid and shared tileset.
+	param: Cell geometry and coordinate-conversion rules.
+	param: Shared artwork and tile definitions.
+	End Rem
 	Function Create:TTileMap(grid:TTileGrid,tileset:TTileSet)
 		If Not grid Or Not tileset Then Throw "Max2D tilemap: grid and tileset are required"
 		Local map:TTileMap=New TTileMap
 		map.grid=grid; map.tileset=tileset
 		Return map
 	End Function
+
+	Rem
+	bbdoc: Creates and appends a named layer using the map's tileset.
+	param: Name used to register or look up the item.
+	End Rem
 	Method AddLayer:TTileLayer(name:String="")
 		Local layer:TTileLayer=TTileLayer.Create(tileset,name)
 		layers=layers[..layers.Length+1]; layers[layers.Length-1]=layer
 		Return layer
 	End Method
+
 	Rem
 	bbdoc: Finds a cell from virtual drawing-surface coordinates using the current camera and transforms.
+	param: Horizontal virtual coordinate.
+	param: Vertical virtual coordinate.
+	param: Receives integer grid column.
+	param: Receives integer grid row.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Whether to require the point to be inside the clipping viewport as well as the scene.
 	about: This is geometric picking, not sprite alpha picking. It does not require a populated or visible cell. Set checkViewport to reject points outside the viewport.
 	End Rem
 	Method Pick:Int(virtualX:Float,virtualY:Float,column:Int Var,row:Int Var,x:Float=0,y:Float=0,layer:TTileLayer=Null,checkViewport:Int=True)
@@ -443,14 +888,30 @@ Type TTileMap
 		End If
 		Return grid.LocalToCell(px,py,column,row)
 	End Method
+
+	Rem
+	bbdoc: Picks the cell under the mouse using the active camera and presentation mapping.
+	param: Receives integer grid column.
+	param: Receives integer grid row.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	End Rem
 	Method MouseCell:Int(column:Int Var,row:Int Var,x:Float=0,y:Float=0,layer:TTileLayer=Null)
 		Local vx:Float,vy:Float
 		column=0; row=0
 		If Not GetVirtualMouse(vx,vy,True) Then Return False
 		Return Pick(vx,vy,column,row,x,y,layer)
 	End Method
+
 	Rem
 	bbdoc: Finds occupied cell polygons overlapping a map-local rectangle, including layer offsets.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	param: Result object to fill; optional reusable query results are cleared before use.
 	about: Positive-area overlap is required; touching edges do not count. Ignores camera, visibility, artwork and sprites.
 	End Rem
 	Method QueryRegion:TTileQueryResult(layer:TTileLayer,x:Double,y:Double,width:Double,height:Double,result:TTileQueryResult=Null)
@@ -479,6 +940,13 @@ Type TTileMap
 		result.count=count
 		Return result
 	End Method
+
+	Rem
+	bbdoc: Draws visible layers, animated tiles, objects and sprites using the current drawing state.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Elapsed animation time in milliseconds; negative values are treated as zero.
+	End Rem
 	Method Draw(x:Float=0,y:Float=0,elapsed:Long=0)
 		If IsNan(x) Or IsInf(x) Or IsNan(y) Or IsInf(y) Then Throw "Max2D tilemap: invalid map position"
 		drawnTexts=0; drawnImages=0; drawnTiles=0; drawnSprites=0; sortedItems=0; visitedCells=0; chunkLookups=0
@@ -529,6 +997,7 @@ Type TTileMap
 			PopMax2DState()
 		End Try
 	End Method
+
 	Private
 	Field _objectOrder:Int[],_objectScratch:Int[]
 	Method DrawObjects(canvas:TMax2DGraphics,layer:TTileLayer,elapsed:Long)
@@ -584,6 +1053,7 @@ Type TTileMap
 			End Try
 		Next
 	End Method
+
 	Method DrawLayerImage(canvas:TMax2DGraphics,layer:TTileLayer)
 		If Not layer.image Then Return
 		Local left:Double,top:Double,right:Double,bottom:Double
@@ -632,6 +1102,7 @@ Type TTileMap
 			_queue.Clear()
 		End Try
 	End Method
+
 	Method DrawTiles(canvas:TMax2DGraphics,layer:TTileLayer,minArtX:Float,minArtY:Float,maxArtX:Float,maxArtY:Float,left:Double,top:Double,right:Double,bottom:Double)
 		' Conservative bounds include oversized artwork and staggered origins.
 		Local boundLeft:Int,boundTop:Int,boundRight:Int,boundBottom:Int
@@ -695,6 +1166,7 @@ Type TTileMap
 			Next
 		Next
 	End Method
+
 	Method Submit(canvas:TMax2DGraphics,image:TImage,frame:Int,x:Float,y:Float,flip:ETileFlip,depth:Double,sortX:Double,order:Int,width:Float=0,height:Float=0,fillMode:ETileFillMode=ETileFillMode.Stretch)
 		If _sorting Then
 			_queue.Add(image,frame,x,y,flip,depth,sortX,order,width,height,fillMode)
@@ -702,6 +1174,7 @@ Type TTileMap
 			TTileDrawQueue.DrawImage(canvas,image,frame,x,y,flip,width,height,fillMode)
 		End If
 	End Method
+
 	Method FlushQueue(canvas:TMax2DGraphics)
 		sortedItems:+_queue.count
 		_queue.Sort()
@@ -714,6 +1187,14 @@ Type TTileMap
 
 End Type
 
+Rem
+bbdoc: Inverts the current drawing transform to find visible map-space bounds.
+param: Drawing canvas whose state and rendering context are used.
+param: Receives left boundary of the region.
+param: Receives inclusive top of the visible band in paragraph-local coordinates.
+param: Receives right boundary of the region.
+param: Receives exclusive bottom of the visible band in paragraph-local coordinates.
+End Rem
 Function TileLayerViewBounds:Int(canvas:TMax2DGraphics,left:Double Var,top:Double Var,right:Double Var,bottom:Double Var)
 	Local view:TMax2DView=canvas.context.view
 	If view.w<=0 Or view.h<=0 Then Return False

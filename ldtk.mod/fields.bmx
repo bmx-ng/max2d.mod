@@ -1,38 +1,83 @@
+
 Rem
 bbdoc: A field's exported JSON and optional typed accessors. Treat the JSON and returned cached values as read-only.
 about: Structured values and array items are converted lazily and retained. Wrong types throw; structured null values return Null. String/FilePath access returns exported text, not a resolved resource path.
 End Rem
 Type TLDTKField
-	Field name:String,valueType:String,value:TJSON
+
+	Rem
+	bbdoc: Name used to identify this entry.
+	End Rem
+	Field name:String
+
+	Rem
+	bbdoc: Original document's property or field type name.
+	End Rem
+	Field valueType:String
+
+	Rem
+	bbdoc: Imported JSON field value; consult valueType before converting it.
+	End Rem
+	Field value:TJSON
 	Private
 	Field _point:TLDTKPoint,_tile:TLDTKTileReference,_reference:TLDTKEntityReference
 	Field _items:TLDTKField[]
 	Public
+
+	Rem
+	bbdoc: Finds a named field in an imported field array, returning Null when absent.
+	param: Imported custom fields to search.
+	param: Name used to register or look up the item.
+	End Rem
 	Function Find:TLDTKField(fields:TLDTKField[],name:String)
 		For Local item:TLDTKField=EachIn fields
 			If item.name=name Then Return item
 		Next
 	End Function
+
+	Rem
+	bbdoc: Reports whether the imported field contains JSON null.
+	End Rem
 	Method IsNull:Int()
 		Return Not value Or TJSONNull(value)<>Null
 	End Method
+
+	Rem
+	bbdoc: Reads the stored value as a string.
+	End Rem
 	Method AsString:String()
 		If Not TJSONString(value) Then Fail("string")
 		Return TJSONString(value).Value()
 	End Method
+
+	Rem
+	bbdoc: Reads the imported field as an integer.
+	End Rem
 	Method AsInt:Long()
 		If Not TJSONInteger(value) Then Fail("integer")
 		Return TJSONInteger(value).Value()
 	End Method
+
+	Rem
+	bbdoc: Reads the imported field as a floating-point number.
+	End Rem
 	Method AsFloat:Double()
 		If TJSONInteger(value) Then Return Double(TJSONInteger(value).Value())
 		If Not TJSONReal(value) Then Fail("number")
 		Return TJSONReal(value).Value()
 	End Method
+
+	Rem
+	bbdoc: Reads the stored value as a Boolean.
+	End Rem
 	Method AsBool:Int()
 		If Not TJSONBool(value) Then Fail("boolean")
 		Return TJSONBool(value).isTrue
 	End Method
+
+	Rem
+	bbdoc: Reads the field as an LDtk grid-point reference.
+	End Rem
 	Method AsPoint:TLDTKPoint()
 		RequireType("Point")
 		If IsNull() Then Return Null
@@ -43,6 +88,10 @@ Type TLDTKField
 		End If
 		Return _point
 	End Method
+
+	Rem
+	bbdoc: Reads the field as an LDtk tileset rectangle reference.
+	End Rem
 	Method AsTile:TLDTKTileReference()
 		RequireType("Tile")
 		If IsNull() Then Return Null
@@ -55,6 +104,10 @@ Type TLDTKField
 		End If
 		Return _tile
 	End Method
+
+	Rem
+	bbdoc: Reads the field as an LDtk entity reference.
+	End Rem
 	Method AsEntityReference:TLDTKEntityReference()
 		RequireType("EntityRef")
 		If IsNull() Then Return Null
@@ -67,6 +120,7 @@ Type TLDTKField
 		End If
 		Return _reference
 	End Method
+
 	Rem
 	bbdoc: Returns the number of array elements, without converting or copying them.
 	End Rem
@@ -74,8 +128,10 @@ Type TLDTKField
 		If Not valueType.StartsWith("Array<") Or Not valueType.EndsWith(">") Or Not TJSONArray(value) Then Fail("array")
 		Return TJSONArray(value).Size()
 	End Method
+
 	Rem
 	bbdoc: Returns a cached field wrapper for one array element. Use its scalar/structured accessors or IsNull. Out-of-range indices throw.
+	param: Zero-based index.
 	End Rem
 	Method Item:TLDTKField(index:Int)
 		Local count:Int=Count()
@@ -88,25 +144,61 @@ Type TLDTKField
 		End If
 		Return _items[index]
 	End Method
+
 	Private
 	Method RequireType(expected:String)
 		If valueType<>expected Then Fail(expected)
 	End Method
+
 	Method Fail(expected:String)
 		Throw "Max2D.LDTK: field '"+name+"' expected "+expected+" (exported type: "+valueType+")"
 	End Method
+
 End Type
 
 Rem
 bbdoc: A Point field's grid coordinates. Convert through the appropriate layer grid; these are not pixel coordinates.
 End Rem
 Type TLDTKPoint
-	Field column:Int,row:Int
+
+	Rem
+	bbdoc: Integer cell column.
+	End Rem
+	Field column:Int
+
+	Rem
+	bbdoc: Integer cell row.
+	End Rem
+	Field row:Int
 End Type
 
 Rem
 bbdoc: A Tile field's source rectangle and LDtk tileset UID. Reading it does not load the tilesheet.
 End Rem
 Type TLDTKTileReference
-	Field tilesetUID:Int,x:Int,y:Int,width:Int,height:Int
+
+	Rem
+	bbdoc: Numeric UID of the source LDtk tileset.
+	End Rem
+	Field tilesetUID:Int
+
+	Rem
+	bbdoc: Left edge of the referenced rectangle in tileset pixels.
+	End Rem
+	Field x:Int
+
+	Rem
+	bbdoc: Top edge of the referenced rectangle in tileset pixels.
+	End Rem
+	Field y:Int
+
+	Rem
+	bbdoc: Width of the referenced rectangle in tileset pixels.
+	End Rem
+	Field width:Int
+
+	Rem
+	bbdoc: Height of the referenced rectangle in tileset pixels.
+	End Rem
+	Field height:Int
 End Type

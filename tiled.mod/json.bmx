@@ -1,6 +1,17 @@
 ' Normalize JSON structure into the importer's shared document model.
 ' Tile arrays become bounded binary payloads, never one XML node per cell.
+
+Rem
+bbdoc: Reads Tiled XML or JSON through a common XML document representation.
+End Rem
 Type TTiledDocument
+
+	Rem
+	bbdoc: Loads a Tiled document and converts JSON input to the importer's XML representation.
+	param: Filename, stream URL or caller-owned readable stream.
+	param: Imported type or document kind to select.
+	param: Owning project and its imported definitions.
+	End Rem
 	Function Read:TxmlDoc(source:Object,kind:String,project:TTiledProject=Null)
 		Local stream:TStream=TStream(source),owned:Int
 		If Not stream Then
@@ -28,6 +39,11 @@ Type TTiledDocument
 			If owned Then stream.Close()
 		End Try
 	End Function
+
+	Rem
+	bbdoc: Wraps a stream so a consumed format-detection prefix remains readable.
+	param: Readable stream; ownership remains with the caller unless stated otherwise.
+	End Rem
 	Function Prefix:TTiledPrefixStream(stream:TStream)
 		Local input:TTiledPrefixStream=New TTiledPrefixStream
 		input.stream=stream
@@ -46,6 +62,11 @@ Type TTiledDocument
 		input.first=first; input.pending=True
 		Return input
 	End Function
+
+	Rem
+	bbdoc: Parses a JSON object from a stream.
+	param: Readable stream; ownership remains with the caller unless stated otherwise.
+	End Rem
 	Function ParseJSON:TJSONObject(stream:TStream)
 		Local error:TJSONError
 		Local json:TJSONObject=TJSONObject(TJSON.Load(stream,JSON_REJECT_DUPLICATES,error))
@@ -55,6 +76,11 @@ Type TTiledDocument
 		End If
 		Return json
 	End Function
+
+	Rem
+	bbdoc: Reads a JSON object document from a file, stream URL or caller-owned stream.
+	param: Filename, stream URL or caller-owned readable stream.
+	End Rem
 	Function ReadJSON:TJSONObject(source:Object)
 		Local stream:TStream=TStream(source),owned:Int
 		If Not stream Then stream=ReadStream(source); owned=True
@@ -69,8 +95,32 @@ Type TTiledDocument
 End Type
 
 ' Single-byte lookahead works with caller-owned, non-seekable streams too.
+
+Rem
+bbdoc: Stream adapter that replays bytes consumed during input format detection.
+End Rem
 Type TTiledPrefixStream Extends TStream
-	Field stream:TStream,first:Byte,pending:Int
+
+	Rem
+	bbdoc: Underlying caller-owned input stream.
+	End Rem
+	Field stream:TStream
+
+	Rem
+	bbdoc: Byte consumed during format detection and replayed on the first read.
+	End Rem
+	Field first:Byte
+
+	Rem
+	bbdoc: Whether the saved prefix byte still needs to be read.
+	End Rem
+	Field pending:Int
+
+	Rem
+	bbdoc: Reads saved prefix bytes followed by bytes from the underlying stream.
+	param: Writable destination memory for the requested bytes.
+	param: Number of items to process.
+	End Rem
 	Method Read:Long(buffer:Byte Ptr,count:Long) Override
 		If count<=0 Then Return 0
 		If pending Then
@@ -79,14 +129,42 @@ Type TTiledPrefixStream Extends TStream
 		End If
 		Return stream.Read(buffer,count)
 	End Method
+
+	Rem
+	bbdoc: Reports whether the prefix and underlying stream have both reached their end.
+	End Rem
 	Method Eof:Int() Override
 		Return Not pending And stream.Eof()
 	End Method
+
 End Type
 
+Rem
+bbdoc: Converts supported Tiled JSON structures into XML nodes for the shared importer.
+End Rem
 Type TTiledJSON
+
+	Rem
+	bbdoc: Owning project and its definitions.
+	End Rem
 	Field project:TTiledProject
-	Field nodes:Int,cells:Long
+
+	Rem
+	bbdoc: Number of converted document nodes counted against import limits.
+	End Rem
+	Field nodes:Int
+
+	Rem
+	bbdoc: Number of tile cells converted, checked against import limits.
+	End Rem
+	Field cells:Long
+
+	Rem
+	bbdoc: Copies a Tiled JSON object's supported members into an XML node.
+	param: Source data or object to read.
+	param: Destination XML node to populate.
+	param: Current document-nesting depth, checked against import limits.
+	End Rem
 	Method Convert(source:TJSONObject,target:TxmlNode,depth:Int=0)
 		If Not source Then Throw "expected JSON object"
 		If source.Get("data") And source.Get("chunks") Then Throw "JSON layer cannot contain both data and chunks"
@@ -166,6 +244,13 @@ Type TTiledJSON
 		Next
 	End Method
 
+	Rem
+	bbdoc: Converts tile-layer data to the shared importer's XML representation.
+	param: Value to read, convert or store.
+	param: Destination XML node to populate.
+	param: Parent document node or imported group.
+	param: Source JSON layer metadata.
+	End Rem
 	Method Payload(value:TJSON,target:TxmlNode,parent:TxmlNode,layer:TJSONObject)
 		If TJSONArray(value) Then
 			If layer.GetString("compression") Or (layer.GetString("encoding") And layer.GetString("encoding")<>"csv") Then Throw "invalid JSON array encoding"
@@ -192,6 +277,15 @@ Type TTiledJSON
 		End If
 	End Method
 
+	Rem
+	bbdoc: Converts a JSON property and its type metadata into an XML property node.
+	param: Parent document node or imported group.
+	param: Name used to register or look up the item.
+	param: Value to read, convert or store.
+	param: Imported type or document kind to select.
+	param: Name of the imported custom class.
+	param: Current property-nesting depth, checked against import limits.
+	End Rem
 	Method Property(parent:TxmlNode,name:String,value:TJSON,kind:String="",className:String="",depth:Int=0)
 		nodes:+1
 		If depth>64 Or nodes>1048576 Then Throw "JSON property limit exceeded"
@@ -228,6 +322,10 @@ Type TTiledJSON
 		End If
 	End Method
 
+	Rem
+	bbdoc: Converts a supported JSON scalar to its XML attribute representation.
+	param: Value to read, convert or store.
+	End Rem
 	Function Scalar:String(value:TJSON)
 		If TJSONString(value) Then Return TJSONString(value).Value()
 		If TJSONInteger(value) Then Return String(TJSONInteger(value).Value())
@@ -235,12 +333,23 @@ Type TTiledJSON
 		If TJSONBool(value) Then Return String(TJSONBool(value).isTrue)
 		Throw "expected scalar JSON value"
 	End Function
+
+	Rem
+	bbdoc: Requires a JSON object value, throwing for an incompatible value.
+	param: Value to read, convert or store.
+	End Rem
 	Function ObjectValue:TJSONObject(value:TJSON)
 		If Not TJSONObject(value) Then Throw "expected JSON object"
 		Return TJSONObject(value)
 	End Function
+
+	Rem
+	bbdoc: Requires a JSON array value, throwing for an incompatible value.
+	param: Value to read, convert or store.
+	End Rem
 	Function ArrayValue:TJSONArray(value:TJSON)
 		If Not TJSONArray(value) Then Throw "expected JSON array"
 		Return TJSONArray(value)
 	End Function
+
 End Type

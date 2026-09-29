@@ -1,10 +1,56 @@
+
+Rem
+bbdoc: Importer state for converting an LDtk level to native tilemap objects.
+End Rem
 Type TLDTKReader
-	Field map:TLDTKMap,project:TLDTKProject
+
+	Rem
+	bbdoc: Native map being populated by the importer.
+	End Rem
+	Field map:TLDTKMap
+
+	Rem
+	bbdoc: Owning project and its definitions.
+	End Rem
+	Field project:TLDTKProject
+
+	Rem
+	bbdoc: Cached tileset pixmaps indexed by tileset UID.
+	End Rem
 	Field images:TTreeMap<Int,TPixmap>=New TTreeMap<Int,TPixmap>
+
+	Rem
+	bbdoc: Native tile IDs indexed by tileset rectangle key.
+	End Rem
 	Field artwork:TTreeMap<String,Int>=New TTreeMap<String,Int>
-	Field cells:Long,objectCount:Int,fieldCount:Int
+
+	Rem
+	bbdoc: Total layer cells counted against the import allocation limit.
+	End Rem
+	Field cells:Long
+
+	Rem
+	bbdoc: Number of imported objects counted against allocation limits.
+	End Rem
+	Field objectCount:Int
+
+	Rem
+	bbdoc: Number of imported custom fields counted against allocation limits.
+	End Rem
+	Field fieldCount:Int
+
+	Rem
+	bbdoc: Whether entity artwork is loaded along with entity geometry and fields.
+	End Rem
 	Field entityArtwork:Int
 
+	Rem
+	bbdoc: Loads a selected project's level and converts its layers, entities and artwork.
+	param: Owning project and its imported definitions.
+	param: Imported metadata for the level or layer being populated.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Whether to load entity artwork in addition to gameplay geometry and fields.
+	End Rem
 	Method Read:TLDTKMap(project:TLDTKProject,info:TLDTKLevelInfo,flags:Int,entityArtwork:Int)
 		Self.project=project; Self.entityArtwork=entityArtwork
 		Try
@@ -33,6 +79,11 @@ Type TLDTKReader
 		End Try
 	End Method
 
+	Rem
+	bbdoc: Loads the level background image and its placement metadata.
+	param: Level selector or source level metadata.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	End Rem
 	Method ReadBackground(level:TJSONObject,flags:Int)
 		Local path:String=Text(level,"bgRelPath")
 		If Not path Then Return
@@ -53,6 +104,10 @@ Type TLDTKReader
 		map.background=bg
 	End Method
 
+	Rem
+	bbdoc: Imports one LDtk layer, its grid data and its objects.
+	param: Source document node to inspect.
+	End Rem
 	Method ReadLayer(node:TJSONObject)
 		Local info:TLDTKLayer=New TLDTKLayer
 		info.identifier=Text(node,"__identifier"); info.iid=Text(node,"iid"); info.kind=Text(node,"__type")
@@ -100,6 +155,11 @@ Type TLDTKReader
 		Next
 	End Method
 
+	Rem
+	bbdoc: Finds an LDtk definition by kind and numeric UID.
+	param: Imported type or document kind to select.
+	param: LDtk numeric definition identifier.
+	End Rem
 	Method Definition:TJSONObject(kind:String,uid:Int)
 		Local defs:TJSONArray=Array(ObjectValue(project.data.Get("defs")),kind)
 		For Local i:Int=0 Until defs.Size()
@@ -109,6 +169,12 @@ Type TLDTKReader
 		Throw "missing "+kind+" definition: "+uid
 	End Method
 
+	Rem
+	bbdoc: Imports an LDtk layer's tile placements and flip flags.
+	param: Imported metadata for the level or layer being populated.
+	param: Array of source tile placements.
+	param: Source JSON layer metadata.
+	End Rem
 	Method ReadTiles(info:TLDTKLayer,tiles:TJSONArray,layer:TJSONObject)
 		If Not tiles.Size() Then Return
 		Local uid:Int=Integer(layer,"__tilesetDefUid",-1)
@@ -138,6 +204,10 @@ Type TLDTKReader
 		info.layer.objects=objects
 	End Method
 
+	Rem
+	bbdoc: Loads or retrieves cached pixels for an LDtk tileset UID.
+	param: LDtk numeric definition identifier.
+	End Rem
 	Method TilesetPixels:TPixmap(uid:Int)
 		Local pixels:TPixmap
 		If images.TryGetValue(uid,pixels) Then Return pixels
@@ -156,6 +226,15 @@ Type TLDTKReader
 		images.Put(uid,pixels)
 		Return pixels
 	End Method
+
+	Rem
+	bbdoc: Adds a tileset rectangle to shared artwork storage and returns its native tile ID.
+	param: LDtk numeric definition identifier.
+	param: Left edge of the source rectangle in image pixels.
+	param: Top edge of the source rectangle in image pixels.
+	param: Width of the rectangle or drawing surface.
+	param: Height of the rectangle or drawing surface.
+	End Rem
 	Method AddArtwork:Int(uid:Int,sx:Int,sy:Int,width:Int,height:Int)
 		Local pixels:TPixmap=TilesetPixels(uid)
 		If sx<0 Or sy<0 Or width<=0 Or height<=0 Or Long(sx)+width>pixels.width Or Long(sy)+height>pixels.height Then Throw "artwork source rectangle exceeds tileset"
@@ -169,6 +248,11 @@ Type TLDTKReader
 		Return id
 	End Method
 
+	Rem
+	bbdoc: Imports an LDtk entity's geometry, fields and optional artwork.
+	param: Imported metadata for the level or layer being populated.
+	param: Source document node to inspect.
+	End Rem
 	Method ReadEntity(info:TLDTKLayer,node:TJSONObject)
 		objectCount:+1
 		If objectCount>1048576 Or map.entities.Length>=65536 Then Throw "too many tile/entity instances"
@@ -208,6 +292,11 @@ Type TLDTKReader
 		map.entities=map.entities[..map.entities.Length+1]; map.entities[map.entities.Length-1]=entity
 	End Method
 
+	Rem
+	bbdoc: Reads LDtk custom fields and mirrors supported values into native tile properties.
+	param: Source document node to inspect.
+	param: Property collection to populate or merge.
+	End Rem
 	Method Fields:TLDTKField[](node:TJSONObject,properties:TTileProperties)
 		Local values:TJSONArray=Array(node,"fieldInstances")
 		fieldCount:+values.Size()
@@ -234,6 +323,10 @@ Type TLDTKReader
 		Return fields
 	End Method
 
+	Rem
+	bbdoc: Reads and validates a JSON object document from a supported stream source.
+	param: Filename, stream URL or caller-owned readable stream.
+	End Rem
 	Function Document:TJSONObject(source:Object)
 		Local stream:TStream=TStream(source),owned:Int
 		If Not stream Then stream=ReadStream(source); owned=True
@@ -249,11 +342,22 @@ Type TLDTKReader
 			If owned Then stream.Close()
 		End Try
 	End Function
+
+	Rem
+	bbdoc: Requires a JSON object value, throwing for an incompatible value.
+	param: Value to read, convert or store.
+	End Rem
 	Function ObjectValue:TJSONObject(value:TJSON)
 		Local result:TJSONObject=TJSONObject(value)
 		If Not result Then Throw "expected a JSON object"
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Gets a named JSON array from an object.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	End Rem
 	Function Array:TJSONArray(node:TJSONObject,name:String)
 		Local value:TJSON=node.Get(name)
 		If Not value Or TJSONNull(value) Then Return New TJSONArray.Create()
@@ -261,18 +365,41 @@ Type TLDTKReader
 		If Not result Then Throw "expected array: "+name
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Gets a string-valued JSON member or the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	End Rem
 	Function Text:String(node:TJSONObject,name:String,fallback:String="")
 		Local value:TJSON=node.Get(name)
 		If Not value Or TJSONNull(value) Then Return fallback
 		If Not TJSONString(value) Then Throw "expected string: "+name
 		Return TJSONString(value).Value()
 	End Function
+
+	Rem
+	bbdoc: Reads a bounded integer from a JSON value.
+	param: Value to read, convert or store.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function IntValue:Int(value:TJSON,minimum:Long=-1000000000,maximum:Long=1000000000)
 		If Not TJSONInteger(value) Then Throw "expected integer"
 		Local result:Long=TJSONInteger(value).Value()
 		If result<minimum Or result>maximum Then Throw "integer out of range"
 		Return Int(result)
 	End Function
+
+	Rem
+	bbdoc: Reads a bounded integer-valued JSON member or the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function Integer:Int(node:TJSONObject,name:String,fallback:Int,minimum:Long=-1000000000,maximum:Long=1000000000)
 		Local value:TJSON=node.Get(name)
 		If Not value Or TJSONNull(value) Then
@@ -281,6 +408,13 @@ Type TLDTKReader
 		End If
 		Return IntValue(value,minimum,maximum)
 	End Function
+
+	Rem
+	bbdoc: Reads a finite bounded number from a JSON value.
+	param: Value to read, convert or store.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function Numeric:Double(value:TJSON,minimum:Double=-1.0e9,maximum:Double=1.0e9)
 		Local result:Double
 		If TJSONInteger(value) Then
@@ -293,17 +427,39 @@ Type TLDTKReader
 		If Not (result>=minimum And result<=maximum) Then Throw "number out of range"
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Reads a bounded numeric JSON member or the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function Number:Double(node:TJSONObject,name:String,fallback:Double,minimum:Double=-1.0e9,maximum:Double=1.0e9)
 		Local value:TJSON=node.Get(name)
 		If Not value Or TJSONNull(value) Then Return fallback
 		Return Numeric(value,minimum,maximum)
 	End Function
+
+	Rem
+	bbdoc: Reads a Boolean JSON member or the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	End Rem
 	Function Boolean:Int(node:TJSONObject,name:String,fallback:Int)
 		Local value:TJSON=node.Get(name)
 		If Not value Then Return fallback
 		If Not TJSONBool(value) Then Throw "expected boolean: "+name
 		Return TJSONBool(value).isTrue
 	End Function
+
+	Rem
+	bbdoc: Resolves a resource path relative to its owning project directory.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Resource filename or filesystem URL.
+	End Rem
 	Function Resolve:String(base:String,path:String)
 		If Not path Then Throw "empty resource path (embedded/internal tilesets are not supported)"
 		path=path.Replace("\","/")
@@ -311,6 +467,11 @@ Type TLDTKReader
 		If Not path.StartsWith("/") And Not (path.Length>1 And path[1]=58) And base Then path=base+"/"+path
 		Return NormalizePath(path)
 	End Function
+
+	Rem
+	bbdoc: Normalizes path separators and relative components for resource lookup.
+	param: Resource filename or filesystem URL.
+	End Rem
 	Function NormalizePath:String(path:String)
 		path=path.Replace("\","/")
 		Local separator:Int=path.Find("::")
@@ -328,4 +489,5 @@ Type TLDTKReader
 		Next
 		Return prefix+"/".Join(stack[..count])
 	End Function
+
 End Type

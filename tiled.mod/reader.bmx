@@ -1,20 +1,91 @@
 ' Loader limits bound allocations before decoding layer payloads.
+
+Rem
+bbdoc: Maximum decoded tile-cell count allowed during one Tiled import.
+End Rem
 Const TILED_MAX_CELLS:Int=16777216
+
+Rem
+bbdoc: Maximum tile-definition count accepted by the Tiled importer.
+End Rem
 Const TILED_MAX_TILES:Int=65536
 
+Rem
+bbdoc: Importer state for resolving Tiled resources and constructing a native tilemap.
+End Rem
 Type TTiledReader
+
+	Rem
+	bbdoc: Owning project and its definitions.
+	End Rem
 	Field project:TTiledProject
+
+	Rem
+	bbdoc: Optional application resolver for imported text-object fonts.
+	End Rem
 	Field fontResolver:TTiledFontResolver
+
+	Rem
+	bbdoc: Number of imported text characters counted against allocation limits.
+	End Rem
 	Field textCharacters:Int
-	Field propertiesRead:Int,templateNodes:Int
+
+	Rem
+	bbdoc: Number of imported property values counted against allocation limits.
+	End Rem
+	Field propertiesRead:Int
+
+	Rem
+	bbdoc: Number of expanded template nodes counted against allocation limits.
+	End Rem
+	Field templateNodes:Int
+
+	Rem
+	bbdoc: Cached template documents indexed by resolved path.
+	End Rem
 	Field templates:TTreeMap<String,TxmlNode>=New TTreeMap<String,TxmlNode>
+
+	Rem
+	bbdoc: Templates currently being expanded, used to detect cyclic references.
+	End Rem
 	Field loadingTemplates:TTreeMap<String,Int>=New TTreeMap<String,Int>
+
+	Rem
+	bbdoc: Image creation flags used for imported artwork.
+	End Rem
 	Field imageFlags:Int
+
+	Rem
+	bbdoc: Native map being populated by the importer.
+	End Rem
 	Field map:TTiledMap
+
+	Rem
+	bbdoc: Number of decoded tile cells counted against allocation limits.
+	End Rem
 	Field cellsRead:Long
-	Field objectsRead:Int,pointsRead:Int
+
+	Rem
+	bbdoc: Number of imported objects counted against allocation limits.
+	End Rem
+	Field objectsRead:Int
+
+	Rem
+	bbdoc: Number of imported polygon points counted against allocation limits.
+	End Rem
+	Field pointsRead:Int
+
+	Rem
+	bbdoc: Object identifiers already encountered, used to reject duplicates.
+	End Rem
 	Field objectIDs:TTreeMap<Int,Int>=New TTreeMap<Int,Int>
 
+	Rem
+	bbdoc: Loads and validates a Tiled map and its referenced resources.
+	param: Filename, stream URL or caller-owned readable stream.
+	param: Image flags controlling filtering, masking, mipmaps and CPU editing where supported.
+	param: Logical source filename used to resolve relative resources for stream input.
+	End Rem
 	Method Read:TTiledMap(source:Object,flags:Int,sourcePath:String="")
 		imageFlags=flags
 		Local path:String=sourcePath
@@ -90,6 +161,9 @@ Type TTiledReader
 		End Try
 	End Method
 
+	Rem
+	bbdoc: Applies project class metadata to imported map, layer, tile and object properties.
+	End Rem
 	Method ResolveProject()
 		map.properties=project.Apply(map.className,map.properties)
 		For Local info:TTiledLayerInfo=EachIn map.importedLayers
@@ -118,6 +192,11 @@ Type TTiledReader
 		Next
 	End Method
 
+	Rem
+	bbdoc: Imports an embedded or external Tiled tileset definition.
+	param: Imported reference to resolve.
+	param: Owning document directory or URL used to resolve relative paths.
+	End Rem
 	Method ReadTileset(reference:TxmlNode,base:String)
 		Local first:Int=Number(reference,"firstgid",0,1,$0fffffff)
 		If map.importedTilesets.Length Then
@@ -215,6 +294,14 @@ Type TTiledReader
 		End Try
 	End Method
 
+	Rem
+	bbdoc: Packs source pixels and records the native ID for a Tiled tile.
+	param: Imported tileset receiving native tile metadata.
+	param: Caller identifier attached to the object or shape.
+	param: Source pixel data.
+	param: Horizontal offset.
+	param: Vertical offset.
+	End Rem
 	Method AddTile(set:TTiledTileset,id:Int,pixels:TPixmap,ox:Float,oy:Float)
 		If map.tileset.tiles.Length>TILED_MAX_TILES Then Throw "too many tile definitions"
 		If set.NativeID(id) Then Throw "duplicate tile image: "+id
@@ -226,6 +313,14 @@ Type TTiledReader
 		set.ids.Put(id,native); set.images.Put(id,image)
 	End Method
 
+	Rem
+	bbdoc: Applies tileset drawing size, offsets and aspect-fit settings to a native tile.
+	param: Imported tileset receiving native tile metadata.
+	param: Caller identifier attached to the object or shape.
+	param: Image to operate on.
+	param: Horizontal offset.
+	param: Vertical offset.
+	End Rem
 	Method ConfigureSize(set:TTiledTileset,id:Int,image:TImage,ox:Float,oy:Float)
 		If set.renderSize="grid" Then
 			Local mode:ETileFillMode=ETileFillMode.Stretch
@@ -241,6 +336,22 @@ Type TTiledReader
 		End If
 	End Method
 
+	Rem
+	bbdoc: Imports layers recursively while combining group offsets, opacity, visibility and tint.
+	param: Root element or heap index from which processing begins.
+	param: Parent document node or imported group.
+	param: Horizontal offset.
+	param: Vertical offset.
+	param: Opacity multiplier from 0.0 to 1.0.
+	param: Inherited group visibility.
+	param: Current group-nesting depth, checked against import limits.
+	param: Horizontal layer parallax factor.
+	param: Vertical layer parallax factor.
+	param: Red multiplier from 0.0 to 1.0.
+	param: Green multiplier from 0.0 to 1.0.
+	param: Blue multiplier from 0.0 to 1.0.
+	param: Combined layer tint opacity multiplier.
+	End Rem
 	Method ReadLayers(root:TxmlNode,parent:TTiledLayerInfo,ox:Double,oy:Double,opacity:Float,visible:Int,depth:Int,parallaxX:Double=1,parallaxY:Double=1,red:Float=1,green:Float=1,blue:Float=1,tintAlpha:Float=1)
 		If depth>64 Then Throw "layer groups nested too deeply"
 		Local node:TxmlNode=TxmlNode(root.getFirstChild())
@@ -313,6 +424,17 @@ Type TTiledReader
 		Wend
 	End Method
 
+	Rem
+	bbdoc: Decodes a layer rectangle and populates tile IDs and transformation flags.
+	param: Layer to inspect or draw; Null uses the map's default grid where supported.
+	param: Source document node to inspect.
+	param: Horizontal coordinate.
+	param: Vertical coordinate.
+	param: Width of the pixel rectangle.
+	param: Height of the pixel rectangle.
+	param: Tiled layer encoding, such as csv or base64.
+	param: Tiled compression name, such as zlib, gzip or zstd.
+	End Rem
 	Method ReadCells(layer:TTileLayer,node:TxmlNode,x:Int,y:Int,w:Int,h:Int,encoding:String,compression:String)
 		Local total:Long=Long(w)*h
 		cellsRead:+total
@@ -361,7 +483,11 @@ Type TTiledReader
 		Next
 	End Method
 
-
+	Rem
+	bbdoc: Resolves a Tiled global tile ID and extracts its transformation flags.
+	param: Tiled global tile ID, including encoded flip and rotation bits.
+	param: Receives tile reflection and rotation flags.
+	End Rem
 	Method ResolveGID:Int(gid:Long,flip:ETileFlip Var)
 		Local raw:Int=Int(gid & $0fffffff),id:Int
 		For Local j:Int=map.importedTilesets.Length-1 To 0 Step -1
@@ -381,6 +507,12 @@ Type TTiledReader
 		Return id
 	End Method
 
+	Rem
+	bbdoc: Imports object geometry, text, templates and tile references.
+	param: Root element or heap index from which processing begins.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Whether imported objects describe tile-local collision geometry.
+	End Rem
 	Method ReadObjects:TTileObject[](root:TxmlNode,base:String,collision:Int)
 		Local items:TTileObject[]=New TTileObject[16],count:Int
 		Local node:TxmlNode=TxmlNode(root.getFirstChild())
@@ -496,6 +628,10 @@ Type TTiledReader
 		Return items[..count]
 	End Method
 
+	Rem
+	bbdoc: Imports a Tiled text object's content, font request and alignment.
+	param: Source document node to inspect.
+	End Rem
 	Method ReadText:TTileText(node:TxmlNode)
 		Local value:TTileText=New TTileText
 		value.text=node.getContent(); textCharacters:+value.text.Length
@@ -524,6 +660,14 @@ Type TTiledReader
 		Return value
 	End Method
 
+	Rem
+	bbdoc: Parses a Tiled colour into normalized red, green, blue and alpha components.
+	param: Tiled colour string in #RRGGBB or #AARRGGBB form.
+	param: Receives red multiplier from 0.0 to 1.0.
+	param: Receives green multiplier from 0.0 to 1.0.
+	param: Receives blue multiplier from 0.0 to 1.0.
+	param: Receives alpha multiplier from 0.0 to 1.0.
+	End Rem
 	Function ReadTint(color:String,red:Float Var,green:Float Var,blue:Float Var,alpha:Float Var)
 		If Not color.StartsWith("#") Or (color.Length<>7 And color.Length<>9) Then Throw "invalid layer tint"
 		color=color[1..].ToLower()
@@ -535,6 +679,13 @@ Type TTiledReader
 		If color.Length=8 Then alpha:*Float((value Shr 24)&255)/255
 	End Function
 
+	Rem
+	bbdoc: Imports typed properties and resolves file paths relative to their document.
+	param: Root element or heap index from which processing begins.
+	param: Property collection to populate or merge.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Current property-nesting depth, checked against import limits.
+	End Rem
 	Method ReadProperties(root:TxmlNode,properties:TTileProperties,base:String,depth:Int=0)
 		If depth>64 Then Throw "class properties nested too deeply"
 		Local parent:TxmlNode=Child(root,"properties")
@@ -567,6 +718,12 @@ Type TTiledReader
 			node=node.nextSibling()
 		Wend
 	End Method
+
+	Rem
+	bbdoc: Loads image pixels referenced by a Tiled image element.
+	param: Source document node to inspect.
+	param: Owning document directory or URL used to resolve relative paths.
+	End Rem
 	Function ReadImage:TPixmap(node:TxmlNode,base:String)
 		Local path:String=Resolve(base,Attr(node,"source"))
 		Local pixels:TPixmap=LoadPixmap(path)
@@ -588,6 +745,12 @@ Type TTiledReader
 		End If
 		Return pixels
 	End Function
+
+	Rem
+	bbdoc: Resolves an image, template or tileset path relative to its owning document.
+	param: Owning document directory or URL used to resolve relative paths.
+	param: Resource filename or filesystem URL.
+	End Rem
 	Function Resolve:String(base:String,path:String)
 		If Not path Then Throw "empty resource path"
 		path=path.Replace("\","/")
@@ -595,6 +758,11 @@ Type TTiledReader
 		If Not path.StartsWith("/") And Not (path.Length>1 And path[1]=58) And base Then path=base+"/"+path
 		Return NormalizePath(path)
 	End Function
+
+	Rem
+	bbdoc: Normalizes path separators and relative components for resource lookup.
+	param: Resource filename or filesystem URL.
+	End Rem
 	Function NormalizePath:String(path:String)
 		path=path.Replace("\","/")
 		Local separator:Int=path.Find("::")
@@ -613,6 +781,12 @@ Type TTiledReader
 		Next
 		Return prefix+"/".Join(stack[..count])
 	End Function
+
+	Rem
+	bbdoc: Returns the first child XML element with the requested name.
+	param: Parent document node or imported group.
+	param: Name used to register or look up the item.
+	End Rem
 	Function Child:TxmlNode(parent:TxmlNode,name:String)
 		Local node:TxmlNode=TxmlNode(parent.getFirstChild())
 		While node
@@ -620,16 +794,44 @@ Type TTiledReader
 			node=node.nextSibling()
 		Wend
 	End Function
+
+	Rem
+	bbdoc: Gets an XML attribute or returns the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	End Rem
 	Function Attr:String(node:TxmlNode,name:String,fallback:String="")
 		If node.hasAttribute(name) Then Return node.getAttribute(name)
 		Return fallback
 	End Function
+
+	Rem
+	bbdoc: Parses a bounded integer XML attribute or returns the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function Number:Int(node:TxmlNode,name:String,fallback:Int=0,minimum:Int=-2147483647,maximum:Int=2147483647)
 		Return Int(BoundedInteger(Attr(node,name,String(fallback)),minimum,maximum))
 	End Function
+
+	Rem
+	bbdoc: Parses a finite floating-point XML attribute or returns the supplied fallback.
+	param: Source document node to inspect.
+	param: Name used to register or look up the item.
+	param: Value to return when the requested item is absent.
+	End Rem
 	Function Decimal:Double(node:TxmlNode,name:String,fallback:Double)
 		Return Real(Attr(node,name,String(fallback)))
 	End Function
+
+	Rem
+	bbdoc: Parses a signed decimal integer, rejecting invalid input.
+	param: Value to read, convert or store.
+	End Rem
 	Function Integer:Long(value:String)
 		value=value.Trim()
 		Local negative:Int=value.StartsWith("-"),digits:String=value
@@ -647,11 +849,23 @@ Type TTiledReader
 		Local result:Long=Long(value)
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Parses a signed decimal integer and checks its allowed range.
+	param: Value to read, convert or store.
+	param: Smallest permitted numeric value, inclusive.
+	param: Largest permitted numeric value, inclusive.
+	End Rem
 	Function BoundedInteger:Long(value:String,minimum:Long,maximum:Long)
 		Local result:Long=Integer(value)
 		If result<minimum Or result>maximum Then Throw "integer out of range: "+value
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Parses a finite floating-point value, rejecting invalid input.
+	param: Value to read, convert or store.
+	End Rem
 	Function Real:Double(value:String)
 		value=value.Trim().ToLower()
 		Local digits:Int,dot:Int,exponent:Int
@@ -674,6 +888,11 @@ Type TTiledReader
 		If IsNan(result) Or IsInf(result) Then Throw "non-finite number"
 		Return result
 	End Function
+
+	Rem
+	bbdoc: Rejects malformed base64 text before allocating a decoded layer payload.
+	param: Value to read, convert or store.
+	End Rem
 	Function ValidateBase64(value:String)
 		If value.Length Mod 4 Then Throw "invalid base64 length"
 		Local padding:Int
@@ -686,4 +905,5 @@ Type TTiledReader
 			End If
 		Next
 	End Function
+
 End Type
