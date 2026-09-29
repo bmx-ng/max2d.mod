@@ -45,7 +45,6 @@ Function RunTiledViewer(mapPaths:String[],mapHelp:String,projectPath:String="")
 	Local showObjects:Int=True,objectHits:TTileObjectQueryResult=New TTileObjectQueryResult
 	Local started:Int=MilliSecs(),previous:Int=started,frames:Int
 	While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-		PollSystem()
 		Local now:Int=MilliSecs(),dt:Float=Min(0.1,Float(now-previous)/1000)
 		previous=now
 		camera.x:+(KeyDown(KEY_RIGHT)-KeyDown(KEY_LEFT))*400*dt/camera.zoom

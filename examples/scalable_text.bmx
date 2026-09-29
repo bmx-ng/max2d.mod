@@ -18,7 +18,6 @@ Local narrow:Int=True
 Local low:TRenderImage=CreateRenderImage(400,90,0)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyHit(KEY_SPACE) Then narrow=Not narrow
 	If KeyHit(KEY_C) Then font.ClearGlyphCache()
 	If narrow Then SetVirtualResolution(400,280,VIRTUAL_LETTERBOX) Else SetVirtualResolution(600,420,VIRTUAL_LETTERBOX)

@@ -43,7 +43,6 @@ minimap.zoom = 0.15
 Local previous:Int = MilliSecs()
 Local frames:Int
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     Local now:Int = MilliSecs()
     Local dt:Float = Min(0.1, Float(now - previous) / 1000)
     previous = now

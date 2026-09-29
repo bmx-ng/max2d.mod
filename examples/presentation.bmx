@@ -15,7 +15,6 @@ Local sprite:TImage=atlas.AddPixmap(pixels,"sprite")
 Local alternate:Int
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     If KeyHit(KEY_1) Then mode=VIRTUAL_LETTERBOX; modeName="Fractional fit"
     If KeyHit(KEY_2) Then mode=VIRTUAL_INTEGER; modeName="Integer fit"
     If KeyHit(KEY_3) Then mode=VIRTUAL_STRETCH; modeName="Stretch"

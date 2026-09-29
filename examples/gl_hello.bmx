@@ -5,7 +5,6 @@ Graphics 640,480,0
 SetVirtualResolution(320,180,VIRTUAL_LETTERBOX)
 SetVirtualBarColor(12,12,16)
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	SetClsColor(24,32,48)
 	Cls()
 	SetColor(80,180,240)

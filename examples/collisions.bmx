@@ -24,7 +24,6 @@ SetImageHandle(cursor,4,4)
 Local angle:Float
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-    PollSystem()
     Local mx:Float,my:Float
     Local inside:Int=WindowToVirtual(MouseX(),MouseY(),mx,my)
     angle:+0.4

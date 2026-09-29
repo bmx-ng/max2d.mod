@@ -25,7 +25,6 @@ Local angle:Float
 Local rotating:Int = True
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyDown(KEY_LEFT) Then size = Max(8,size-0.5)
 	If KeyDown(KEY_RIGHT) Then size = Min(256,size+0.5)
 	If KeyHit(KEY_SPACE) Then rotating = Not rotating

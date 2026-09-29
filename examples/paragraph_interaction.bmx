@@ -66,7 +66,6 @@ controller.SetLayout(paragraph)
 Local selection:TTextSelectionRect[]
 Local caret:TTextCaret
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Local changed:Int
 	If KeyHit(KEY_F) And fontSpans.Length Then
 		stylesEnabled = Not stylesEnabled

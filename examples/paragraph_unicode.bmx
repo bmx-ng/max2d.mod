@@ -40,7 +40,6 @@ Local verticalAlignment:Int = TEXT_ALIGN_TOP
 Local paragraph:TParagraphLayout = prepared.LayoutBox(boxWidth, boxHeight, alignment, 25, 0, "...", verticalAlignment)
 Local frames:Int
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Local changed:Int
 	If KeyHit(KEY_LEFT) Then
 		boxWidth = Max(200, boxWidth - 40)

@@ -83,7 +83,6 @@ While Not KeyHit(KEY_ESCAPE)
 ?sample_pacing
 	PacingStart()
 ?
-	PollSystem()
 	If KeyDown(KEY_ESCAPE) Or AppTerminate() Then Exit
 
 	Local now:Double=max2d_sample_seconds()

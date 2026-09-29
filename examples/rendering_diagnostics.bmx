@@ -33,7 +33,6 @@ If Max2DSupportsRenderImage(64,64,0) Then
 End If
 Local submissions:Long,vertices:Long,updates:Long
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	ResetMax2DStats()
 	SetClsColor(15,20,28); Cls()
 	SetColor(255,255,255)

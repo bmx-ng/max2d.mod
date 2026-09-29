@@ -4,7 +4,6 @@ Framework Max2D.D3D9Max2D
 Graphics(800, 480)
 SetVirtualResolution(800, 480, VIRTUAL_LETTERBOX)
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	If KeyHit(KEY_F10) Then SetBorderlessFullscreen(GetWindowMode() <> MAX2D_BORDERLESS_FULLSCREEN)
 	SetClsColor(24, 32, 48)
 	Cls()

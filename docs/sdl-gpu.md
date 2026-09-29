@@ -12,7 +12,6 @@ Framework Max2D.SDL3GPUMax2D
 
 Graphics(640,480,0)
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Cls()
 	DrawText("Native SDL GPU: "+SDLGPUMax2DDriverName(),10,10)
 	Flip()

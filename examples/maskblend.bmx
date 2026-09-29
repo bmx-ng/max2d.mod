@@ -18,7 +18,6 @@ Next
 Local gradient:TImage = LoadImage(pixels,FILTEREDIMAGE)
 
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	SetClsColor(32,32,32)
 	Cls
 	SetColor(255,255,255)

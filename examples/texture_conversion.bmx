@@ -35,7 +35,6 @@ Local mapped:TImage=LoadImage(data.ConvertToPixmap(options))
 
 ' Conversion runs once above; the drawing loop uses ordinary cached images.
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	SetClsColor(20,24,36)
 	Cls()
 	DrawText("One linear float ramp (0 to 4), three explicit conversion policies",24,24)

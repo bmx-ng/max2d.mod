@@ -39,7 +39,6 @@ Local range:STileCell[]
 Local nearby:TTileQueryResult=New TTileQueryResult
 Local showRegion:Int=True
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
-	PollSystem()
 	Local now:Int=MilliSecs(),dt:Float=Min(0.1,Float(now-previous)/1000)
 	previous=now
 	Local changed:Int
