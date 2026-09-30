@@ -42,6 +42,38 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	Field native:Byte Ptr
 
 	Rem
+	bbdoc: Returns the borrowed SDL_GPUDevice used by this context.
+	about: The pointer remains valid until this graphics context closes. Do not destroy it or claim its window again. Release external resources before closing graphics.
+	End Rem
+	Method GetGPUDevice:Byte Ptr()
+		If closed Then Throw "Max2D SDL GPU: context is closed"
+		Return m2d_gpu_device(native)
+	End Method
+
+	Rem
+	bbdoc: Returns the SDL_GPUTextureFormat used for the window's intermediate drawing target.
+	about: Native window overlays use this format and SDL_GPU_SAMPLECOUNT_1, not necessarily the swapchain's format.
+	End Rem
+	Method WindowOverlayFormat:Int()
+		Return m2d_gpu_window_format()
+	End Method
+
+	Rem
+	bbdoc: Flushes Max2D drawing and submits a native GPU overlay to this window.
+	param: Native C callback void prepare(void *data, SDL_GPUCommandBuffer *command), called outside the render pass.
+	param: Native C callback void draw(void *data, SDL_GPUCommandBuffer *command, SDL_GPURenderPass *pass).
+	param: Borrowed callback data, used synchronously before this method returns.
+	about: This context must be current and the window must be the active target. The pass preserves existing pixels and uses physical-pixel coordinates. Max2D owns and submits the command buffer; callbacks must not submit it, end the pass, re-enter Max2D or throw exceptions. Flip presents the result normally. Subsequent Max2D drawing is ordered after the overlay. Core drawing statistics exclude native overlay work.
+	End Rem
+	Method RenderWindowOverlay(prepare:Byte Ptr,draw:Byte Ptr,data:Byte Ptr)
+		If closed Then Throw "Max2D SDL GPU: context is closed"
+		If TMax2DGraphics.Current().context<>Self Then Throw "Max2D SDL GPU: overlay context is not current"
+		If target Then Throw "Max2D SDL GPU: window overlays require the window render target"
+		Flush()
+		Require(m2d_gpu_window_overlay(native,prepare,draw,data))
+	End Method
+
+	Rem
 	bbdoc: Throws the backend's error when a native operation fails.
 	param: Nonzero for native-operation success; zero triggers an exception.
 	End Rem
@@ -522,6 +554,9 @@ Function SetSDLGPUMax2DCompactSprites(enabled:Int)
 End Function
 
 Extern "C"
+	Function m2d_gpu_device:Byte Ptr(context:Byte Ptr)
+	Function m2d_gpu_window_format:Int()
+	Function m2d_gpu_window_overlay:Int(context:Byte Ptr,prepare:Byte Ptr,draw:Byte Ptr,data:Byte Ptr)
 	Function m2d_gpu_open:Byte Ptr(window:Byte Ptr)
 	Function m2d_gpu_close(context:Byte Ptr)
 	Function m2d_gpu_name:Byte Ptr(context:Byte Ptr)
