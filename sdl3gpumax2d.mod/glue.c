@@ -627,3 +627,27 @@ int m2d_gpu_read(GPUContext *c,GPUFrame *frame,int x,int y,int w,int h,unsigned 
 int m2d_gpu_read_float(GPUContext *c,GPUFrame *frame,unsigned char *pixels) {
 	return read_pixels(c,frame,0,0,frame->width,frame->height,pixels,frame->width*16,1);
 }
+
+/* Borrowed device and a scoped window overlay for native GPU integrations.
+ * Callbacks are native C functions and must not throw or re-enter Max2D. */
+SDL_GPUDevice *m2d_gpu_device(GPUContext *c) { return c->device; }
+int m2d_gpu_window_format(void) { return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM; }
+int m2d_gpu_window_overlay(GPUContext *c,
+	void (*prepare)(void *, SDL_GPUCommandBuffer *),
+	void (*draw)(void *, SDL_GPUCommandBuffer *, SDL_GPURenderPass *), void *data) {
+	if (!prepare || !draw) return fail("overlay callbacks are required");
+	if (!c->backbuffer) return fail("window backbuffer is not available");
+	if (!flush(c)) return 0;
+	SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(c->device);
+	if (!cmd) return 0;
+	prepare(data, cmd);
+	SDL_GPUColorTargetInfo colour = {0};
+	colour.texture = c->backbuffer->texture;
+	colour.load_op = SDL_GPU_LOADOP_LOAD;
+	colour.store_op = SDL_GPU_STOREOP_STORE;
+	SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(cmd, &colour, 1, NULL);
+	if (!pass) { SDL_CancelGPUCommandBuffer(cmd); return 0; }
+	draw(data, cmd, pass);
+	SDL_EndGPURenderPass(pass);
+	return SDL_SubmitGPUCommandBuffer(cmd);
+}

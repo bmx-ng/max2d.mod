@@ -240,3 +240,11 @@ real-application performance evaluation are still pending.
 command recording and GPU completion via a small readback every three frames.
 The readback cost is included in both modes. It does not measure isolated GPU
 time or window presentation, and synthetic results are not whole-game speedups.
+
+## Native window overlays
+
+`TSDLGPUMax2DContext.GetGPUDevice()` returns a borrowed SDL device handle for integrations such as ImGui. External resources must be released before closing graphics. `WindowOverlayFormat()` reports the intermediate window texture format; it need not match the swapchain format.
+
+`RenderWindowOverlay(prepare, draw, data)` flushes queued Max2D drawing, invokes a native preparation callback outside a render pass, then a native drawing callback inside a preserving window pass. Max2D ends and submits that pass. The callbacks must be C functions, must not throw or re-enter Max2D, and must not end or submit the supplied objects. The target uses physical pixels and one sample. Only the current context's window target is accepted; drawing to image targets is rejected. Subsequent Max2D drawing remains ordered after the overlay, and `Flip()` presents normally. Native overlay work is not included in Core drawing statistics.
+
+Applications using Dear ImGui should normally use the higher-level `ImGui.ImGuiSDL3GPUMax2D` adapter rather than provide these callbacks themselves.
