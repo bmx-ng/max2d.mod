@@ -248,3 +248,17 @@ time or window presentation, and synthetic results are not whole-game speedups.
 `RenderWindowOverlay(prepare, draw, data)` flushes queued Max2D drawing, invokes a native preparation callback outside a render pass, then a native drawing callback inside a preserving window pass. Max2D ends and submits that pass. The callbacks must be C functions, must not throw or re-enter Max2D, and must not end or submit the supplied objects. The target uses physical pixels and one sample. Only the current context's window target is accepted; drawing to image targets is rejected. Subsequent Max2D drawing remains ordered after the overlay, and `Flip()` presents normally. Native overlay work is not included in Core drawing statistics.
 
 Applications using Dear ImGui should normally use the higher-level `ImGui.ImGuiSDL3GPUMax2D` adapter rather than provide these callbacks themselves.
+
+## Native MaxGUI canvases on macOS
+
+Import `SDL3.SDL3MaxGUI` alongside `Max2D.SDL3GPUMax2D`, create a MaxGUI canvas,
+and draw using `SetGraphics(CanvasGraphics(canvas))`. The bridge uses Metal and
+keeps the native GUI event loop and input handling. Rendering and render images
+use the same GPU implementation as standalone windows.
+
+Resize the gadget rather than calling `GraphicsResize`; fullscreen operations are
+unavailable on attached canvases. Each canvas owns its GPU device and drawing
+resources. Close manually attached graphics before freeing their host gadget.
+See `sdl3.mod/sdl3maxgui.mod/examples/canvas_gpu.bmx` and the SDL3 MaxGUI guide for
+a complete event loop. Windows/Linux attachment and ImGui input routing inside
+MaxGUI canvases are not implemented yet.

@@ -273,7 +273,7 @@ static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 }
 static int ensure_pipelines(GPUContext *c,int kind) { return ensure_pipelines_mode(c,kind,0); }
 int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,0,1); }
-void *m2d_gpu_open(SDL_Window *window) {
+void *m2d_gpu_open_attached(SDL_Window *window, int (*claim)(SDL_GPUDevice *, SDL_Window *)) {
 	GPUContext *c=calloc(1,sizeof(*c));
 	if(!c) { fail("Out of memory"); return NULL; }
 	c->sync=1;
@@ -285,7 +285,7 @@ void *m2d_gpu_open(SDL_Window *window) {
 #endif
 		NULL);
 	if(!c->device) goto error;
-	if(!SDL_ClaimWindowForGPUDevice(c->device,window)) goto error;
+	if(!(claim ? claim(c->device,window) : SDL_ClaimWindowForGPUDevice(c->device,window))) goto error;
 	c->window=window;
 	c->vertex=shader(c,0);
 	c->fragment=shader(c,1);
@@ -303,6 +303,9 @@ error: {
 	SDL_SetError("%s",message);
 	return NULL;
 }
+}
+void *m2d_gpu_open(SDL_Window *window) {
+	return m2d_gpu_open_attached(window,NULL);
 }
 const char *m2d_gpu_name(GPUContext *c) { return SDL_GetGPUDeviceDriver(c->device); }
 int m2d_gpu_output(GPUContext *c,int *w,int *h) { return SDL_GetWindowSizeInPixels(c->window,w,h); }
