@@ -249,10 +249,10 @@ time or window presentation, and synthetic results are not whole-game speedups.
 
 Applications using Dear ImGui should normally use the higher-level `ImGui.ImGuiSDL3GPUMax2D` adapter rather than provide these callbacks themselves.
 
-## Native MaxGUI canvases on macOS and Windows
+## Native MaxGUI canvases
 
 Import `SDL3.SDL3MaxGUI` alongside `Max2D.SDL3GPUMax2D`, create a MaxGUI canvas,
-and draw using `SetGraphics(CanvasGraphics(canvas))`. The bridge uses Metal on macOS and an available SDL GPU driver on Windows. It
+and draw using `SetGraphics(CanvasGraphics(canvas))`. The bridge uses Metal on macOS and an available SDL GPU driver on Windows or Linux/X11. It
 keeps the native GUI event loop and input handling. Rendering and render images
 use the same GPU implementation as standalone windows.
 
@@ -260,5 +260,6 @@ Resize the gadget rather than calling `GraphicsResize`; fullscreen operations ar
 unavailable on attached canvases. Each canvas owns its GPU device and drawing
 resources. Close manually attached graphics before freeing their host gadget.
 See `sdl3.mod/sdl3maxgui.mod/examples/canvas_gpu.bmx` and the SDL3 MaxGUI guide for
-a complete event loop. Linux attachment and ImGui input routing inside
-MaxGUI canvases are not implemented yet.
+a complete event loop. Linux applications must use GTK's X11 backend
+(`GDK_BACKEND=x11`), including on XWayland. Native Wayland attachment and ImGui
+input routing inside MaxGUI canvases are not implemented yet.

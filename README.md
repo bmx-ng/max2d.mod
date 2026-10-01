@@ -276,8 +276,9 @@ third-party code and example asset credits.
 
 ## MaxGUI canvases
 
-On macOS and Windows, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
+On macOS, Windows and Linux/X11, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
 also import `SDL3.SDL3MaxGUI`. MaxGUI keeps its native controls, input and event
 loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master/docs/maxgui.md)
 and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
-BRL.System 1.31; Linux attachment support remains future work.
+BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
+while native Wayland canvas attachment remains future work.
