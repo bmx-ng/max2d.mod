@@ -1249,6 +1249,32 @@ Function NativeResolutionHeight:Int()
 End Function
 
 Rem
+bbdoc: Gets the safe interactive area of the window in native output pixels.
+param: Receives the safe area's left edge, top edge, width and height.
+about: Mobile backends exclude display cutouts and other platform insets. The result covers the complete output when the platform does not report a restricted area. It is independent of the active virtual scene and includes usable presentation bars.
+End Rem
+Function GetWindowSafeArea(x:Int Var,y:Int Var,width:Int Var,height:Int Var)
+	Local context:TMax2DContext=TMax2DGraphics.Current().context
+	Local inputWidth:Int,inputHeight:Int,outputWidth:Int,outputHeight:Int
+	context.NativeInputSize(inputWidth,inputHeight)
+	context.NativeOutputSize(outputWidth,outputHeight)
+	context.NativeWindowSafeArea(x,y,width,height)
+	If inputWidth<=0 Or inputHeight<=0 Or outputWidth<=0 Or outputHeight<=0 Then
+		x=0; y=0; width=0; height=0
+		Return
+	End If
+	Local right:Int=x+width,bottom:Int=y+height
+	Local left:Int=Floor(Double(x)*outputWidth/inputWidth)
+	Local top:Int=Floor(Double(y)*outputHeight/inputHeight)
+	right=Ceil(Double(right)*outputWidth/inputWidth)
+	bottom=Ceil(Double(bottom)*outputHeight/inputHeight)
+	left=Max(0,Min(outputWidth,left)); top=Max(0,Min(outputHeight,top))
+	right=Max(0,Min(outputWidth,right)); bottom=Max(0,Min(outputHeight,bottom))
+	x=left; y=top
+	width=Max(0,right-left); height=Max(0,bottom-top)
+End Function
+
+Rem
 bbdoc: Converts virtual screen coordinates to native destination pixels.
 param: Horizontal virtual screen coordinate.
 param: Vertical virtual screen coordinate.
