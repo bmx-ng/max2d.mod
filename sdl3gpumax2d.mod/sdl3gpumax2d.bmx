@@ -162,6 +162,11 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 		End If
 	End Method
 
+	Method NativeWindowSafeArea(x:Int Var,y:Int Var,width:Int Var,height:Int Var) Override
+		Local window:TSDLWindow=TSDLGraphics(graphics)._context.window
+		If Not window.GetSafeArea(x,y,width,height) Then Super.NativeWindowSafeArea(x,y,width,height)
+	End Method
+
 	Rem
 	bbdoc: Requests a new window size.
 	param: Width of the rectangle or drawing surface.

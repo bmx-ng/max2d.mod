@@ -549,6 +549,16 @@ Type TMax2DContext
 	End Method
 
 	Rem
+	bbdoc: Gets the safe interactive area in window input coordinates.
+	param: Receives the safe area's left edge, top edge, width and height.
+	about: The default is the complete input area. Window-system backends override this when the platform reports display cutouts or reserved edges.
+	End Rem
+	Method NativeWindowSafeArea(x:Int Var,y:Int Var,width:Int Var,height:Int Var)
+		x=0; y=0
+		NativeInputSize(width,height)
+	End Method
+
+	Rem
 	bbdoc: Gets the drawable window dimensions in native pixels.
 	param: Receives width of the rectangle or drawing surface.
 	param: Receives height of the rectangle or drawing surface.
