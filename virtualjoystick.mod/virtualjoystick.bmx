@@ -176,6 +176,7 @@ End Rem
 Type TVirtualJoystick
 	Field name:String = "Max2D virtual joystick"
 	Field stick:TVirtualStick = New TVirtualStick
+	Field stickEnabled:Int = True
 	Field buttons:TVirtualButton[] = New TVirtualButton[0]
 	Field visible:Int = True
 	Field enabled:Int = True
@@ -228,6 +229,23 @@ Type TVirtualJoystick
 		buttons :+ [button]
 		InvalidateLayout()
 		Return buttons.Length - 1
+	End Method
+
+	Rem
+	bbdoc: Enables or disables the analogue stick independently of the action buttons.
+	about: Disabling the stick also releases any touch it currently owns. This is useful for button-only control layouts.
+	End Rem
+	Method SetStickEnabled(enabled:Int = True)
+		stickEnabled = enabled <> 0
+		If Not stickEnabled Then stick.Cancel()
+	End Method
+
+	Rem
+	bbdoc: Sets the short label drawn in an action button.
+	End Rem
+	Method SetButtonLabel(index:Int, label:String)
+		If index < 0 Or index >= buttons.Length Then Throw "Max2D virtual joystick: button index out of range"
+		buttons[index].label = label
 	End Method
 
 	Rem
@@ -367,7 +385,7 @@ Type TVirtualJoystick
 	Method TouchDown:Int(id:Int, x:Float, y:Float)
 		If Not enabled Then Return False
 		UpdateLayout()
-		If stick.TouchDown(id, x, y) Then Return True
+		If stickEnabled And stick.TouchDown(id, x, y) Then Return True
 		For Local button:TVirtualButton = EachIn buttons
 			If button.TouchDown(id, x, y) Then Return True
 		Next
@@ -375,6 +393,7 @@ Type TVirtualJoystick
 	End Method
 
 	Method TouchMove:Int(id:Int, x:Float, y:Float)
+		If Not stickEnabled Then Return False
 		Return stick.Move(id, x, y)
 	End Method
 
@@ -394,10 +413,12 @@ Type TVirtualJoystick
 	End Method
 
 	Method X:Float()
+		If Not stickEnabled Then Return 0
 		Return stick.X()
 	End Method
 
 	Method Y:Float()
+		If Not stickEnabled Then Return 0
 		Return stick.Y()
 	End Method
 
@@ -439,16 +460,24 @@ Type TVirtualJoystick
 		SetOrigin(0, 0)
 		SetViewport(0, 0, NativeResolutionWidth(), NativeResolutionHeight())
 		SetBlend(ALPHABLEND)
-		Local stickAlpha:Float = idleAlpha
-		If stick.touchId <> -1 Then stickAlpha = activeAlpha
-		DrawControlCircle(stick.centerX, stick.centerY, stick.radius, baseRed, baseGreen, baseBlue, stickAlpha)
-		DrawControlCircle(stick.centerX, stick.centerY, stick.radius * 0.78, 18, 25, 36, stickAlpha * 0.55)
-		DrawControlCircle(stick.knobX, stick.knobY, stick.knobRadius, knobRed, knobGreen, knobBlue, stickAlpha)
+		If stickEnabled Then
+			Local stickAlpha:Float = idleAlpha
+			If stick.touchId <> -1 Then stickAlpha = activeAlpha
+			DrawControlCircle(stick.centerX, stick.centerY, stick.radius, baseRed, baseGreen, baseBlue, stickAlpha)
+			DrawControlCircle(stick.centerX, stick.centerY, stick.radius * 0.78, 18, 25, 36, stickAlpha * 0.55)
+			DrawControlCircle(stick.knobX, stick.knobY, stick.knobRadius, knobRed, knobGreen, knobBlue, stickAlpha)
+		End If
 		For Local button:TVirtualButton = EachIn buttons
 			Local alpha:Float = idleAlpha
 			If button.down Then alpha = activeAlpha
 			DrawControlCircle(button.centerX, button.centerY, button.radius, buttonRed, buttonGreen, buttonBlue, alpha)
 			DrawControlCircle(button.centerX, button.centerY, button.radius * 0.72, 18, 25, 36, alpha * 0.42)
+			If button.label Then
+				Local labelScale:Float = Max(1.0, Floor(button.radius / 24.0))
+				SetColor(255, 255, 255, alpha)
+				SetTransform(0, labelScale, labelScale)
+				DrawText(button.label, Floor(button.centerX - TextWidth(button.label) * labelScale * 0.5), Floor(button.centerY - TextHeight(button.label) * labelScale * 0.5))
+			End If
 		Next
 		PopMax2DState()
 	End Method

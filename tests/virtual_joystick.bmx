@@ -27,6 +27,8 @@ Check(rejectedLayout, "Unknown automatic layout is rejected")
 controls.SetStick(100, 100, 50, 20)
 controls.SetButton(0, 240, 100, 30)
 controls.SetButton(1, 310, 100, 30)
+controls.SetButtonLabel(0, "LEFT")
+Check(controls.buttons[0].label = "LEFT", "Button label is configurable")
 
 Check(controls.TouchDown(10, 125, 75), "Stick captures a touch")
 Near(controls.X(), 0.5, "Stick X")
@@ -47,6 +49,12 @@ Near(controls.X(), 0.0, "Released stick X")
 Near(controls.Y(), 0.0, "Released stick Y")
 Check(controls.TouchUp(20), "First button releases")
 Check(Not controls.ButtonDown(0), "First button is up")
+
+controls.SetStickEnabled(False)
+Check(Not controls.TouchDown(35, 100, 100), "Disabled stick does not capture touches")
+Near(controls.X(), 0.0, "Disabled stick X")
+Near(controls.Y(), 0.0, "Disabled stick Y")
+controls.SetStickEnabled(True)
 
 controls.stick.axes = VIRTUAL_AXIS_X
 Check(controls.TouchDown(40, 100, 125), "X-only stick captures")
