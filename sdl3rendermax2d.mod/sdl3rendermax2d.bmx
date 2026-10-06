@@ -88,14 +88,14 @@ Type TSDLRenderContext Extends TMax2DContext
 	bbdoc: Reports whether runtime exclusive fullscreen switching is implemented.
 	End Rem
 	Method SupportsFullscreen:Int() Override
-		Return True
+		Return Not TSDLGraphics(graphics)._context.attached
 	End Method
 
 	Rem
 	bbdoc: Reports whether runtime borderless fullscreen switching is implemented.
 	End Rem
 	Method SupportsBorderlessFullscreen:Int() Override
-		Return True
+		Return Not TSDLGraphics(graphics)._context.attached
 	End Method
 
 	Rem
@@ -127,7 +127,12 @@ Type TSDLRenderContext Extends TMax2DContext
 	param: Receives height of the rectangle or drawing surface.
 	End Rem
 	Method NativeInputSize(width:Int Var,height:Int Var) Override
-		Require(TSDLGraphics(graphics)._context.window.GetSize(width,height))
+		Local context:TSDLGraphicsContext=TSDLGraphics(graphics)._context
+		If context.attached Then
+			SDLAttachedSize(context.window.windowPtr,width,height,False)
+		Else
+			Require(context.window.GetSize(width,height))
+		End If
 	End Method
 
 	Rem
@@ -245,6 +250,11 @@ Type TSDLRenderContext Extends TMax2DContext
 	param: Receives height of the rectangle or drawing surface.
 	End Rem
 	Method NativeOutputSize(width:Int Var,height:Int Var) Override
+		Local context:TSDLGraphicsContext=TSDLGraphics(graphics)._context
+		If context.attached Then
+			SDLAttachedSize(context.window.windowPtr,width,height,True)
+			Return
+		End If
 		Require(m2d_sdl_output_size(renderer.rendererPtr,Varptr width,Varptr height))
 	End Method
 
@@ -332,6 +342,29 @@ Type TSDLRenderMax2DDriver Extends TMax2DDriver
 	End Rem
 	Method GraphicsModes:TGraphicsMode[]() Override
 		Return SDLGraphicsDriver().GraphicsModes()
+	End Method
+
+	Rem
+	bbdoc: Attaches SDL rendering to a native GUI canvas using the installed attachment provider.
+	param: Native canvas handle supplied by MaxGUI.
+	param: Graphics surface flags.
+	about: Import SDL3.SDL3MaxGUI to enable macOS attachment. The host gadget must outlive its graphics.
+	End Rem
+	Method AttachGraphics:TGraphics(widget:Byte Ptr,flags:Long) Override
+		Local graphics:TSDLGraphics=SDLGraphicsDriver().AttachGraphics(widget,flags)
+		If Not graphics Then Return Null
+		Local context:TSDLRenderContext=New TSDLRenderContext
+		context.graphics=graphics
+		context.renderer=graphics._context.renderer
+		context.mask=m2d_sdl_mask_create(context.renderer.rendererPtr)
+		If Not context.mask Then context.maskUnavailableReason=SDL_GetError()
+		context.windowView.Reset(graphics._context.width,graphics._context.height)
+		context.view=context.windowView
+		Local canvas:TMax2DGraphics=New TMax2DGraphics
+		canvas.context=context
+		canvas.driver=Self
+		canvas.imageFont=TImageFont.DefaultFont()
+		Return canvas
 	End Method
 
 	Rem

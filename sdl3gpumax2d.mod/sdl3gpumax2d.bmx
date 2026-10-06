@@ -115,14 +115,14 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	bbdoc: Reports whether runtime exclusive fullscreen switching is implemented.
 	End Rem
 	Method SupportsFullscreen:Int() Override
-		Return True
+		Return Not TSDLGraphics(graphics)._context.attached
 	End Method
 
 	Rem
 	bbdoc: Reports whether runtime borderless fullscreen switching is implemented.
 	End Rem
 	Method SupportsBorderlessFullscreen:Int() Override
-		Return True
+		Return Not TSDLGraphics(graphics)._context.attached
 	End Method
 
 	Rem
@@ -154,7 +154,12 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	param: Receives height of the rectangle or drawing surface.
 	End Rem
 	Method NativeInputSize(width:Int Var,height:Int Var) Override
-		Require(TSDLGraphics(graphics)._context.window.GetSize(width,height))
+		Local context:TSDLGraphicsContext=TSDLGraphics(graphics)._context
+		If context.attached Then
+			SDLAttachedSize(context.window.windowPtr,width,height,False)
+		Else
+			Require(context.window.GetSize(width,height))
+		End If
 	End Method
 
 	Rem
@@ -207,6 +212,11 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	param: Receives height of the rectangle or drawing surface.
 	End Rem
 	Method NativeOutputSize(width:Int Var,height:Int Var) Override
+		Local context:TSDLGraphicsContext=TSDLGraphics(graphics)._context
+		If context.attached Then
+			SDLAttachedSize(context.window.windowPtr,width,height,True)
+			Return
+		End If
 		Require(m2d_gpu_output(native,Varptr width,Varptr height))
 	End Method
 
@@ -478,6 +488,33 @@ Type TSDLGPUMax2DDriver Extends TMax2DDriver
 	End Method
 
 	Rem
+	bbdoc: Attaches native SDL GPU drawing to a GUI-owned canvas.
+	param: Native canvas handle supplied by MaxGUI.
+	param: Graphics surface flags.
+	about: Import SDL3.SDL3MaxGUI on macOS. The gadget must outlive the attached graphics.
+	End Rem
+	Method AttachGraphics:TGraphics(widget:Byte Ptr,flags:Long) Override
+		Local graphics:TSDLGraphics=SDLGraphicsDriver().AttachGraphics(widget,flags|SDL_GRAPHICS_GPU)
+		If Not graphics Then Return Null
+		Local context:TSDLGPUMax2DContext=New TSDLGPUMax2DContext
+		context.graphics=graphics
+		context.native=m2d_gpu_open_attached(graphics._context.window.windowPtr,SDLAttachGPUClaim)
+		If Not context.native Then
+			Local message:String=SDL_GetError()
+			graphics.Close()
+			Throw "Max2D SDL GPU: "+message
+		End If
+		context.compactQuads=m2d_gpu_compact_support(context.native)<>0
+		context.windowView.Reset(graphics._context.width,graphics._context.height)
+		context.view=context.windowView
+		Local canvas:TMax2DGraphics=New TMax2DGraphics
+		canvas.context=context
+		canvas.driver=Self
+		canvas.imageFont=TImageFont.DefaultFont()
+		Return canvas
+	End Method
+
+	Rem
 	bbdoc: Creates the backend context for a graphics window.
 	param: Width of the rectangle or drawing surface.
 	param: Height of the rectangle or drawing surface.
@@ -558,6 +595,7 @@ Extern "C"
 	Function m2d_gpu_window_format:Int()
 	Function m2d_gpu_window_overlay:Int(context:Byte Ptr,prepare:Byte Ptr,draw:Byte Ptr,data:Byte Ptr)
 	Function m2d_gpu_open:Byte Ptr(window:Byte Ptr)
+	Function m2d_gpu_open_attached:Byte Ptr(window:Byte Ptr,claim:Int(device:Byte Ptr,window:Byte Ptr))
 	Function m2d_gpu_close(context:Byte Ptr)
 	Function m2d_gpu_name:Byte Ptr(context:Byte Ptr)
 	Function m2d_gpu_output:Int(context:Byte Ptr,width:Int Ptr,height:Int Ptr)
