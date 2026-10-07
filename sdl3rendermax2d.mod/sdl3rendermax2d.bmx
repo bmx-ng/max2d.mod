@@ -444,6 +444,16 @@ Function SDLRenderMax2DRendererName:String()
 	Return String.FromUTF8String(m2d_sdl_renderer_name(context.renderer.rendererPtr))
 End Function
 
+Private
+Function TransformTextInputPoint:Int(window:TSDLWindow,x:Float,y:Float,windowX:Float Var,windowY:Float Var)
+	Local canvas:TMax2DGraphics = TMax2DGraphics.selected
+	If Not canvas Or canvas.context.closed Then Return False
+	Local graphics:TSDLGraphics = TSDLGraphics(canvas.context.graphics)
+	If Not graphics Or graphics._context.window <> window Then Return False
+	Return CaptureWindowInput().VirtualToWindow(x,y,windowX,windowY)
+End Function
+Public
+
 Extern
 	Function m2d_sdl_mask_create:Byte Ptr(renderer:Byte Ptr)
 	Function m2d_sdl_mask_destroy(mask:Byte Ptr)
@@ -461,4 +471,5 @@ Extern
 	Function m2d_sdl_texture_size(context:Byte Ptr,width:Int Ptr,height:Int Ptr)
 End Extern
 
+SDLTransformTextInputPoint = TransformTextInputPoint
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
