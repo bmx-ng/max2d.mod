@@ -191,7 +191,7 @@ from the basic drawing API.
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |
 | `Max2D.RichText` | Optional inline markup, named styles and registered font variants over the paragraph API. |
 | `Max2D.ScalableFont` | Scalable, shaped text using `Text.HBFreeTypeFont`. |
-| `Max2D.VirtualJoystick` | Safe-area-aware onscreen stick and action buttons for touch games. |
+| `Max2D.VirtualJoystick` | Safe-area-aware floating or fixed onscreen stick and action buttons for touch games. |
 | `Max2D.TileMap` | Native editable tilemaps, rendering, picking and geometry queries. |
 | `Max2D.Tiled` | Tiled XML/JSON maps, tilesets and templates; uses Text.XML, Text.JSON and Archive.ZLib. |
 | `Max2D.TiledZstd` | Optional zstd decoding for Tiled maps; uses Archive.Zstd. |

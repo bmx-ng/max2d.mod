@@ -30,6 +30,41 @@ Wend
 controls.Free()
 ```
 
+## Floating and fixed sticks
+
+By default, touch anywhere in the **left half of the window's safe area** to
+place the stick beneath your thumb. The initial touch gives neutral input; drag
+to move. The centre stays at that initial position until you lift your finger,
+then the stick disappears. The next touch chooses a new centre.
+
+A second finger can operate the action buttons without moving the stick's
+centre. Buttons take priority if their circles overlap the activation area.
+Once captured, the stick follows its finger even outside the activation area,
+with output clamped to the normal range.
+
+To retain the original, always-visible fixed stick:
+
+```blitzmax
+controls.SetStickFloating(False)
+```
+
+For a different activation rectangle, supply native output pixel coordinates:
+
+```blitzmax
+controls.SetStickActivationArea(0, 200, 600, 500)
+```
+
+`ResetStickActivationArea()` restores the automatic left-half safe area. A custom
+area does not disable automatic button layout; update it yourself when the window
+changes. Switching modes or activation areas releases the current stick touch.
+Automatic layout changes (including rotation/resizing) also release a floating
+stick, preventing its centre from jumping during the gesture.
+
+`SetStick` sets the fixed home position and the radius used by both modes; it does
+not turn off floating mode. Near an activation-area edge, the floating circle may
+extend outside that area or be clipped by the window: its centre remains exactly
+where the thumb landed.
+
 ## Layout and coordinates
 
 The automatic layout uses the platform's safe interactive area. Controls avoid
@@ -52,6 +87,54 @@ position disables automatic layout until `SetAutomaticLayout(True)` is called.
 
 `Render` saves and restores Max2D drawing state. Its circular geometry is cached,
 so rendering does not rebuild trigonometric shape data each frame.
+
+## Custom rendering
+
+Input handling does not depend on `Render()`. You can omit that call and draw
+sprites, meshes, outlines or animations using the exposed control state. The
+built-in renderer also has configurable colours, idle/active opacity, radii and
+button labels.
+
+For example, this draws a simple alternative skin without changing input:
+
+```blitzmax
+Function DrawCustomControls(controls:TVirtualJoystick)
+	If Not controls.visible Then Return
+	controls.UpdateLayout()
+	PushMax2DState()
+	SetRenderImage(Null)
+	SetNativeResolution()
+	SetCamera(Null)
+	SetOrigin(0, 0)
+	SetTransform(0, 1, 1)
+	SetHandle(0, 0)
+	SetViewport(0, 0, NativeResolutionWidth(), NativeResolutionHeight())
+	SetBlend(ALPHABLEND)
+
+	Local stick:TVirtualStick = controls.stick
+	If controls.stickEnabled And (Not controls.floatingStick Or stick.touchId <> -1) Then
+		SetColor(255, 255, 255, 0.25)
+		DrawOval(stick.centerX - stick.radius, stick.centerY - stick.radius, stick.radius * 2, stick.radius * 2)
+		SetColor(80, 200, 255, 0.9)
+		DrawOval(stick.knobX - stick.knobRadius, stick.knobY - stick.knobRadius, stick.knobRadius * 2, stick.knobRadius * 2)
+	End If
+
+	For Local button:TVirtualButton = EachIn controls.buttons
+		If button.down Then SetColor(255, 200, 80) Else SetColor(180, 180, 200)
+		DrawOval(button.centerX - button.radius, button.centerY - button.radius, button.radius * 2, button.radius * 2)
+	Next
+	PopMax2DState()
+End Function
+```
+
+Replace the drawing calls with your artwork as needed. `centerX`/`centerY` and
+`knobX`/`knobY` are centres in native output pixels, not scene/world coordinates.
+Changing artwork does not change input geometry: buttons use circular hit areas,
+and floating sticks start within their configured activation rectangle.
+
+Hiding controls with `visible = False` only affects drawing; call `Disable()` to
+stop input and release owned touches. A custom renderer should honour `visible`
+itself, as the example above does.
 
 ## Input choices
 

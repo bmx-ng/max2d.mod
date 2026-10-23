@@ -4,7 +4,7 @@ Rem
 bbdoc: Safe-area-aware onscreen joystick and buttons for Max2D applications.
 End Rem
 Module Max2D.VirtualJoystick
-ModuleInfo "Version: 0.01"
+ModuleInfo "Version: 0.02"
 ModuleInfo "License: zlib/libpng"
 
 Import Max2D.Core
@@ -106,11 +106,18 @@ Type TVirtualStick
 	Field knobY:Float
 	Field touchId:Int = -1
 	Field axes:Int = VIRTUAL_AXIS_XY
+	Private
+	Field homeX:Float
+	Field homeY:Float
+	Public
 
 	Method SetPosition(x:Float, y:Float, radius:Float, knobRadius:Float)
 		Local active:Int = touchId <> -1
 		Local oldX:Float = X(), oldY:Float = Y()
-		centerX = x; centerY = y
+		homeX = x
+		homeY = y
+		centerX = x
+		centerY = y
 		Self.radius = Max(1.0, radius)
 		Self.knobRadius = Max(1.0, Min(knobRadius, Self.radius))
 		If active Then
@@ -126,8 +133,21 @@ Type TVirtualStick
 		Return dx * dx + dy * dy <= radius * radius
 	End Method
 
-	Method TouchDown:Int(id:Int, x:Float, y:Float)
-		If touchId <> -1 Or Not Contains(x, y) Then Return False
+	Rem
+	bbdoc: Captures a touch, optionally placing the stick centre at its initial position.
+	param: Touch identifier.
+	param: Native output X coordinate.
+	param: Native output Y coordinate.
+	param: Recenter on this touch instead of requiring a hit inside the fixed circle.
+	returns: True if the touch was captured.
+	End Rem
+	Method TouchDown:Int(id:Int, x:Float, y:Float, floating:Int = False)
+		If touchId <> -1 Then Return False
+		If Not floating And Not Contains(x, y) Then Return False
+		If floating Then
+			centerX = x
+			centerY = y
+		End If
 		touchId = id
 		Move(id, x, y)
 		Return True
@@ -155,7 +175,10 @@ Type TVirtualStick
 
 	Method Cancel()
 		touchId = -1
-		knobX = centerX; knobY = centerY
+		centerX = homeX
+		centerY = homeY
+		knobX = centerX
+		knobY = centerY
 	End Method
 
 	Method X:Float()
@@ -177,6 +200,18 @@ Type TVirtualJoystick
 	Field name:String = "Max2D virtual joystick"
 	Field stick:TVirtualStick = New TVirtualStick
 	Field stickEnabled:Int = True
+	Rem
+	bbdoc: True for a stick that appears at the initial touch position; enabled by default.
+	about: Use SetStickFloating to change this mode while safely releasing an active touch.
+	End Rem
+	Field floatingStick:Int = True
+	Private
+	Field customStickArea:Int
+	Field stickAreaX:Float
+	Field stickAreaY:Float
+	Field stickAreaWidth:Float
+	Field stickAreaHeight:Float
+	Public
 	Field buttons:TVirtualButton[] = New TVirtualButton[0]
 	Field visible:Int = True
 	Field enabled:Int = True
@@ -241,6 +276,55 @@ Type TVirtualJoystick
 	End Method
 
 	Rem
+	bbdoc: Chooses a floating stick or the original fixed-position stick.
+	param: True to appear beneath a new touch; False to use the configured fixed circle.
+	about: Floating mode is enabled by default and hides the stick while idle. Its centre stays fixed for the duration of the gesture. Changing modes releases the current stick touch.
+	End Rem
+	Method SetStickFloating(value:Int = True)
+		If floatingStick = (value <> 0) Then Return
+		stick.Cancel()
+		floatingStick = value <> 0
+	End Method
+
+	Rem
+	bbdoc: Sets the rectangle in which a new touch can activate the floating stick.
+	param: Left edge in native output pixels.
+	param: Top edge in native output pixels.
+	param: Positive width in native output pixels.
+	param: Positive height in native output pixels.
+	about: Action buttons take priority within this area. An owned touch can move outside it. Setting an area releases the current stick touch but does not change automatic button layout.
+	End Rem
+	Method SetStickActivationArea(x:Float, y:Float, width:Float, height:Float)
+		If width <= 0 Or height <= 0 Then Throw "Max2D virtual joystick: activation area must have positive dimensions"
+		stick.Cancel()
+		customStickArea = True
+		stickAreaX = x
+		stickAreaY = y
+		stickAreaWidth = width
+		stickAreaHeight = height
+	End Method
+
+	Rem
+	bbdoc: Restores the floating stick's default activation area: the left half of the window safe area.
+	about: Releases the current stick touch. The default area follows window and safe-area changes automatically.
+	End Rem
+	Method ResetStickActivationArea()
+		stick.Cancel()
+		customStickArea = False
+	End Method
+
+	Private
+	Method InStickActivationArea:Int(x:Float, y:Float)
+		If customStickArea Then
+			Return x >= stickAreaX And y >= stickAreaY And x < stickAreaX + stickAreaWidth And y < stickAreaY + stickAreaHeight
+		End If
+		Local sx:Int, sy:Int, width:Int, height:Int
+		GetWindowSafeArea(sx, sy, width, height)
+		Return width > 0 And height > 0 And x >= sx And y >= sy And x < sx + width * 0.5 And y < sy + height
+	End Method
+	Public
+
+	Rem
 	bbdoc: Sets the short label drawn in an action button.
 	End Rem
 	Method SetButtonLabel(index:Int, label:String)
@@ -302,6 +386,7 @@ Type TVirtualJoystick
 		GetWindowSafeArea(x, y, width, height)
 		If width <= 0 Or height <= 0 Then Return
 		If x = _safeX And y = _safeY And width = _safeWidth And height = _safeHeight Then Return
+		If floatingStick Then stick.Cancel()
 		_safeX = x; _safeY = y; _safeWidth = width; _safeHeight = height
 		Local scale:Float = Max(0.68, Min(1.8, Float(Min(width, height)) / 720.0)) * uiScale
 		Local edge:Float = margin * scale
@@ -385,10 +470,21 @@ Type TVirtualJoystick
 	Method TouchDown:Int(id:Int, x:Float, y:Float)
 		If Not enabled Then Return False
 		UpdateLayout()
-		If stickEnabled And stick.TouchDown(id, x, y) Then Return True
+		If id < 0 Or stick.touchId = id Then Return False
 		For Local button:TVirtualButton = EachIn buttons
-			If button.TouchDown(id, x, y) Then Return True
+			If button.touchId = id Then Return False
 		Next
+		If floatingStick Then
+			For Local button:TVirtualButton = EachIn buttons
+				If button.Contains(x, y) Then Return button.TouchDown(id, x, y)
+			Next
+			If stickEnabled And InStickActivationArea(x, y) Then Return stick.TouchDown(id, x, y, True)
+		Else
+			If stickEnabled And stick.TouchDown(id, x, y) Then Return True
+			For Local button:TVirtualButton = EachIn buttons
+				If button.TouchDown(id, x, y) Then Return True
+			Next
+		End If
 		Return False
 	End Method
 
@@ -460,7 +556,7 @@ Type TVirtualJoystick
 		SetOrigin(0, 0)
 		SetViewport(0, 0, NativeResolutionWidth(), NativeResolutionHeight())
 		SetBlend(ALPHABLEND)
-		If stickEnabled Then
+		If stickEnabled And (Not floatingStick Or stick.touchId <> -1) Then
 			Local stickAlpha:Float = idleAlpha
 			If stick.touchId <> -1 Then stickAlpha = activeAlpha
 			DrawControlCircle(stick.centerX, stick.centerY, stick.radius, baseRed, baseGreen, baseBlue, stickAlpha)
