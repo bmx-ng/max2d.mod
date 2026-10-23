@@ -9,6 +9,7 @@ SetVirtualBarColor 8, 12, 20
 
 Local controls:TVirtualJoystick = TVirtualJoystick.Create(2)
 controls.SetButtonLayout VIRTUAL_BUTTON_LAYOUT_DIAGONAL
+' Floating is the default. Use controls.SetStickFloating(False) for a fixed stick.
 Local playerX:Float = 240
 Local playerY:Float = 135
 Local previous:Int = MilliSecs()
@@ -36,7 +37,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If colour Then SetColor 245, 166, 35 Else SetColor 55, 170, 240
 	DrawOval playerX - 12, playerY - 12, 24, 24
 	SetColor 255, 255, 255
-	DrawText "Move with the stick; press the gold button", 12, 12
+	DrawText "Touch the left side and drag; gold button fires", 12, 12
 
 	controls.Render()
 	Flip
