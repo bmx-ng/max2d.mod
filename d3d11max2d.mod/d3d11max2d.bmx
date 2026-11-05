@@ -451,7 +451,7 @@ Type TD3D11Max2DContext Extends TMax2DContext
 	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
 	End Rem
  Method SupportsBlend:Int(blend:Int) Override
-  Return blend>=MASKBLEND And blend<=SHADEBLEND
+  Return m2d11_blend(native,blend)
  End Method
 
 	Rem
@@ -737,6 +737,7 @@ Function D3D11Max2DDriver:TD3D11Max2DDriver()
 End Function
 
 Extern "C"
+	Function m2d11_blend:Int(context:Byte Ptr,blend:Int)
  Function m2d11_error:Byte Ptr()
  Function m2d11_open:Byte Ptr(device:ID3D11Device,context:ID3D11DeviceContext)
  Function m2d11_close(context:Byte Ptr)

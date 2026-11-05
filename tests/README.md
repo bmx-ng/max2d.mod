@@ -248,3 +248,18 @@ borderless and exclusive modes, checks restored size/input mapping, rejects
 invalid transitions, and verifies that the GPU context and render-image contents
 survive. Keeping it separate lets the normal profile run without display-mode
 changes.
+
+## Custom blending
+
+Run the blend-factor, operation, alpha and state-stack checks independently:
+
+```sh
+python3 mod/max2d.mod/tests/run_regressions.py gl sdl sdlgpu --test custom_blending
+```
+
+On Windows, use the `d3d9` and `d3d11` profiles too. `software` verifies graceful
+rejection of unsupported modes. The test compares readback pixels against known
+results, checks straight and premultiplied image sources, and exercises native
+SDL GPU textured sprites with compact submission both enabled and disabled.
+Unsupported custom equations are reported as skips; selecting unsupported
+`SUBTRACTBLEND` must throw. See [Blending](../docs/blending.md) for the public API.

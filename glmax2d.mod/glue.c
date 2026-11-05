@@ -1,3 +1,4 @@
+#include <max2d.mod/core.mod/blend.h>
 /* Desktop GL 2.1 / GLSL 1.20, with EXT framebuffer objects. */
 #include "pub.mod/glew.mod/GL/glew.h"
 #include <stdlib.h>
@@ -249,6 +250,12 @@ int m2d_gl_view(M2DGL *c,M2DGLFrame *f,int width,int height,int ox,int oy,int vw
     glViewport(0,0,width,height); glEnable(GL_SCISSOR_TEST); glScissor(c->clip[0],c->clip[1],c->clip[2],c->clip[3]);
     return checked();
 }
+static const GLenum blendFactors[]={0,GL_ZERO,GL_ONE,GL_SRC_COLOR,GL_ONE_MINUS_SRC_COLOR,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_DST_COLOR,GL_ONE_MINUS_DST_COLOR,GL_DST_ALPHA,GL_ONE_MINUS_DST_ALPHA};
+static const GLenum blendOps[]={0,GL_FUNC_ADD,GL_FUNC_SUBTRACT,GL_FUNC_REVERSE_SUBTRACT,GL_MIN,GL_MAX};
+int m2d_gl_blend(int mode) {
+	M2DBlend b;
+	return (mode>=1 && mode<=5) || m2d_blend_decode(mode,&b);
+}
 int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float *v,int count) {
     glUseProgram(c->program); glDisable(GL_DEPTH_TEST);glDisable(GL_STENCIL_TEST);glDisable(GL_CULL_FACE);glDisable(GL_ALPHA_TEST);
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
@@ -268,7 +275,12 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
     if(blend<=2) glDisable(GL_BLEND);
     else {
         glEnable(GL_BLEND);
-        if(blend==3) glBlendFuncSeparate(GL_ONE,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+        M2DBlend b;
+        if(m2d_blend_decode(blend,&b)) {
+            glBlendEquationSeparate(blendOps[b.op],blendOps[b.opAlpha]);
+            glBlendFuncSeparate(blendFactors[b.src],blendFactors[b.dst],blendFactors[b.srcAlpha],blendFactors[b.dstAlpha]);
+        }
+        else if(blend==3) glBlendFuncSeparate(GL_ONE,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
         else if(blend==4) glBlendFuncSeparate(GL_ONE,GL_ONE,GL_ZERO,GL_ONE);
         else glBlendFuncSeparate(GL_DST_COLOR,GL_ZERO,GL_ZERO,GL_ONE);
     }

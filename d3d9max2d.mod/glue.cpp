@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <max2d.mod/core.mod/blend.h>
 #include <d3d9.h>
 #include <vector>
 #include <cmath>
@@ -10,6 +11,7 @@ struct M2D9 {
     IDirect3DDevice9 *device;
     IDirect3DPixelShader9 *shader;
     int mipmaps;
+	D3DCAPS9 caps;
     float sx,sy;
     int ox,oy,width,height;
     RECT clip;
@@ -28,7 +30,18 @@ static int check(HRESULT hr,const char *operation) {
 static int fail(const char *message) { snprintf(errorText,sizeof(errorText),"%s",message); return 0; }
 static int clamp(int x,int lo,int hi) {return std::max(lo,std::min(hi,x));}
 static int channel(float x) {return clamp((int)std::lround(x*255),0,255);}
+static const D3DBLEND blendFactors[]={D3DBLEND_ZERO,D3DBLEND_ZERO,D3DBLEND_ONE,D3DBLEND_SRCCOLOR,D3DBLEND_INVSRCCOLOR,D3DBLEND_SRCALPHA,D3DBLEND_INVSRCALPHA,D3DBLEND_DESTCOLOR,D3DBLEND_INVDESTCOLOR,D3DBLEND_DESTALPHA,D3DBLEND_INVDESTALPHA};
+static const D3DBLENDOP blendOps[]={D3DBLENDOP_ADD,D3DBLENDOP_ADD,D3DBLENDOP_SUBTRACT,D3DBLENDOP_REVSUBTRACT,D3DBLENDOP_MIN,D3DBLENDOP_MAX};
+static const DWORD blendCaps[]={0,D3DPBLENDCAPS_ZERO,D3DPBLENDCAPS_ONE,D3DPBLENDCAPS_SRCCOLOR,D3DPBLENDCAPS_INVSRCCOLOR,D3DPBLENDCAPS_SRCALPHA,D3DPBLENDCAPS_INVSRCALPHA,D3DPBLENDCAPS_DESTCOLOR,D3DPBLENDCAPS_INVDESTCOLOR,D3DPBLENDCAPS_DESTALPHA,D3DPBLENDCAPS_INVDESTALPHA};
 extern "C" {
+int m2d9_blend(M2D9 *c,int mode) {
+	if(mode>=1 && mode<=5) return 1;
+	M2DBlend b;
+	if(!m2d_blend_decode(mode,&b)) return 0;
+	if((b.op!=1 || b.opAlpha!=1) && !(c->caps.PrimitiveMiscCaps&D3DPMISCCAPS_BLENDOP)) return 0;
+	return (c->caps.SrcBlendCaps&blendCaps[b.src]) && (c->caps.SrcBlendCaps&blendCaps[b.srcAlpha]) &&
+		(c->caps.DestBlendCaps&blendCaps[b.dst]) && (c->caps.DestBlendCaps&blendCaps[b.dstAlpha]);
+}
 const char *m2d9_error() { return errorText; }
 void *m2d9_open(IDirect3DDevice9 *device) {
     if (!device) {fail("No D3D9 device");return NULL;}
@@ -36,6 +49,7 @@ void *m2d9_open(IDirect3DDevice9 *device) {
     if(!check(device->GetDeviceCaps(&caps),"GetDeviceCaps"))return NULL;
     if(!(caps.PrimitiveMiscCaps&D3DPMISCCAPS_SEPARATEALPHABLEND)){fail("Separate alpha blending is required");return NULL;}
     M2D9 *c=new M2D9();
+	c->caps=caps;
     IDirect3D9 *api=NULL;D3DDEVICE_CREATION_PARAMETERS creation;D3DDISPLAYMODE mode;
     DWORD filters=D3DPTFILTERCAPS_MIPFPOINT|D3DPTFILTERCAPS_MIPFLINEAR|D3DPTFILTERCAPS_MINFLINEAR|D3DPTFILTERCAPS_MAGFLINEAR;
     if((caps.Caps2&D3DCAPS2_CANAUTOGENMIPMAP)&&(caps.TextureCaps&D3DPTEXTURECAPS_MIPMAP)&&
@@ -176,12 +190,22 @@ int m2d9_submit(M2D9 *c,M2D9Texture *dest,M2D9Texture *t,int blend,const float *
     TRY(d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE));
     TRY(d->SetRenderState(D3DRS_ALPHABLENDENABLE,blend>=3));
     TRY(d->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE,TRUE));
-    TRY(d->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD));
-    TRY(d->SetRenderState(D3DRS_SRCBLEND,blend==5?D3DBLEND_DESTCOLOR:D3DBLEND_ONE));
-    TRY(d->SetRenderState(D3DRS_DESTBLEND,blend==5?D3DBLEND_ZERO:(blend==4?D3DBLEND_ONE:D3DBLEND_INVSRCALPHA)));
-    TRY(d->SetRenderState(D3DRS_BLENDOPALPHA,D3DBLENDOP_ADD));
-    TRY(d->SetRenderState(D3DRS_SRCBLENDALPHA,blend==3?D3DBLEND_ONE:D3DBLEND_ZERO));
-    TRY(d->SetRenderState(D3DRS_DESTBLENDALPHA,blend==3?D3DBLEND_INVSRCALPHA:D3DBLEND_ONE));
+	M2DBlend custom;
+	if(m2d_blend_decode(blend,&custom)) {
+		TRY(d->SetRenderState(D3DRS_BLENDOP,blendOps[custom.op]));
+		TRY(d->SetRenderState(D3DRS_SRCBLEND,blendFactors[custom.src]));
+		TRY(d->SetRenderState(D3DRS_DESTBLEND,blendFactors[custom.dst]));
+		TRY(d->SetRenderState(D3DRS_BLENDOPALPHA,blendOps[custom.opAlpha]));
+		TRY(d->SetRenderState(D3DRS_SRCBLENDALPHA,blendFactors[custom.srcAlpha]));
+		TRY(d->SetRenderState(D3DRS_DESTBLENDALPHA,blendFactors[custom.dstAlpha]));
+	} else {
+		TRY(d->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD));
+		TRY(d->SetRenderState(D3DRS_SRCBLEND,blend==5?D3DBLEND_DESTCOLOR:D3DBLEND_ONE));
+		TRY(d->SetRenderState(D3DRS_DESTBLEND,blend==5?D3DBLEND_ZERO:(blend==4?D3DBLEND_ONE:D3DBLEND_INVSRCALPHA)));
+		TRY(d->SetRenderState(D3DRS_BLENDOPALPHA,D3DBLENDOP_ADD));
+		TRY(d->SetRenderState(D3DRS_SRCBLENDALPHA,blend==3?D3DBLEND_ONE:D3DBLEND_ZERO));
+		TRY(d->SetRenderState(D3DRS_DESTBLENDALPHA,blend==3?D3DBLEND_INVSRCALPHA:D3DBLEND_ONE));
+	}
     TRY(d->SetTexture(0,t?t->texture:NULL));
     TRY(d->SetTextureStageState(0,D3DTSS_COLOROP,t?D3DTOP_MODULATE:D3DTOP_SELECTARG2));
     TRY(d->SetTextureStageState(0,D3DTSS_ALPHAOP,t?D3DTOP_MODULATE:D3DTOP_SELECTARG2));

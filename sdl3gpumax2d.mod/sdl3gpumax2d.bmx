@@ -414,7 +414,7 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
 	End Rem
 	Method SupportsBlend:Int(blend:Int) Override
-		Return blend>=MASKBLEND And blend<=SHADEBLEND
+		Return m2d_gpu_blend(native,blend)
 	End Method
 
 	Rem
@@ -596,6 +596,7 @@ Function SetSDLGPUMax2DCompactSprites(enabled:Int)
 End Function
 
 Extern "C"
+	Function m2d_gpu_blend:Int(context:Byte Ptr,blend:Int)
 	Function m2d_gpu_device:Byte Ptr(context:Byte Ptr)
 	Function m2d_gpu_window_format:Int()
 	Function m2d_gpu_window_overlay:Int(context:Byte Ptr,prepare:Byte Ptr,draw:Byte Ptr,data:Byte Ptr)
