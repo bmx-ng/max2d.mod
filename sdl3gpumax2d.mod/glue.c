@@ -1,5 +1,6 @@
 /* Native SDL GPU command recording. zlib/libpng licence. */
 #include <SDL3/SDL.h>
+#include <max2d.mod/core.mod/blend.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -7,6 +8,11 @@
 #include "shaders_dxbc.h"
 
 typedef struct GPUContext GPUContext;
+typedef struct GPUBlendPipeline {
+	int blend,kind,compact;
+	SDL_GPUGraphicsPipeline *pipeline;
+	struct GPUBlendPipeline *next;
+} GPUBlendPipeline;
 typedef struct {
 	GPUContext *owner;
 	SDL_GPUTexture *texture;
@@ -17,6 +23,7 @@ typedef struct {
 typedef struct {
 	GPUFrame *destination,*source;
 	int blend,first,count,generate,compact;
+	SDL_GPUGraphicsPipeline *pipeline;
 	SDL_Rect clip;
 	float transform[4];
 } GPUDraw;
@@ -28,6 +35,7 @@ struct GPUContext {
 	SDL_GPUGraphicsPipeline *pipelines[4][6];
 	SDL_GPUGraphicsPipeline *compactPipelines[4][6];
 	SDL_GPUSampler *samplers[2][32];
+	GPUBlendPipeline *customBlends;
 	SDL_GPUBuffer *vertices;
 	SDL_GPUTransferBuffer *upload;
 	Uint32 bufferSize;
@@ -193,6 +201,12 @@ void m2d_gpu_close(GPUContext *c) {
 		SDL_WaitForGPUIdle(c->device);
 		release_frame(c->backbuffer);
 		release_frame(c->white);
+		while(c->customBlends) {
+			GPUBlendPipeline *entry=c->customBlends;
+			c->customBlends=entry->next;
+			if(entry->pipeline) SDL_ReleaseGPUGraphicsPipeline(c->device,entry->pipeline);
+			free(entry);
+		}
 		for(int kind=0;kind<4;++kind) for(int i=1;i<=5;++i) {
 			if(c->pipelines[kind][i]) SDL_ReleaseGPUGraphicsPipeline(c->device,c->pipelines[kind][i]);
 			if(c->compactPipelines[kind][i]) SDL_ReleaseGPUGraphicsPipeline(c->device,c->compactPipelines[kind][i]);
@@ -238,36 +252,71 @@ static SDL_GPUShader *shader(GPUContext *c,int stage) {
 	}
 	return SDL_CreateGPUShader(c->device,&info);
 }
-static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
+static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compact,int blend) {
 	if(compact && !c->compactVertex) {
 		c->compactVertex=shader(c,2);
-		if(!c->compactVertex) return 0;
+		if(!c->compactVertex) return NULL;
 	}
-	SDL_GPUGraphicsPipeline **pipelines=compact?c->compactPipelines[kind]:c->pipelines[kind];
 	SDL_GPUVertexBufferDescription buffer={0,32,SDL_GPU_VERTEXINPUTRATE_VERTEX,0};
 	SDL_GPUVertexAttribute attributes[3]={{0,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,0},{1,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,8},{2,0,SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,24}};
+	SDL_GPUColorTargetDescription colour={0};
+	colour.format=texture_format(kind);
+	SDL_GPUColorTargetBlendState *b=&colour.blend_state;
+	b->enable_blend=blend>=3;
+	b->color_blend_op=SDL_GPU_BLENDOP_ADD;
+	b->alpha_blend_op=SDL_GPU_BLENDOP_ADD;
+	b->src_color_blendfactor=blend==5?SDL_GPU_BLENDFACTOR_DST_COLOR:SDL_GPU_BLENDFACTOR_ONE;
+	b->dst_color_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:blend==4?SDL_GPU_BLENDFACTOR_ONE:SDL_GPU_BLENDFACTOR_ZERO;
+	b->src_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE:SDL_GPU_BLENDFACTOR_ZERO;
+	b->dst_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:SDL_GPU_BLENDFACTOR_ONE;
+	M2DBlend custom;
+	if(m2d_blend_decode(blend,&custom)) {
+		static const SDL_GPUBlendFactor factors[]={SDL_GPU_BLENDFACTOR_ZERO,SDL_GPU_BLENDFACTOR_ZERO,SDL_GPU_BLENDFACTOR_ONE,SDL_GPU_BLENDFACTOR_SRC_COLOR,SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_COLOR,SDL_GPU_BLENDFACTOR_SRC_ALPHA,SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,SDL_GPU_BLENDFACTOR_DST_COLOR,SDL_GPU_BLENDFACTOR_ONE_MINUS_DST_COLOR,SDL_GPU_BLENDFACTOR_DST_ALPHA,SDL_GPU_BLENDFACTOR_ONE_MINUS_DST_ALPHA};
+		static const SDL_GPUBlendOp ops[]={SDL_GPU_BLENDOP_ADD,SDL_GPU_BLENDOP_ADD,SDL_GPU_BLENDOP_SUBTRACT,SDL_GPU_BLENDOP_REVERSE_SUBTRACT,SDL_GPU_BLENDOP_MIN,SDL_GPU_BLENDOP_MAX};
+		b->src_color_blendfactor=factors[custom.src];
+		b->dst_color_blendfactor=factors[custom.dst];
+		b->color_blend_op=ops[custom.op];
+		b->src_alpha_blendfactor=factors[custom.srcAlpha];
+		b->dst_alpha_blendfactor=factors[custom.dstAlpha];
+		b->alpha_blend_op=ops[custom.opAlpha];
+	}
+	SDL_GPUGraphicsPipelineCreateInfo pipeline={0};
+	pipeline.vertex_shader=compact?c->compactVertex:c->vertex;
+	pipeline.fragment_shader=c->fragment;
+	if(!compact) pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
+	pipeline.primitive_type=SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+	pipeline.rasterizer_state.fill_mode=SDL_GPU_FILLMODE_FILL;
+	pipeline.target_info.color_target_descriptions=&colour;
+	pipeline.target_info.num_color_targets=1;
+	return SDL_CreateGPUGraphicsPipeline(c->device,&pipeline);
+}
+static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compact,int blend) {
+	if(blend>=1 && blend<=5) {
+		SDL_GPUGraphicsPipeline **p=compact?c->compactPipelines[kind]:c->pipelines[kind];
+		if(!p[blend]) p[blend]=create_pipeline(c,kind,compact,blend);
+		return p[blend];
+	}
+	M2DBlend spec;
+	if(!m2d_blend_decode(blend,&spec)) return NULL;
+	for(GPUBlendPipeline *entry=c->customBlends;entry;entry=entry->next) {
+		if(entry->blend==blend && entry->kind==kind && entry->compact==compact) return entry->pipeline;
+	}
+	GPUBlendPipeline *entry=calloc(1,sizeof(*entry));
+	if(!entry) { fail("Out of memory"); return NULL; }
+	entry->blend=blend;
+	entry->kind=kind;
+	entry->compact=compact;
+	entry->pipeline=create_pipeline(c,kind,compact,blend);
+	entry->next=c->customBlends;
+	c->customBlends=entry;
+	return entry->pipeline;
+}
+int m2d_gpu_blend(GPUContext *c,int blend) {
+	return blend_pipeline(c,0,0,blend)!=NULL;
+}
+static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 	for(int blend=1;blend<=5;++blend) {
-		if(pipelines[blend]) continue;
-		SDL_GPUColorTargetDescription colour={0};
-		colour.format=texture_format(kind);
-		SDL_GPUColorTargetBlendState *b=&colour.blend_state;
-		b->enable_blend=blend>=3;
-		b->color_blend_op=SDL_GPU_BLENDOP_ADD;
-		b->alpha_blend_op=SDL_GPU_BLENDOP_ADD;
-		b->src_color_blendfactor=blend==5?SDL_GPU_BLENDFACTOR_DST_COLOR:SDL_GPU_BLENDFACTOR_ONE;
-		b->dst_color_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:blend==4?SDL_GPU_BLENDFACTOR_ONE:SDL_GPU_BLENDFACTOR_ZERO;
-		b->src_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE:SDL_GPU_BLENDFACTOR_ZERO;
-		b->dst_alpha_blendfactor=blend==3?SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:SDL_GPU_BLENDFACTOR_ONE;
-		SDL_GPUGraphicsPipelineCreateInfo pipeline={0};
-		pipeline.vertex_shader=compact?c->compactVertex:c->vertex;
-		pipeline.fragment_shader=c->fragment;
-		if(!compact) pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
-		pipeline.primitive_type=SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-		pipeline.rasterizer_state.fill_mode=SDL_GPU_FILLMODE_FILL;
-		pipeline.target_info.color_target_descriptions=&colour;
-		pipeline.target_info.num_color_targets=1;
-		pipelines[blend]=SDL_CreateGPUGraphicsPipeline(c->device,&pipeline);
-		if(!pipelines[blend]) return 0;
+		if(!blend_pipeline(c,kind,compact,blend)) return 0;
 	}
 	return 1;
 }
@@ -347,7 +396,8 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
-	if(compact && !ensure_pipelines_mode(c,target?target->kind:0,1)) return 0;
+	SDL_GPUGraphicsPipeline *pipeline=blend_pipeline(c,target?target->kind:0,compact,blend);
+	if(!pipeline) return 0;
 	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
 	int padding=compact?(c->vertexCount & 1):0;
 	if(c->vertexCount+count+padding>262144) {
@@ -374,6 +424,7 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 		++c->vertexCount;
 	}
 	GPUDraw *draw=&c->draws[c->drawCount++];
+	draw->pipeline=pipeline;
 	draw->compact=compact;
 	draw->destination=target;
 	draw->source=source;
@@ -478,7 +529,7 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
-		SDL_BindGPUGraphicsPipeline(pass,draw->compact?c->compactPipelines[target->kind][draw->blend]:c->pipelines[target->kind][draw->blend]);
+		SDL_BindGPUGraphicsPipeline(pass,draw->pipeline);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
 		if(draw->compact) SDL_BindGPUVertexStorageBuffers(pass,0,&c->vertices,1);

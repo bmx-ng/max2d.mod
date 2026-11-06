@@ -291,7 +291,7 @@ Type TD3D9Max2DContext Extends TMax2DContext
 	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
 	End Rem
  Method SupportsBlend:Int(blend:Int) Override
-  Return blend>=MASKBLEND And blend<=SHADEBLEND
+  Return m2d9_blend(native,blend)
  End Method
 
 	Rem
@@ -540,6 +540,7 @@ Function D3D9Max2DDriver:TD3D9Max2DDriver()
 End Function
 
 Extern "C"
+	Function m2d9_blend:Int(context:Byte Ptr,blend:Int)
  Function m2d9_snapshot:Byte Ptr(context:Byte Ptr,frame:Byte Ptr)
  Function m2d9_release_snapshot(snapshot:Byte Ptr)
  Function m2d9_restore:Int(context:Byte Ptr,frame:Byte Ptr,snapshot:Byte Ptr)

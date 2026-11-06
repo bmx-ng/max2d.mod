@@ -304,7 +304,7 @@ Type TSDLRenderContext Extends TMax2DContext
 	End Rem
 	Method SupportsBlend:Int(blend:Int) Override
 		If blend = MASKBLEND Then Return mask <> Null
-		Return blend >= SOLIDBLEND And blend <= SHADEBLEND
+		Return m2d_sdl_blend(renderer.rendererPtr,blend)
 	End Method
 
 	Rem
@@ -455,6 +455,7 @@ End Function
 Public
 
 Extern
+	Function m2d_sdl_blend:Int(renderer:Byte Ptr,blend:Int)
 	Function m2d_sdl_mask_create:Byte Ptr(renderer:Byte Ptr)
 	Function m2d_sdl_mask_destroy(mask:Byte Ptr)
 	Function m2d_sdl_renderer_hint:Int(name:Byte Ptr)

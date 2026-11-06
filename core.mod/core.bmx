@@ -7,6 +7,8 @@ Module Max2D.Core
 ModuleInfo "Version: 0.02"
 ModuleInfo "License: zlib/libpng"
 
+Import "blend.bmx"
+
 Import Text.Boundaries
 Import Text.Bidi
 Import BRL.Graphics

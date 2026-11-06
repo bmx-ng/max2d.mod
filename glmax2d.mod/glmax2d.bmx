@@ -301,7 +301,7 @@ Type TGLMax2DContext Extends TMax2DContext
 	param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
 	End Rem
  Method SupportsBlend:Int(blend:Int) Override
-  Return blend>=MASKBLEND And blend<=SHADEBLEND
+  Return m2d_gl_blend(blend)
  End Method
 
 	Rem
@@ -554,6 +554,7 @@ End Extern
 ?
 
 Extern "C"
+	Function m2d_gl_blend:Int(blend:Int)
  Function m2d_gl_error:Byte Ptr()
  Function m2d_gl_open:Byte Ptr()
  Function m2d_gl_close(context:Byte Ptr)

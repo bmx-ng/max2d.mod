@@ -179,7 +179,7 @@ End Function
 
 Rem
 bbdoc: Reports whether the current backend supports the requested blend mode.
-param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
+param: Named blend mode such as ALPHABLEND or SUBTRACTBLEND, or a value returned by CreateBlendMode.
 End Rem
 Function Max2DSupportsBlend:Int(blend:Int)
 	Return TMax2DGraphics.Current().context.SupportsBlend(blend)
@@ -539,7 +539,8 @@ End Function
 
 Rem
 bbdoc: Selects the blend mode used for subsequent drawing.
-param: Blend mode, such as ALPHABLEND or SOLIDBLEND.
+param: Named blend mode such as ALPHABLEND or SUBTRACTBLEND, or a value returned by CreateBlendMode.
+about: Unsupported modes throw without changing drawing state. Query Max2DSupportsBlend after opening graphics. Custom modes are preserved by GetBlend and the drawing-state stack.
 End Rem
 Function SetBlend(blend:Int)
 	TMax2DGraphics.Current().SetBlend(blend)

@@ -288,3 +288,15 @@ loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master
 and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
 BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
 while native Wayland canvas attachment remains future work.
+
+### Custom blending
+
+Use `SetBlend(SUBTRACTBLEND)` to darken the destination by the source colour
+multiplied by its alpha. Use `CreateBlendMode(...)` for custom colour and alpha
+factors and operations; its return value works with the ordinary `SetBlend`,
+`GetBlend` and drawing-state functions. Check `Max2DSupportsBlend` after opening
+graphics, because available combinations depend on the backend and device.
+
+See [Blending: recipes and backend support](docs/blending.md),
+[the blend gallery](examples/custom_blending.bmx) and
+[blending into a transparent image](examples/blend_render_image.bmx).

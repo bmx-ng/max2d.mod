@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <map>
+#include <max2d.mod/core.mod/blend.h>
 #include <d3d11.h>
 #include <d3d10.h>
 #include <cmath>
@@ -14,6 +16,7 @@ struct M2D11 {
  ID3D11Device *device;ID3D11DeviceContext *context;
  ID3D11VertexShader *vs;ID3D11PixelShader *ps;ID3D11InputLayout *layout;
  ID3D11Buffer *vertices,*settings;UINT capacity;
+ std::map<int,ID3D11BlendState *> customBlends;
  ID3D11BlendState *blends[5];ID3D11SamplerState *samplers[2];
  ID3D11RasterizerState *raster;ID3D11DepthStencilState *depth;
  int mipmaps;
@@ -39,8 +42,31 @@ void m2d11_close(M2D11 *c){
  if(!c)return;
  c->context->ClearState();
  release(c->vs);release(c->ps);release(c->layout);release(c->vertices);release(c->settings);
+ for(auto &entry:c->customBlends)release(entry.second);
  for(auto &s:c->blends)release(s);for(auto &s:c->samplers)release(s);
  release(c->raster);release(c->depth);delete c;
+}
+int m2d11_blend(M2D11 *c,int mode) {
+	if(mode>=1 && mode<=5) return 1;
+	M2DBlend b;
+	if(!m2d_blend_decode(mode,&b)) return 0;
+	if(c->customBlends.count(mode)) return c->customBlends[mode]!=nullptr;
+	static const D3D11_BLEND factors[]={D3D11_BLEND_ZERO,D3D11_BLEND_ZERO,D3D11_BLEND_ONE,D3D11_BLEND_SRC_COLOR,D3D11_BLEND_INV_SRC_COLOR,D3D11_BLEND_SRC_ALPHA,D3D11_BLEND_INV_SRC_ALPHA,D3D11_BLEND_DEST_COLOR,D3D11_BLEND_INV_DEST_COLOR,D3D11_BLEND_DEST_ALPHA,D3D11_BLEND_INV_DEST_ALPHA};
+	static const D3D11_BLEND_OP ops[]={D3D11_BLEND_OP_ADD,D3D11_BLEND_OP_ADD,D3D11_BLEND_OP_SUBTRACT,D3D11_BLEND_OP_REV_SUBTRACT,D3D11_BLEND_OP_MIN,D3D11_BLEND_OP_MAX};
+	D3D11_BLEND_DESC desc={};
+	auto &r=desc.RenderTarget[0];
+	r.RenderTargetWriteMask=D3D11_COLOR_WRITE_ENABLE_ALL;
+	r.BlendEnable=TRUE;
+	r.SrcBlend=factors[b.src];
+	r.DestBlend=factors[b.dst];
+	r.BlendOp=ops[b.op];
+	r.SrcBlendAlpha=factors[b.srcAlpha];
+	r.DestBlendAlpha=factors[b.dstAlpha];
+	r.BlendOpAlpha=ops[b.opAlpha];
+	ID3D11BlendState *state=nullptr;
+	c->device->CreateBlendState(&desc,&state);
+	c->customBlends[mode]=state;
+	return state!=nullptr;
 }
 void *m2d11_open(ID3D11Device *device,ID3D11DeviceContext *context){
  M2D11 *c=new M2D11();c->device=device;c->context=context;
@@ -190,7 +216,7 @@ int m2d11_view(M2D11 *c,int width,int height,int ox,int oy,int vw,int vh,float s
 }
 static int draw(M2D11 *c,ID3D11RenderTargetView *target,M2D11Texture *t,int blend,const float *v,int count,bool pixels,bool outputPremult){
  if(count<=0||c->clip.right<=c->clip.left||c->clip.bottom<=c->clip.top)return 1;
- if(c->width<=0||c->height<=0||blend<1||blend>5||count>0x7fffffff/32)return check(E_INVALIDARG,"Draw arguments");
+ if(c->width<=0||c->height<=0||!m2d11_blend(c,blend)||count>0x7fffffff/32)return check(E_INVALIDARG,"Draw arguments");
  UINT bytes=count*32;
  if(bytes>c->capacity){
   D3D11_BUFFER_DESC d={};d.ByteWidth=std::max(bytes,UINT(65536));d.Usage=D3D11_USAGE_DYNAMIC;d.BindFlags=D3D11_BIND_VERTEX_BUFFER;d.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
@@ -220,7 +246,7 @@ static int draw(M2D11 *c,ID3D11RenderTargetView *target,M2D11Texture *t,int blen
   ctx->GenerateMips(t->view);t->mipDirty=0;generated=1;
  }
  ID3D11ShaderResourceView *image=t?t->view:nullptr;ctx->PSSetShaderResources(0,1,&image);ctx->PSSetSamplers(0,1,&c->samplers[t?t->filtered:0]);
- ctx->OMSetBlendState(c->blends[blend-1],nullptr,0xffffffff);ctx->OMSetDepthStencilState(c->depth,0);
+ ctx->OMSetBlendState(blend<=5?c->blends[blend-1]:c->customBlends[blend],nullptr,0xffffffff);ctx->OMSetDepthStencilState(c->depth,0);
  D3D11_VIEWPORT viewport={0,0,(float)c->width,(float)c->height,0,1};ctx->RSSetViewports(1,&viewport);ctx->RSSetState(c->raster);ctx->RSSetScissorRects(1,&c->clip);
  ctx->Draw(count,0);return check(c->device->GetDeviceRemovedReason(),"Draw triangles")?1+generated:0;
 }

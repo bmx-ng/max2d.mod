@@ -1,3 +1,4 @@
+#include <max2d.mod/core.mod/blend.h>
 #include <SDL3/SDL.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -130,6 +131,35 @@ static SDL_Texture *premult_texture(M2DTexture *frame) {
     return frame->premult;
 }
 
+static SDL_BlendMode custom_blend(const M2DBlend *b) {
+	return SDL_ComposeCustomBlendMode((SDL_BlendFactor)b->src,(SDL_BlendFactor)b->dst,(SDL_BlendOperation)b->op,
+		(SDL_BlendFactor)b->srcAlpha,(SDL_BlendFactor)b->dstAlpha,(SDL_BlendOperation)b->opAlpha);
+}
+int m2d_sdl_blend(SDL_Renderer *renderer,int blend) {
+	if(blend>=2 && blend<=5) return 1;
+	M2DBlend b;
+	if(!m2d_blend_decode(blend,&b)) return 0;
+	/* Software geometry does not reliably implement custom equations, even
+	 * when its blend setters accept a mode equivalent to a built-in constant. */
+	const char *name=SDL_GetRendererName(renderer);
+	if(name && SDL_strcmp(name,"software")==0) return 0;
+	SDL_PropertiesID props=SDL_GetRendererProperties(renderer);
+	char key[64];
+	SDL_snprintf(key,sizeof(key),"max2d.blend.%d",blend);
+	Sint64 cached=SDL_GetNumberProperty(props,key,0);
+	if(cached) return cached>0;
+	SDL_BlendMode old;
+	if(!SDL_GetRenderDrawBlendMode(renderer,&old)) return 0;
+	SDL_BlendMode mode=custom_blend(&b);
+	SDL_Texture *probe=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_STATIC,1,1);
+	if(!probe) return 0;
+	bool supported=SDL_SetTextureBlendMode(probe,mode) && SDL_SetRenderDrawBlendMode(renderer,mode);
+	SDL_DestroyTexture(probe);
+	if(!SDL_SetRenderDrawBlendMode(renderer,old)) return 0;
+	SDL_SetNumberProperty(props,key,supported?1:-1);
+	return supported;
+}
+
 int m2d_sdl_submit(SDL_Renderer *renderer, M2DMask *mask, M2DTexture *destination, M2DTexture *frame, int blend, float *vertices, int count, float sx, float sy) {
     SDL_Texture *texture = NULL;
     bool premult_vertex = false;
@@ -160,9 +190,13 @@ int m2d_sdl_submit(SDL_Renderer *renderer, M2DMask *mask, M2DTexture *destinatio
             if (frame) texture = straight_texture(frame);
             mode = SDL_BLENDMODE_MOD;
             break;
-        default:
-            SDL_SetError("Max2D: unsupported blend mode");
-            return 0;
+        default: {
+            M2DBlend custom;
+            if(!m2d_blend_decode(blend,&custom)) return SDL_SetError("Max2D: unsupported blend mode");
+            mode=custom_blend(&custom);
+            if(frame) texture=straight_texture(frame);
+            break;
+        }
     }
     if (frame && !texture) return 0;
     if (texture) {
