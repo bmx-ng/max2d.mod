@@ -123,3 +123,14 @@ driver alignment, the window backing surface and shared geometry buffers. The
 timings are CPU wall-clock intervals, not GPU timestamps; compositor pacing can
 dominate even with `Flip(0)`. See [effects and masking](../docs/effects-and-masking.md)
 for the initial validation and the implementation's batching limits.
+
+## Scaled blur
+
+Build `scaled_blur.bmx` with the native SDL GPU backend. It prints CSV for 256²
+and 512² layers at full, half and quarter resolution, rebuilding or drawing cached
+outputs. Each case has 20 warm-up and 60 measured frames. Radii are 4, 8 and 16
+respectively, so these cases demonstrate wider effects rather than equal output.
+`retained_bytes` counts source, destination, reduction levels and scratch at
+RGBA8 size. Counters include the final display draw. Timings measure CPU
+whole-frame duration, including presentation; they are not GPU timings or proof
+of a speedup. Run with the window visible and without another local graphics test.

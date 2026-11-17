@@ -328,3 +328,8 @@ see the [combined blur and colour example](examples/layer_effect_chain.bmx).
 `CreateColorizeEffect` replaces source RGB while preserving alpha. Combine it
 with blur for cached silhouettes, soft shadows and coloured glows; see the
 [shadow/glow example](examples/colorize_effects.bmx).
+
+`CreateScaledBlur` adds wider approximate blurs using retained half-size levels.
+Its `Apply` method downsamples, blurs and enlarges while preserving drawing state.
+See the [resolution comparison](examples/scaled_blur.bmx) and
+[storage, quality and pass costs](docs/effects-and-masking.md#wider-blur-with-retained-reduction-levels).

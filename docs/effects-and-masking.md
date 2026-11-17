@@ -395,3 +395,74 @@ and chain regressions also passed on macOS native, software and OpenGL profiles.
 DXBC compiled successfully; Direct3D runtime validation remains outstanding.
 The macOS GUI example was opened and inspected, including colour and radius
 changes through its live controls.
+
+## Wider blur with retained reduction levels
+
+`CreateScaledBlur(radius)` returns a reusable `TMax2DScaledBlur` description.
+`SetRadius` and `GetRadius` use full-resolution source pixels. Call
+`blur.Apply(source, destination, levels, scratch)` to reduce, blur and enlarge.
+
+The caller creates and retains every image:
+
+- Source and destination have equal dimensions and are distinct.
+- `levels` runs from largest to smallest. Each level halves both preceding
+  dimensions, rounded up: for example 129×97 → 65×49 → 33×25.
+- Scratch matches the smallest level. An empty levels array uses source size.
+- All images are distinct. Source, levels and scratch use `FILTEREDIMAGE`
+  without `MIPMAPPEDIMAGE`; the final destination can use either sampling mode.
+
+The radius must fit the existing four-pixel kernel at the smallest level:
+`radius × smallestWidth / sourceWidth <= 4`, and likewise for height. For even,
+square images, zero, one and two levels permit radii up to 4, 8 and 16. Odd or
+narrow dimensions may reduce that limit. Invalid dimensions, aliases, sampling
+flags and oversized radii are rejected before drawing. Shader support is checked
+before output pixels are written. Runtime errors after drawing starts cannot
+roll back output pixels.
+
+Successive bilinear reductions avoid skipping large spans of source pixels in a
+single resize. At exact halves each output averages a 2×2 source footprint.
+Odd sizes use approximate bilinear resampling, not exact area integration.
+All filtering operates on premultiplied render-image storage to avoid coloured
+fringes from transparent pixels. Keep transparent padding around source content;
+edge sampling during resizing clamps to the image boundary.
+
+The radius describes the blur kernel before the additional smoothing from
+reduction and enlargement. Reduced output is approximate and loses fine detail;
+even radius zero still filters when levels exist. Zero radius with no levels is
+an identity operation. The [comparison example](../examples/scaled_blur.bmx)
+toggles between equal radii (quality comparison) and wider radii at lower
+resolutions. Results are rebuilt only when the setting changes.
+
+| Reduction levels | Rebuild draws | Smallest size for 256² source | Maximum radius |
+| --- | ---: | ---: | ---: |
+| None | 2 | 256² | 4 |
+| One | 4 | 128² | 8 |
+| Two | 5 | 64² | 16 |
+
+The helper restores caller state and every target's viewport and virtual
+resolution. It allocates state scopes, but no images, arrays or effect objects.
+Cached output costs one ordinary image draw. The wider path adds reduction and
+enlargement passes while doing its two nine-tap blur passes on fewer pixels;
+this tradeoff does not guarantee faster frames for small images.
+
+### Scaled-blur validation (2026-11-17)
+
+The independent CPU reference checks all output alpha pixels for even and odd
+rectangular images, at zero, one and two reduction levels. A fine checkerboard
+exercises reduction filtering; transparent coloured pixels exercise premultiplied
+colour preservation. Tests cover both native sprite paths, two context lifetimes,
+non-default handles, saved caller/output views, source preservation, zero-radius
+identity, invalid radius and scratch alias rejection. They pass on macOS Metal
+and Windows/Ubuntu Vulkan. Software SDL and OpenGL pass explicit unsupported
+shader handling and state restoration. The macOS GUI comparison was opened and
+both equal-radius and wider-radius modes were visually checked.
+
+The benchmark smoke captures use 20 warm-up and 60 measured frames per case:
+[macOS](scaled-blur-macos-smoke.csv), [Ubuntu](scaled-blur-linux-smoke.csv),
+and [Windows](scaled-blur-windows-smoke.csv). Full, half and quarter-resolution
+rebuilds plus display cost 3, 5 and 6 submissions respectively; cached display
+costs one. All measured cases have zero texture creation, upload and readback.
+At 256², retained RGBA8 image storage per case is 768, 640 and 608 KiB respectively;
+at 512² it is 3, 2.5 and 2.375 MiB. Captures measure CPU frame time and include
+presentation pacing and VM overhead. They do not establish GPU execution cost
+or a reliable speedup, and the three rebuild cases use different blur radii.
