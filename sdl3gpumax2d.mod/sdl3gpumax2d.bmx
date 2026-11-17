@@ -55,7 +55,57 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	about: Native window overlays use this format and SDL_GPU_SAMPLECOUNT_1, not necessarily the swapchain's format.
 	End Rem
 	Method WindowOverlayFormat:Int()
-		Return m2d_gpu_window_format()
+		CheckOpen()
+		Return m2d_gpu_window_format(native)
+	End Method
+
+	Rem
+	bbdoc: Reports support for extended linear HDR presentation on this window.
+	about: This checks the output format, not whether the display currently has HDR brightness headroom.
+	End Rem
+	Method SupportsHDROutput:Int()
+		CheckOpen()
+		Return m2d_gpu_hdr_support(native)
+	End Method
+
+	Rem
+	bbdoc: Enables extended linear HDR output, or restores the default SDR output.
+	about: Requires this context to be current with the window selected. Flushes drawing and clears the window buffer. HDR uses RGBA16F and linear sRGB values; ordinary colours and textures are not automatically converted from sRGB. Reference white is 1; use SDRWhiteLevel for the OS white point. Rebuild native overlay pipelines after changing mode. Unsupported requests throw and preserve the previous mode. GrabPixmap of the HDR window is unsupported; read a floating-point render image for HDR captures.
+	End Rem
+	Method SetHDROutput(enabled:Int)
+		CheckOpen()
+		If TMax2DGraphics.Current().context<>Self Then Throw "Max2D SDL GPU: HDR context is not current"
+		If target Then Throw "Max2D SDL GPU: select the window before changing HDR output"
+		Flush()
+		Require(m2d_gpu_set_hdr(native,enabled))
+		ApplyView()
+	End Method
+
+	Rem
+	bbdoc: Reports whether this context is configured for extended linear HDR output.
+	about: This does not guarantee that the current display has brightness above SDR white.
+	End Rem
+	Method HDROutput:Int()
+		CheckOpen()
+		Return m2d_gpu_hdr(native)
+	End Method
+
+	Rem
+	bbdoc: Returns current display headroom as a multiple of SDR white; 1 means no extra brightness.
+	about: Query again after moving the window or changing display settings.
+	End Rem
+	Method HDRHeadroom:Float()
+		CheckOpen()
+		Return m2d_gpu_hdr_headroom(native)
+	End Method
+
+	Rem
+	bbdoc: Returns the operating system's SDR white level in extended linear output units.
+	about: Multiply linear content by this value to align normal white with the desktop white point.
+	End Rem
+	Method SDRWhiteLevel:Float()
+		CheckOpen()
+		Return m2d_gpu_sdr_white(native)
 	End Method
 
 	Rem
@@ -596,9 +646,14 @@ Function SetSDLGPUMax2DCompactSprites(enabled:Int)
 End Function
 
 Extern "C"
+	Function m2d_gpu_hdr_support:Int(context:Byte Ptr)
+	Function m2d_gpu_set_hdr:Int(context:Byte Ptr,enabled:Int)
+	Function m2d_gpu_hdr:Int(context:Byte Ptr)
+	Function m2d_gpu_hdr_headroom:Float(context:Byte Ptr)
+	Function m2d_gpu_sdr_white:Float(context:Byte Ptr)
 	Function m2d_gpu_blend:Int(context:Byte Ptr,blend:Int)
 	Function m2d_gpu_device:Byte Ptr(context:Byte Ptr)
-	Function m2d_gpu_window_format:Int()
+	Function m2d_gpu_window_format:Int(context:Byte Ptr)
 	Function m2d_gpu_window_overlay:Int(context:Byte Ptr,prepare:Byte Ptr,draw:Byte Ptr,data:Byte Ptr)
 	Function m2d_gpu_open:Byte Ptr(window:Byte Ptr)
 	Function m2d_gpu_open_attached:Byte Ptr(window:Byte Ptr,claim:Int(device:Byte Ptr,window:Byte Ptr))

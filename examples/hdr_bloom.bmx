@@ -2,7 +2,7 @@ SuperStrict
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 
-AppTitle = "Max2D HDR bloom and tone mapping"
+AppTitle = "Max2D HDR rendering to SDR tone mapping"
 Graphics(1000, 430)
 Local tone:TMax2DToneMapEffect = CreateToneMapEffect(1, 2.2)
 Local bright:TMax2DBrightPassEffect = CreateBrightPassEffect(1.5)

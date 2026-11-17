@@ -58,6 +58,8 @@ struct GPUContext {
 	float transform[4];
 	SDL_Rect clip;
 	int sync;
+	int windowKind;
+	SDL_GPUSwapchainComposition composition;
 };
 static int fail(const char *message) { SDL_SetError("Max2D SDL GPU: %s",message); return 0; }
 static int flush(GPUContext *c);
@@ -375,7 +377,7 @@ static SDL_GPUGraphicsPipeline *image_effect_pipeline(GPUContext *c,GPUImageEffe
 	return entry->pipeline;
 }
 int m2d_gpu_image_effect_support(GPUContext *c,GPUImageEffect *effect,GPUFrame *target,int blend,int compact) {
-	return image_effect_pipeline(c,effect,target?target->kind:0,compact,blend)!=NULL;
+	return image_effect_pipeline(c,effect,target?target->kind:c->windowKind,compact,blend)!=NULL;
 }
 void m2d_gpu_select_image_effect(GPUContext *c,GPUImageEffect *effect,float p0,float p1,float p2,float p3) {
 	c->selectedEffect=effect;
@@ -385,7 +387,7 @@ void m2d_gpu_select_image_effect(GPUContext *c,GPUImageEffect *effect,float p0,f
 	c->effectParameters[3]=p3;
 }
 int m2d_gpu_blend(GPUContext *c,int blend) {
-	return blend_pipeline(c,0,0,blend)!=NULL;
+	return blend_pipeline(c,c->windowKind,0,blend)!=NULL;
 }
 static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 	for(int blend=1;blend<=5;++blend) {
@@ -394,7 +396,7 @@ static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 	return 1;
 }
 static int ensure_pipelines(GPUContext *c,int kind) { return ensure_pipelines_mode(c,kind,0); }
-int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,0,1); }
+int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,c->windowKind,1); }
 void *m2d_gpu_open_attached(SDL_Window *window, int (*claim)(SDL_GPUDevice *, SDL_Window *)) {
 	GPUContext *c=calloc(1,sizeof(*c));
 	if(!c) { fail("Out of memory"); return NULL; }
@@ -444,12 +446,45 @@ void m2d_gpu_destroy(GPUFrame *f) {
 	release_frame(f);
 }
 static int ensure_backbuffer(GPUContext *c,int w,int h) {
-	if(c->backbuffer && c->backbuffer->width==w && c->backbuffer->height==h) return 1;
+	if(c->backbuffer && c->backbuffer->width==w && c->backbuffer->height==h && c->backbuffer->kind==c->windowKind) return 1;
 	if(!flush(c)) return 0;
-	GPUFrame *frame=create_frame(c,w,h,1,0,0,0,1);
+	GPUFrame *frame=create_frame(c,w,h,1,c->windowKind,0,0,1);
 	if(!frame) return 0;
 	release_frame(c->backbuffer);
 	c->backbuffer=frame;
+	return 1;
+}
+/* Extended linear output is opt-in. Values are linear sRGB, with 1 as reference
+ * white; existing image data and drawing colours are not implicitly decoded. */
+int m2d_gpu_hdr_support(GPUContext *c) {
+	return SDL_WindowSupportsGPUSwapchainComposition(c->device,c->window,SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR)
+		&& m2d_gpu_target_support(c,2);
+}
+int m2d_gpu_hdr(GPUContext *c) { return c->windowKind==2; }
+float m2d_gpu_hdr_headroom(GPUContext *c) {
+	return SDL_GetFloatProperty(SDL_GetWindowProperties(c->window),SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT,1.f);
+}
+float m2d_gpu_sdr_white(GPUContext *c) {
+	return SDL_GetFloatProperty(SDL_GetWindowProperties(c->window),SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT,1.f);
+}
+int m2d_gpu_set_hdr(GPUContext *c,int enabled) {
+	int kind=enabled?2:0;
+	if(kind==c->windowKind) return 1;
+	if(enabled && !m2d_gpu_hdr_support(c)) return fail("Extended linear HDR output is unsupported");
+	if(!ensure_pipelines(c,kind) || !ensure_pipelines_mode(c,kind,1) || !flush(c)) return 0;
+	int w,h;
+	if(!SDL_GetWindowSizeInPixels(c->window,&w,&h)) return 0;
+	if(w<1 || h<1) return fail("Cannot change HDR output for an empty window");
+	GPUFrame *frame=create_frame(c,w,h,1,kind,0,0,1);
+	if(!frame) return 0;
+	SDL_GPUSwapchainComposition composition=enabled?SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR:SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+	SDL_GPUPresentMode mode=c->sync?SDL_GPU_PRESENTMODE_VSYNC:SDL_GPU_PRESENTMODE_IMMEDIATE;
+	if(!SDL_WindowSupportsGPUPresentMode(c->device,c->window,mode)) mode=SDL_GPU_PRESENTMODE_VSYNC;
+	if(!SDL_SetGPUSwapchainParameters(c->device,c->window,composition,mode)) { release_frame(frame); return 0; }
+	release_frame(c->backbuffer);
+	c->backbuffer=frame;
+	c->windowKind=kind;
+	c->composition=composition;
 	return 1;
 }
 static int clampi(int n,int lo,int hi) { return n<lo?lo:n>hi?hi:n; }
@@ -470,8 +505,8 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
 	SDL_GPUGraphicsPipeline *pipeline=c->selectedEffect?
-		image_effect_pipeline(c,c->selectedEffect,target?target->kind:0,compact,blend):
-		blend_pipeline(c,target?target->kind:0,compact,blend);
+		image_effect_pipeline(c,c->selectedEffect,target?target->kind:c->windowKind,compact,blend):
+		blend_pipeline(c,target?target->kind:c->windowKind,compact,blend);
 	if(!pipeline) return 0;
 	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
 	int padding=compact?(c->vertexCount & 1):0;
@@ -662,7 +697,7 @@ int m2d_gpu_present(GPUContext *c,int sync) {
 	if(sync!=c->sync) {
 		SDL_GPUPresentMode mode=sync?SDL_GPU_PRESENTMODE_VSYNC:SDL_GPU_PRESENTMODE_IMMEDIATE;
 		if(!SDL_WindowSupportsGPUPresentMode(c->device,c->window,mode)) mode=SDL_GPU_PRESENTMODE_VSYNC;
-		if(!SDL_SetGPUSwapchainParameters(c->device,c->window,SDL_GPU_SWAPCHAINCOMPOSITION_SDR,mode)) return 0;
+		if(!SDL_SetGPUSwapchainParameters(c->device,c->window,c->composition,mode)) return 0;
 		c->sync=sync;
 	}
 	SDL_GPUCommandBuffer *cmd=SDL_AcquireGPUCommandBuffer(c->device);
@@ -697,6 +732,7 @@ static int read_pixels(GPUContext *c,GPUFrame *frame,int x,int y,int w,int h,uns
 	if(!flush(c)) return 0;
 	GPUFrame *f=frame?frame:c->backbuffer;
 	if(!f || x<0 || y<0 || w>f->width || h>f->height || x>f->width-w || y>f->height-h) return fail("Read rectangle outside surface");
+	if(!frame && !floating && f->kind!=0) return fail("GrabPixmap cannot capture an HDR window; read a floating-point render image instead");
 	if(floating ? (f->kind!=2 && f->kind!=3) : f->kind!=0) return fail("Readback format mismatch");
 	int bpp=f->bytesPerUnit;
 	Uint64 row=((Uint64)w*bpp+255)&~(Uint64)255;
@@ -757,13 +793,15 @@ int m2d_gpu_read(GPUContext *c,GPUFrame *frame,int x,int y,int w,int h,unsigned 
 	return read_pixels(c,frame,x,y,w,h,pixels,pitch,0);
 }
 int m2d_gpu_read_float(GPUContext *c,GPUFrame *frame,unsigned char *pixels) {
-	return read_pixels(c,frame,0,0,frame->width,frame->height,pixels,frame->width*16,1);
+	GPUFrame *f=frame?frame:c->backbuffer;
+	if(!f) return fail("Window backbuffer is unavailable");
+	return read_pixels(c,frame,0,0,f->width,f->height,pixels,f->width*16,1);
 }
 
 /* Borrowed device and a scoped window overlay for native GPU integrations.
  * Callbacks are native C functions and must not throw or re-enter Max2D. */
 SDL_GPUDevice *m2d_gpu_device(GPUContext *c) { return c->device; }
-int m2d_gpu_window_format(void) { return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM; }
+int m2d_gpu_window_format(GPUContext *c) { return texture_format(c->windowKind); }
 int m2d_gpu_window_overlay(GPUContext *c,
 	void (*prepare)(void *, SDL_GPUCommandBuffer *),
 	void (*draw)(void *, SDL_GPUCommandBuffer *, SDL_GPURenderPass *), void *data) {

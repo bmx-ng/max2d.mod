@@ -17,6 +17,9 @@ choose a backend without rewriting your scene code.
 - [Capabilities and limitations](#capabilities-and-limitations)
 - [Examples and documentation](#examples-and-documentation)
 
+The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
+with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
+
 ## Get started
 
 Use a **bcc2-based BlitzMax NG SDK** with up-to-date BRL, Pub, Text and Math
