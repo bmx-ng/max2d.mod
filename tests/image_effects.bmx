@@ -118,6 +118,47 @@ Try
 			DrawImage(image, 20, 0)
 			pixels = ReadRenderImage(target)
 			Pixel(pixels, 21, 200, 100, 50, 128, "failed effect leaves ordinary rendering usable")
+
+			Cls
+			SetBlend(ALPHABLEND)
+			DrawImage(image, 8, 0)
+			DrawImageEffectBatch(image, effect, [Float(0), Float(0), Float(4), Float(0)])
+			effect.SetAmount(1)
+			DrawImage(image, 12, 0)
+			pixels = ReadRenderImage(target)
+			Pixel(pixels, 1, 118, 118, 118, 128, "first batch position")
+			Pixel(pixels, 5, 118, 118, 118, 128, "second batch position and parameter snapshot")
+			Pixel(pixels, 9, 200, 100, 50, 128, "ordinary draw before batch")
+			Pixel(pixels, 13, 200, 100, 50, 128, "ordinary draw after batch")
+			Local positions:Float[200]
+			ResetMax2DStats()
+			DrawImageEffectBatch(image, effect, positions)
+			stats = CaptureMax2DStats()
+			Check(stats.submissions = 1 And stats.vertices = 600 And stats.textureCreations = 0 And stats.textureUpdates = 0 And stats.readbacks = 0, "100 effect sprites share one warmed submission")
+			ResetMax2DStats()
+			DrawImageEffectBatch(image, effect, New Float[0])
+			rejected = False
+			Try
+				DrawImageEffectBatch(image, effect, New Float[3])
+			Catch error:Object
+				rejected = True
+			End Try
+			Check(rejected And CaptureMax2DStats().submissions = 0, "empty and malformed batches submit nothing")
+?max2d_sdlgpu
+			Local stride:Int = 48
+			If compact Then stride = 16
+			Local capacity:Int = TMax2DGraphics.Current().context.batch.Length / stride
+			positions = New Float[(capacity + 1) * 2]
+			positions[capacity * 2] = 20
+			effect.SetAmount(0)
+			Cls
+			ResetMax2DStats()
+			DrawImageEffectBatch(image, effect, positions)
+			stats = CaptureMax2DStats()
+			Check(stats.submissions = 2 And stats.vertices = (capacity + 1) * 6, "effect batch splits at buffer capacity")
+			pixels = ReadRenderImage(target)
+			Pixel(pixels, 21, 118, 118, 118, 128, "effect survives buffer-capacity flush")
+?
 		Next
 		SetRenderImage(Null)
 		EndGraphics

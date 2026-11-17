@@ -28,13 +28,29 @@ Type TSDLGPUSaturationBackend Extends TMax2DImageEffectBackend
 	End Method
 
 	Method Draw(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, x:Float, y:Float, frame:Int) Override
+		DrawMany(canvas, image, effect, Null, x, y, frame)
+	End Method
+
+	Method DrawBatch(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int) Override
+		DrawMany(canvas, image, effect, positions, 0, 0, frame)
+	End Method
+
+	Private
+
+	Method DrawMany(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], x:Float, y:Float, frame:Int)
 		Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(canvas.context)
 		Local shader:Byte Ptr = m2d_saturation_shader(context.native, context.GetGPUDevice())
 		If Not shader Then Throw "Max2D Effects: shader creation failed: " + SDL_GetError()
 		context.Flush()
 		m2d_gpu_select_image_effect(context.native, shader, TMax2DSaturationEffect(effect).GetAmount(), 0, 0, 0)
 		Try
-			canvas.DrawImage(image, x, y, frame)
+			If positions Then
+				For Local i:Int = 0 Until positions.Length Step 2
+					canvas.DrawImage(image, positions[i], positions[i + 1], frame)
+				Next
+			Else
+				canvas.DrawImage(image, x, y, frame)
+			End If
 			context.Flush()
 		Catch error:Object
 			' A failed submission must not leak effect geometry into an ordinary batch.

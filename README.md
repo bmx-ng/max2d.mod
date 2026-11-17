@@ -313,4 +313,5 @@ See [effects and masking](docs/effects-and-masking.md) and the
 For native SDL GPU colour effects, import `Max2D.SDL3GPUEffects` and use
 `CreateSaturationEffect` with `DrawImageEffect`. The shader preserves alpha and
 accepts a cached masked layer. Each call submits one image, without an intermediate
-surface. See the [interactive saturation example](examples/image_effects.bmx).
+surface. `DrawImageEffectBatch` batches repeated copies from a reusable x,y
+positions array. See the [interactive saturation example](examples/image_effects.bmx).

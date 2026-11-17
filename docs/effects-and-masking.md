@@ -72,13 +72,41 @@ normal render-image input. See [image_effects.bmx](../examples/image_effects.bmx
 for a cached masked group drawn in original colour, grayscale and adjustable
 saturation.
 
-Each call is an explicit batch boundary and one image draw. Multiple effect
-calls are not coalesced, so use a cached group for large collections of objects
-that need the same treatment. `SetAmount` changes a reusable parameter object
+Each `DrawImageEffect` call is an explicit batch boundary and one image draw.
+Separate calls are not coalesced. Use a cached group for a whole composition,
+or `DrawImageEffectBatch` for repeated copies of one image. `SetAmount` changes a reusable parameter object
 without allocating resources. Values are copied into the native draw record;
 changing the description afterwards cannot alter queued draws. Ordinary
 `DrawImage` continues using its existing shader and does not consult the effect
 provider registry. No ambient effect selection is added to Push/Pop state.
+
+### Repeated sprites
+
+`DrawImageEffectBatch(image, effect, positions, frame)` accepts a reusable
+`Float[]` containing x,y pairs in drawing order. All copies share the image frame,
+effect parameters and current drawing state. The native provider captures the
+parameters once, uses the existing triangle or compact sprite buffer, and splits
+only when that buffer fills. It flushes before returning and leaves no effect
+selected. No position-array copy or intermediate image is created.
+
+```blitzmax
+' Allocate once; update these coordinates in place when the sprites move.
+Local positions:Float[] = [Float(20), Float(30), Float(60), Float(30)]
+DrawImageEffectBatch(sprite, saturation, positions)
+```
+
+Empty positions are a no-op; odd lengths are rejected before drawing. The image
+and effect must be non-null even for an empty batch. A provider can override
+`TMax2DImageEffectBackend.DrawBatch` to accelerate this operation; its default
+implementation draws each copy separately. Image handles, scale, rotation,
+camera, tint, viewport and blend follow normal `DrawImage` semantics.
+
+The extended regression passed on Metal and both Vulkan VMs: 100 warmed copies
+produce one submission, 600 vertices, no texture creation, pixel upload or
+readback. Capacity-plus-one copies produce two submissions in both sprite paths.
+It also checks pixel output, parameter snapshots, ordinary draws surrounding the
+batch, and empty/malformed inputs. The GUI example now displays 100 miniatures
+and their submission count beneath the three colour treatments.
 
 The native context caches one shader per package key and pipelines by target
 format, blend mode and triangle/compact submission path. A support query warms
@@ -87,7 +115,7 @@ context releases the cache; effect descriptions can be reused with a new
 context. The native recorder carries an extra effect pointer and 16-byte
 parameter snapshot per batch (24 bytes on 64-bit hosts), but ordinary drawing
 adds no pass, uniform upload, texture copy or per-draw allocation. Effects use
-one extra 16-byte fragment-uniform upload per submitted image. They allocate no
+one extra 16-byte fragment-uniform upload per submitted effect batch. They allocate no
 intermediate surface. The existing growable draw/vertex buffers remain shared.
 
 The [built-in shader package](../sdl3gpueffects.mod/shaders/README.md) contains

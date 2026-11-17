@@ -77,6 +77,16 @@ Type TMax2DImageEffectBackend Abstract
 	End Rem
 	Method Draw(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, x:Float, y:Float, frame:Int) Abstract
 
+	Rem
+	bbdoc: Draws repeated images at interleaved x,y positions.
+	about: Providers may override this to coalesce compatible sprites. The default preserves ordering by invoking Draw for each position. The caller has validated an even, nonempty positions array.
+	End Rem
+	Method DrawBatch(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int)
+		For Local i:Int = 0 Until positions.Length Step 2
+			Draw(canvas, image, effect, positions[i], positions[i + 1], frame)
+		Next
+	End Method
+
 End Type
 
 Private
@@ -132,4 +142,24 @@ Function DrawImageEffect(image:TImage, effect:TMax2DImageEffect, x:Float, y:Floa
 	If Not backend Then Throw "Max2D Effects: no backend supports this image effect"
 	If Not backend.Supports(canvas, effect) Then Throw "Max2D Effects: image effect unsupported for this drawing state"
 	backend.Draw(canvas, image, effect, x, y, frame)
+End Function
+
+Rem
+bbdoc: Draws repeated copies of one image through an effect at interleaved x,y positions.
+param: Source image; sampling the current render target is forbidden.
+param: Reusable effect description.
+param: Reusable array containing x,y pairs in drawing order; no array copy is made.
+param: Zero-based image frame shared by all copies.
+about: Uses the normal image handle and current drawing state. The native SDL GPU provider captures parameters once and batches copies up to the existing sprite-buffer capacity. It ends the preceding batch and flushes before returning, leaving no ambient effect. Empty positions are a no-op; an odd length throws before drawing. Allocate and update the positions array outside the draw call to avoid per-frame allocation. Providers without batch acceleration may submit each copy separately.
+End Rem
+Function DrawImageEffectBatch(image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int = 0)
+	If Not image Or Not effect Then Throw "Max2D Effects: image and effect are required"
+	If positions.Length Mod 2 Then Throw "Max2D Effects: positions must contain x,y pairs"
+	If Not positions.Length Then Return
+	Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
+	If image = canvas.renderImage Then Throw "Max2D Effects: an effect cannot sample the current target"
+	Local backend:TMax2DImageEffectBackend = ImageEffectBackend(canvas, effect)
+	If Not backend Then Throw "Max2D Effects: no backend supports this image effect"
+	If Not backend.Supports(canvas, effect) Then Throw "Max2D Effects: image effect unsupported for this drawing state"
+	backend.DrawBatch(canvas, image, effect, positions, frame)
 End Function

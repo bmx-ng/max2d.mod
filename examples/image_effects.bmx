@@ -4,11 +4,16 @@ Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 
 AppTitle = "Max2D image effects - native SDL GPU"
-Graphics(940, 380)
+Graphics(940, 550)
 
 Local grayscale:TMax2DSaturationEffect = CreateSaturationEffect(0)
 Local adjustable:TMax2DSaturationEffect = CreateSaturationEffect(1.5)
 Local supported:Int = Max2DSupportsImageEffect(grayscale) And Max2DSupportsLayerAlpha() And Max2DSupportsRenderImage(240, 160, 0)
+Local positions:Float[200]
+For Local i:Int = 0 Until 100
+	positions[i * 2] = 35 + (i Mod 20) * 43
+	positions[i * 2 + 1] = 355 + (i / 20) * 27
+Next
 Local layer:TRenderImage
 
 If supported Then
@@ -53,7 +58,14 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 		DrawImageEffect(layer, grayscale, 345, 110)
 		DrawText("Saturation: " + Int(adjustable.GetAmount() * 100) + "%", 655, 75)
 		DrawImageEffect(layer, adjustable, 655, 110)
-		DrawText("Left / Right adjusts saturation. Escape exits.", 35, 320)
+		FlushMax2D()
+		ResetMax2DStats()
+		SetScale(0.1, 0.1)
+		DrawImageEffectBatch(layer, adjustable, positions)
+		Local batches:Long = CaptureMax2DStats().submissions
+		SetScale(1, 1)
+		DrawText("100 miniatures: " + batches + " effect batch", 35, 315)
+		DrawText("Left / Right adjusts saturation. Escape exits.", 35, 510)
 	Else
 		DrawText("This device does not support the required shader and layer operations.", 35, 110)
 	End If
