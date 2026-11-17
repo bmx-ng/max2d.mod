@@ -74,3 +74,17 @@ loops over a fixed 9×9 stencil and skips offsets outside the chosen disk. This
 is a bounded pixel stencil, not a distance-field outline or an arbitrary-radius
 stroke. Compile `outline.frag` to `outline.frag.spv`, run `embed.py`, and generate
 DXBC with `compile.exe outline.hlsl ../outline_dxbc.h outline`.
+
+## Bright-pass package
+
+`max2d.brightpass.v1` uses the same ABI. Parameter x is a finite, nonnegative
+luminance threshold; yzw are zero. After converting sampled RGB to straight
+colour and applying drawing tint, luminance is the dot product with
+(0.2126, 0.7152, 0.0722). No implicit transfer-function conversion is performed.
+RGB is preserved; alpha is multiplied by `max(luminance-threshold,0)/luminance`,
+with zero weight when luminance is zero. Applying the extraction weight only
+to alpha keeps premultiplied energy from being weighted twice. The ordinary
+mask threshold and output-premultiplication rules run afterwards.
+
+Compile `brightpass.frag` to `brightpass.frag.spv`, run `embed.py`, and generate
+DXBC with `compile.exe brightpass.hlsl ../brightpass_dxbc.h brightpass`.

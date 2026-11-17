@@ -515,3 +515,59 @@ report the effect unsupported; existing colourize and chain regressions also
 pass on those macOS profiles and Metal. The GUI example was visually inspected,
 including live radius and colour changes. DXBC compiles without warnings;
 Direct3D runtime validation remains outstanding.
+
+## Brightness extraction and bloom
+
+`CreateBrightPassEffect(threshold)` returns a reusable `TMax2DBrightPassEffect`.
+Its default threshold is 0.6; `SetThreshold` accepts finite nonnegative values
+and `GetThreshold` returns the current value. It supports ordinary images,
+render images, effect batches and layer chains through the optional native SDL
+GPU provider.
+
+After sampling and drawing tint, the effect computes straight-RGB luminance
+using weights 0.2126, 0.7152 and 0.0722. It keeps RGB and multiplies alpha by
+`max(luminance - threshold, 0) / luminance`; zero luminance gets zero alpha.
+Drawing alpha also multiplies the result. Thus pixels at or below the threshold
+contribute no light, and brighter pixels contribute only their excess brightness
+while retaining their colour ratios. Zero threshold retains positive-luminance
+pixels; opaque black becomes transparent. A threshold of one removes normalized
+RGB highlights up to white. There is no implicit colour-space conversion.
+
+Bloom is an explicit composition of the existing operations:
+
+1. Extract highlights into a retained full-size render image using
+   `ApplyLayerEffects` with a one-entry bright-pass chain.
+2. Use `TMax2DScaledBlur.Apply` with retained reduction levels, scratch and glow
+   images. Keep transparent padding around content to retain the halo.
+3. Draw the original with `ALPHABLEND`, then the glow with `LIGHTBLEND`.
+   Drawing alpha can reduce glow strength during composition without rebuilding.
+
+The [bloom example](../examples/bloom_effects.bmx) shows the original, extracted
+highlights and additive result. Left/right adjust threshold, up/down adjust blur
+radius, and Space toggles the glow without rebuilding it. It caches extraction
+and blur until settings change. With two reduction levels, a rebuild uses one
+extraction draw plus five scaled-blur draws; cached composition uses two ordinary
+image draws. Retained images are source, extracted highlights, glow, two
+reduction levels and low-resolution scratch. No hidden scratch allocation or
+readback is introduced.
+
+This example uses 8-bit normalized storage and clips additive channels at white.
+It is a bloom composition without tone mapping or exposure adaptation. Reduced
+blur loses fine detail, and low-alpha RGBA8 storage quantizes recovered colours;
+these limitations also apply to the extracted and blurred highlight layers.
+
+### Bloom validation (2026-11-17)
+
+Extraction pixels match an independent luminance/energy reference for black,
+gray levels, primary colours, opaque and half-transparent inputs, thresholds
+0–2, and ordinary and premultiplied images. Checks cover parameter capture,
+batching, drawing tint/alpha, custom blending and ordinary draws after the effect.
+The complete extraction/reduction/blur path produces a halo beyond the source;
+every additive-composite pixel matches the expected original-plus-glow energy.
+The warmed two-level rebuild uses six submissions with zero texture creation,
+upload or readback. Both native sprite paths and two context lifetimes pass on
+macOS Metal and Windows/Ubuntu Vulkan. Software SDL and OpenGL report the shader
+unsupported; existing image-effect and scaled-blur regressions pass on all three
+macOS profiles. The GUI example was inspected with threshold/radius changes and
+bloom toggled off/on. DXBC compiles without warnings; Direct3D runtime validation
+remains outstanding. These pixel and submission checks are not GPU timing data.

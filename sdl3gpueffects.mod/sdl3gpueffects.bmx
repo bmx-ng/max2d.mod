@@ -17,7 +17,7 @@ Private
 Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null)
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null Or TMax2DBrightPassEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
@@ -38,6 +38,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	Private
 
 	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DBrightPassEffect(effect) Then Return m2d_brightpass_shader(context.native, context.GetGPUDevice())
 		If TMax2DOutlineEffect(effect) Then Return m2d_outline_shader(context.native, context.GetGPUDevice())
 		If TMax2DColorizeEffect(effect) Then Return m2d_colorize_shader(context.native, context.GetGPUDevice())
 		If TMax2DBlurEffect(effect) Then Return m2d_blur_shader(context.native, context.GetGPUDevice())
@@ -54,6 +55,8 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect = TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gpu_select_image_effect(context.native, shader, saturation.GetAmount(), 0, 0, 0)
+		Else If TMax2DBrightPassEffect(effect) Then
+			m2d_gpu_select_image_effect(context.native, shader, TMax2DBrightPassEffect(effect).GetThreshold(), 0, 0, 0)
 		Else If TMax2DOutlineEffect(effect) Then
 			m2d_gpu_select_image_effect(context.native, shader, 1.0 / image.width, 1.0 / image.height, TMax2DOutlineEffect(effect).GetRadius(), 0)
 		Else If TMax2DColorizeEffect(effect) Then
@@ -92,6 +95,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 End Type
 
 Extern "C"
+	Function m2d_brightpass_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_outline_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_colorize_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_blur_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)

@@ -186,6 +186,43 @@ Function CreateOutlineEffect:TMax2DOutlineEffect(radius:Int = 1)
 End Function
 
 Rem
+bbdoc: Extracts colour above a luminance threshold for bloom composition.
+about: After drawing tint, straight RGB luminance uses weights 0.2126, 0.7152 and 0.0722 with no implicit colour-space conversion. RGB is preserved and alpha is multiplied by max(luminance-threshold,0)/luminance, or zero at zero luminance. This retains colour while weighting its premultiplied energy once. Works with ordinary and render images. Blur the extracted layer and add it over the original with LIGHTBLEND.
+End Rem
+Type TMax2DBrightPassEffect Extends TMax2DImageEffect
+
+	Private
+	Field threshold:Float = 0.6
+
+	Public
+	Rem
+	bbdoc: Sets the finite, nonnegative luminance threshold for subsequent draws.
+	about: Zero retains positive-luminance pixels; one removes normalized RGB highlights at or below white. Larger thresholds can be used with floating-point inputs. Previously submitted draws retain their threshold.
+	End Rem
+	Method SetThreshold(value:Float)
+		If value < 0 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: bright-pass threshold must be finite and nonnegative"
+		threshold = value
+	End Method
+
+	Rem
+	bbdoc: Returns the selected luminance threshold.
+	End Rem
+	Method GetThreshold:Float()
+		Return threshold
+	End Method
+End Type
+
+Rem
+bbdoc: Creates a reusable brightness-extraction effect without graphics resources.
+param: Finite, nonnegative luminance threshold; defaults to 0.6.
+End Rem
+Function CreateBrightPassEffect:TMax2DBrightPassEffect(threshold:Float = 0.6)
+	Local effect:TMax2DBrightPassEffect = New TMax2DBrightPassEffect
+	effect.SetThreshold(threshold)
+	Return effect
+End Function
+
+Rem
 bbdoc: Import-based extension contract for explicit image effects.
 about: Backend modules register a provider once. Providers must preserve drawing state, capture parameters for queued draws and release native resources with their context. No provider is invoked for ordinary DrawImage calls.
 End Rem

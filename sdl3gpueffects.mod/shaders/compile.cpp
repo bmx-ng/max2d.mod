@@ -12,7 +12,7 @@ int main(int argc,char **argv) {
 	if(!input) return 1;
 	std::string source((std::istreambuf_iterator<char>(input)),std::istreambuf_iterator<char>());
 	std::string name=argc==4?argv[3]:"saturation";
-	if(name!="saturation" && name!="blur" && name!="colorize" && name!="outline") return 1;
+	if(name!="saturation" && name!="blur" && name!="colorize" && name!="outline" && name!="brightpass") return 1;
 	std::string entry=name+"Main";
 	ID3DBlob *code=nullptr,*errors=nullptr;
 	HRESULT result=D3DCompile(source.data(),source.size(),argv[1],nullptr,nullptr,entry.c_str(),"ps_5_1",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&errors);

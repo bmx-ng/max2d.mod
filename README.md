@@ -337,3 +337,7 @@ See the [resolution comparison](examples/scaled_blur.bmx) and
 `CreateOutlineEffect` builds a separate outer-border mask from a render layer's
 alpha. Tint it directly or chain it with `CreateColorizeEffect`; see the
 [interactive outline example](examples/outline_effects.bmx).
+
+`CreateBrightPassEffect` extracts highlights above a luminance threshold. Feed
+that layer into `CreateScaledBlur` and add the cached glow over the original
+with `LIGHTBLEND`; see the [interactive bloom example](examples/bloom_effects.bmx).
