@@ -320,3 +320,7 @@ positions array. See the [interactive saturation example](examples/image_effects
 images. Use horizontal and vertical passes with retained scratch/output images;
 see the [two-pass blur example](examples/blur_effects.bmx) and the radius, padding
 and storage details in [effects and masking](docs/effects-and-masking.md).
+
+`ApplyLayerEffects` chains these effects across an explicit destination and one
+reusable scratch image. It restores drawing state and each image's viewport;
+see the [combined blur and colour example](examples/layer_effect_chain.bmx).

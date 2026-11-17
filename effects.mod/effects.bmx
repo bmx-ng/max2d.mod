@@ -10,6 +10,7 @@ ModuleInfo "License: zlib/libpng"
 Import Max2D.Core
 
 Include "imageeffect.bmx"
+Include "layereffect.bmx"
 
 Private
 

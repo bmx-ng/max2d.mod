@@ -186,6 +186,52 @@ rebuild only when source pixels or radius change, as shown in the
 [interactive blur example](../examples/blur_effects.bmx). Wider blurs and automatic
 scratch pooling remain future work.
 
+## Chaining whole-layer effects
+
+`ApplyLayerEffects(source, destination, effects, scratch)` processes a complete
+layer with an ordered, reusable `TMax2DImageEffect[]`. It alternates destination
+and scratch so the last pass always finishes in destination. The source is left
+unchanged. All images must have equal dimensions; source and destination must
+be distinct, and chains of two or more effects require a third, distinct scratch
+image. A single effect needs no scratch. An empty chain copies the source with
+one ordinary image draw.
+
+```blitzmax
+' Create these descriptions and the array once.
+Local horizontal:TMax2DBlurEffect = CreateBlurEffect(4)
+Local vertical:TMax2DBlurEffect = CreateBlurEffect(4, False)
+Local grayscale:TMax2DSaturationEffect = CreateSaturationEffect(0)
+Local chain:TMax2DImageEffect[] = [TMax2DImageEffect(horizontal), ..
+	TMax2DImageEffect(vertical), TMax2DImageEffect(grayscale)]
+
+' Reuse source, result and scratch; rerun only when content/parameters change.
+ApplyLayerEffects(source, result, chain, scratch)
+DrawImage(result, x, y)
+```
+
+Each pass replaces the full layer using white tint, unit alpha, identity
+coordinates and `SOLIDBLEND`. Image handles are compensated without modifying
+the images. Camera, transform, origin, viewport, target and other caller state
+are restored. The destination and scratch retain their own original virtual
+resolution and clipping viewport, including when support validation throws.
+The caller does not need to add a state scope around this helper.
+
+Dimensions and aliasing are checked first. The helper then checks every effect
+against its actual output target before drawing the chain; an unsupported later
+effect does not leave an earlier effect's pixels in either output. These checks
+may create native textures, shaders or pipelines on first use. A runtime failure
+after drawing starts restores state but does not roll back already written pixels.
+
+A warmed nonempty chain submits one draw per effect and creates no textures,
+pixel uploads or readbacks. There is no final copy pass, no implicit scratch
+allocation and no per-pass array allocation. The helper creates up to three CPU
+state-scope snapshots per invocation, independent of chain length. It performs
+capability checks and target switches; direct draws remain available when callers
+manage those themselves. Cache outputs when possible. Scratch contents are
+intermediate work, not an additional stable result to retain across chain changes.
+The [chain example](../examples/layer_effect_chain.bmx) shows the two-blur-pass
+intermediate for its fixed three-step chain and lets you toggle grayscale.
+
 ## Architecture for general shader effects
 
 The operations above exercise the target, parameter and compositing contracts.
@@ -303,3 +349,14 @@ cases retain four images, totaling 256 KiB at 128 square and 4 MiB at 512 square
 Two of those images are the blur outputs; the other two are the source layer and
 its retained mask. CPU timings include compositor/presentation effects and do not
 establish GPU execution time or a speedup.
+
+## Chain validation (2026-11-17)
+
+The chain regression checks empty copies and chains of one, two and three effects,
+including odd/even pass ordering, pixel output and one warmed submission per
+effect with no texture creation, upload or readback. It checks non-default image
+handles, transformed/camera drawing state, separate viewports on all three images,
+source preservation, alias rejection and support failure before output writes.
+Both native sprite paths pass on Metal and Windows/Ubuntu Vulkan. Software SDL
+and OpenGL pass the empty-copy and unsupported-effect paths where render images
+are supported. The macOS GUI example was launched and visually inspected.
