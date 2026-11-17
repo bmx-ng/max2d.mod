@@ -47,6 +47,51 @@ Function CreateSaturationEffect:TMax2DSaturationEffect(amount:Float = 1)
 End Function
 
 Rem
+bbdoc: Replaces image RGB with a selected colour while preserving sampled alpha.
+about: Drawing tint multiplies the selected colour and drawing alpha multiplies the source alpha. Works with ordinary and render images. Useful for silhouettes, shadows and coloured glows in explicit layer chains.
+End Rem
+Type TMax2DColorizeEffect Extends TMax2DImageEffect
+
+	Private
+	Field red:Int = 255
+	Field green:Int = 255
+	Field blue:Int = 255
+
+	Public
+
+	Rem
+	bbdoc: Sets silhouette RGB components, each from zero to 255.
+	about: Invalid components leave the previous colour unchanged. Previously submitted draws retain their colour.
+	End Rem
+	Method SetColor(r:Int, g:Int, b:Int)
+		If r < 0 Or r > 255 Or g < 0 Or g > 255 Or b < 0 Or b > 255 Then Throw "Max2D Effects: colour components must be between zero and 255"
+		red = r
+		green = g
+		blue = b
+	End Method
+
+	Rem
+	bbdoc: Returns the selected silhouette RGB components.
+	End Rem
+	Method GetColor(r:Int Var, g:Int Var, b:Int Var)
+		r = red
+		g = green
+		b = blue
+	End Method
+
+End Type
+
+Rem
+bbdoc: Creates a reusable silhouette colour description without graphics resources.
+about: Components range from zero to 255. The default is white.
+End Rem
+Function CreateColorizeEffect:TMax2DColorizeEffect(red:Int = 255, green:Int = 255, blue:Int = 255)
+	Local effect:TMax2DColorizeEffect = New TMax2DColorizeEffect
+	effect.SetColor(red, green, blue)
+	Return effect
+End Function
+
+Rem
 bbdoc: One axis of a nine-tap blur that filters premultiplied colour and alpha together.
 about: Requires a premultiplied render-image source. Draw horizontal and vertical effects into separate caller-owned render images for a two-dimensional blur. Radius is in source-image pixels, from zero to four. Pad the group with transparent pixels to retain the blur outside its content bounds. Each draw uses one pass; no scratch image is allocated automatically.
 End Rem

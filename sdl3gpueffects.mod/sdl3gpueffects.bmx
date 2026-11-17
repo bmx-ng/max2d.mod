@@ -17,7 +17,7 @@ Private
 Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null)
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
@@ -38,6 +38,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	Private
 
 	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DColorizeEffect(effect) Then Return m2d_colorize_shader(context.native, context.GetGPUDevice())
 		If TMax2DBlurEffect(effect) Then Return m2d_blur_shader(context.native, context.GetGPUDevice())
 		Return m2d_saturation_shader(context.native, context.GetGPUDevice())
 	End Method
@@ -51,6 +52,10 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect = TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gpu_select_image_effect(context.native, shader, saturation.GetAmount(), 0, 0, 0)
+		Else If TMax2DColorizeEffect(effect) Then
+			Local red:Int, green:Int, blue:Int
+			TMax2DColorizeEffect(effect).GetColor(red, green, blue)
+			m2d_gpu_select_image_effect(context.native, shader, red / 255.0, green / 255.0, blue / 255.0, 0)
 		Else
 			Local blur:TMax2DBlurEffect = TMax2DBlurEffect(effect)
 			Local dx:Float, dy:Float
@@ -83,6 +88,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 End Type
 
 Extern "C"
+	Function m2d_colorize_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_blur_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_saturation_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_gpu_image_effect_support:Int(context:Byte Ptr, effect:Byte Ptr, target:Byte Ptr, blend:Int, compact:Int)

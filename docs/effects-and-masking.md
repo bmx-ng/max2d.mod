@@ -360,3 +360,38 @@ source preservation, alias rejection and support failure before output writes.
 Both native sprite paths pass on Metal and Windows/Ubuntu Vulkan. Software SDL
 and OpenGL pass the empty-copy and unsupported-effect paths where render images
 are supported. The macOS GUI example was launched and visually inspected.
+
+## Colourized silhouettes
+
+`CreateColorizeEffect(red, green, blue)` returns a reusable
+`TMax2DColorizeEffect`. `SetColor` validates all components (0–255) before changing
+any of them; `GetColor` returns the selected RGB. It replaces sampled RGB and
+preserves alpha for ordinary images and render images. Drawing tint multiplies
+the replacement RGB, and drawing alpha multiplies source alpha. The default is
+white. The optional native SDL GPU provider supplies Metal, SPIR-V and DXBC.
+
+For a shadow or glow, chain colourize, horizontal blur and vertical blur using
+`ApplyLayerEffects`. Keep transparent padding around source content. Draw a black
+blurred result offset behind the original for a soft shadow; draw a coloured
+result with `LIGHTBLEND` behind it for a glow. This is a small silhouette blur,
+not a brightness-extraction or HDR bloom filter. The
+[example](../examples/colorize_effects.bmx) caches separate shadow and glow results
+and rebuilds them only when settings change. Each rebuild uses three submissions
+and the caller's retained scratch image; displaying a cached result is an
+ordinary image draw. No changes were needed in the base renderer.
+
+At very low alpha, 8-bit premultiplied storage can visibly quantize recovered RGB,
+particularly after several passes. This is a storage precision limit.
+
+### Colourize validation (2026-11-17)
+
+The colourize regression passed on macOS Metal and Windows/Ubuntu Vulkan in
+Parallels, with two context lifetimes and both native sprite paths. Checks cover
+ordinary and premultiplied inputs, alpha preservation, independence from source
+RGB, drawing tint/alpha, parameter changes, batching, custom blend inputs,
+ordinary draws after effects, and the three-pass colourize/blur chain. Software
+SDL and OpenGL report unsupported effects as expected. Existing image-effect
+and chain regressions also passed on macOS native, software and OpenGL profiles.
+DXBC compiled successfully; Direct3D runtime validation remains outstanding.
+The macOS GUI example was opened and inspected, including colour and radius
+changes through its live controls.

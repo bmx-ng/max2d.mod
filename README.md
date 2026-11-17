@@ -324,3 +324,7 @@ and storage details in [effects and masking](docs/effects-and-masking.md).
 `ApplyLayerEffects` chains these effects across an explicit destination and one
 reusable scratch image. It restores drawing state and each image's viewport;
 see the [combined blur and colour example](examples/layer_effect_chain.bmx).
+
+`CreateColorizeEffect` replaces source RGB while preserving alpha. Combine it
+with blur for cached silhouettes, soft shadows and coloured glows; see the
+[shadow/glow example](examples/colorize_effects.bmx).

@@ -48,3 +48,12 @@ both packages. The Windows compiler accepts an optional package argument:
 the original saturation build behavior. Keep blur sources, SPIR-V and generated
 headers together. Direct3D bytecode compilation does not establish runtime
 support on a device without a working Direct3D 12 GPU backend.
+
+## Colourize package
+
+`max2d.colorize.v1` uses the same ABI. Parameters xyz are the replacement RGB
+(normalized from 0–255); w is zero. It samples alpha (red for coverage textures),
+replaces RGB, multiplies drawing tint/alpha, then uses the ordinary mask and
+output-premultiplication rules. It does not need to unpremultiply source RGB.
+Compile `colorize.frag` to `colorize.frag.spv`, run `embed.py`, and generate DXBC
+with `compile.exe colorize.hlsl ../colorize_dxbc.h colorize`.
