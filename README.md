@@ -300,3 +300,12 @@ graphics, because available combinations depend on the backend and device.
 See [Blending: recipes and backend support](docs/blending.md),
 [the blend gallery](examples/custom_blending.bmx) and
 [blending into a transparent image](examples/blend_render_image.bmx).
+
+### Effects and group masks
+
+Import the optional `Max2D.Effects` module to multiply an explicit render-image
+layer by a soft alpha mask or group opacity. Check `Max2DSupportsLayerAlpha()`
+and render-image support before use. Rectangular group clips already use
+`IntersectViewport` inside a drawing-state scope and need no render image.
+See [effects and masking](docs/effects-and-masking.md) and the
+[runnable example](examples/layer_effects.bmx).
