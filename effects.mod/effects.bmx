@@ -9,6 +9,8 @@ ModuleInfo "License: zlib/libpng"
 
 Import Max2D.Core
 
+Include "imageeffect.bmx"
+
 Private
 
 Global alphaMultiplyBlend:Int = CreateBlendMode(BLEND_ZERO, BLEND_SRC_ALPHA, BLEND_OP_ADD, BLEND_ZERO, BLEND_SRC_ALPHA)

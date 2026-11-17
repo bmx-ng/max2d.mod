@@ -105,3 +105,19 @@ or display-state change; implausibly short VSync intervals still require review.
 
 See the [initial macOS comparison](../docs/native-gpu-performance.md) for results,
 raw captures and the presentation-pacing limits of this test.
+
+## Image effects
+
+Build `image_effects.bmx` with the SDK's `bmk makeapp -r -t console` and run
+the resulting executable with an optional measured-frame count (default 120,
+minimum 100). It requires native SDL GPU and the optional SDL3GPUEffects module.
+Keep its window visible. Each case warms for 30 frames and uses `Flip(0)`.
+
+The CSV compares a cached layer, that layer drawn through saturation, and a layer
+redrawn and alpha-masked before saturation, at 128 and 512 pixels square. It records
+CPU draw/whole-frame means, whole-frame p95, geometry submissions, texture creation,
+pixel uploads, readbacks and logical RGBA layer-plus-mask bytes. Memory excludes
+driver alignment, the window backing surface and shared geometry buffers. The
+timings are CPU wall-clock intervals, not GPU timestamps; compositor pacing can
+dominate even with `Flip(0)`. See [effects and masking](../docs/effects-and-masking.md)
+for the initial validation and the implementation's batching limits.

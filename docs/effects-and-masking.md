@@ -46,10 +46,62 @@ For a camera-moving shape, draw that shape into a coverage image under the same
 camera, then mask a group layer. `MASKBLEND` only thresholds the source alpha of
 individual draws; it does not clip a group.
 
-## Architecture for shader effects
+## Native SDL GPU image effects
 
-The layer operation above exercises the target and compositing contract. The
-next shader slice should keep two explicit categories:
+Import `Max2D.SDL3GPUEffects` alongside `Max2D.SDL3GPUMax2D` to register the
+optional saturation shader provider. The effect description lives in
+`Max2D.Effects` and can be created before opening graphics:
+
+```blitzmax
+Local saturation:TMax2DSaturationEffect = CreateSaturationEffect(0)
+
+' After Graphics, with the desired target and blend selected:
+If Max2DSupportsImageEffect(saturation) Then
+	DrawImageEffect(group, saturation, 100, 100)
+End If
+```
+
+Zero saturation gives grayscale, one retains colour, and values above one
+increase saturation. Alpha is unchanged. The effect uses weighted luminance
+on the sampled RGB components without an implicit colour-space conversion.
+Tint is applied before the effect; the existing blend and premultiplied-storage
+rules run afterwards. `DrawImageEffect` accepts an ordinary image or a render
+image, uses its normal handle and the current camera/transform/viewport, and
+rejects sampling the current render target. A completed soft-masked group is a
+normal render-image input. See [image_effects.bmx](../examples/image_effects.bmx)
+for a cached masked group drawn in original colour, grayscale and adjustable
+saturation.
+
+Each call is an explicit batch boundary and one image draw. Multiple effect
+calls are not coalesced, so use a cached group for large collections of objects
+that need the same treatment. `SetAmount` changes a reusable parameter object
+without allocating resources. Values are copied into the native draw record;
+changing the description afterwards cannot alter queued draws. Ordinary
+`DrawImage` continues using its existing shader and does not consult the effect
+provider registry. No ambient effect selection is added to Push/Pop state.
+
+The native context caches one shader per package key and pipelines by target
+format, blend mode and triangle/compact submission path. A support query warms
+the exact current combination. Both sprite paths are implemented. Closing the
+context releases the cache; effect descriptions can be reused with a new
+context. The native recorder carries an extra effect pointer and 16-byte
+parameter snapshot per batch (24 bytes on 64-bit hosts), but ordinary drawing
+adds no pass, uniform upload, texture copy or per-draw allocation. Effects use
+one extra 16-byte fragment-uniform upload per submitted image. They allocate no
+intermediate surface. The existing growable draw/vertex buffers remain shared.
+
+The [built-in shader package](../sdl3gpueffects.mod/shaders/README.md) contains
+equivalent Metal, SPIR-V and shader-model 5.1 DXBC implementations. Only the
+optional module links those assets. Backends without a registered provider,
+including OpenGL, D3D9, D3D11 and SDL_Renderer, report this shader effect
+unsupported. The public API does not silently fall back to a CPU conversion.
+This first package does not expose arbitrary shaders or additional texture
+slots; those require the validated package design below.
+
+## Architecture for general shader effects
+
+The operations above exercise the target, parameter and compositing contracts.
+Further shader work should keep two explicit categories:
 
 * **Direct draw effects** change a draw's sampling or colour without needing the
   destination. A selected immutable effect snapshot joins texture, blend, clip
@@ -109,10 +161,37 @@ The current `layer_effects` regression establishes a small no-effect baseline:
 operations each submit one additional batch and perform no readback on macOS
 SDL GPU, OpenGL and the default SDL renderer. The warmed opacity operation
 creates no texture and uploads no pixels. These counters do not measure render
-passes, target switches or GPU time. Before adding a shader pipeline, compare
+passes, target switches or GPU time. For broader performance work, compare
 representative scenes with no effect, a rectangular clip and a masked layer
 using the existing `benchmarks/renderer.bmx` and GPU comparison harness.
 Native GPU profiling should additionally record render passes, uniform uploads,
 temporary bytes and CPU/GPU frame time at several group sizes. The regression
 also checks compositing pixels and state restoration where the backend supports
 the exact operation.
+
+## Initial shader validation (2026-11-17)
+
+`image_effects` passed on macOS Metal and on Windows 11 and Ubuntu 25.10 ARM64
+under Parallels, both using Vulkan. It checks pixel output for ordinary and
+premultiplied inputs, identity/grayscale, parameter snapshots, custom blending,
+triangle and compact paths, context recreation, feedback rejection and recovery
+from an invalid frame. The warmed draw uses one submission and no texture
+creation, pixel upload or readback. The unsupported-provider path passed with
+SDL software and macOS OpenGL. The existing Metal `custom_blending`,
+`layer_effects` and `sdl_gpu_lifetime` regressions also passed.
+
+The DXBC asset was compiled with D3DCompile on Windows, but Direct3D 12 could not
+create graphics in this VM. Direct3D runtime validation remains outstanding;
+the Windows Vulkan pass does not validate DXBC. The macOS GUI example was also
+opened and inspected: original, grayscale and saturated soft-masked groups
+rendered correctly, and keyboard parameter changes updated the image.
+
+The [initial benchmark capture](effects-macos-smoke.csv) is a single Metal smoke
+run with both VMs running, 30 warm-up and 120 measured frames per case. At both
+128 and 512 pixels, cached ordinary and shader draws each submitted one batch;
+rebuilding, masking and drawing submitted three. All measured cases had zero
+texture creations, pixel uploads and readbacks. Retained logical layer/mask
+storage was 128 KiB and 2 MiB respectively. CPU whole-frame means were roughly
+19.5–20 ms with p95 around 41 ms, showing presentation pacing despite `Flip(0)`.
+These timings do not establish shader speed or GPU cost; use repeated captures
+and GPU profiling for that comparison.

@@ -1,0 +1,34 @@
+# Saturation shader package v1
+
+This optional package uses the native SDL GPU backend's existing triangle and
+compact vertex shaders. It changes only the fragment stage. Applications import
+`Max2D.SDL3GPUEffects` to register the provider; no shader compiler is linked into
+the application. Metal source is compiled by the system at first support query.
+
+The package key is `max2d.saturation.v1`. The fixed ABI is:
+
+| Input | Metal | Vulkan GLSL | Direct3D HLSL |
+| --- | --- | --- | --- |
+| Primary image + sampler | texture/sampler 0 | set 2, binding 0 | t0/s0, space 2 |
+| Max2D sampling/blending flags, float4 | buffer 0 | set 3, binding 0 | b0, space 3 |
+| Effect parameters, float4 | buffer 1 | set 3, binding 1 | b1, space 3 |
+
+Parameter x is nonnegative finite saturation. Other components are reserved and
+zero. Vertex outputs match `sdl3gpumax2d.mod/shaders/draw.*`. Input alpha is
+converted as indicated by Max2D's flags, then tint and saturation are applied to
+straight RGB. The existing mask threshold and output-premultiplication rules
+run afterwards. This keeps custom blend inputs straight and render-image
+storage premultiplied where required by the selected blend mode.
+
+Rebuild SPIR-V using `glslc -O saturation.frag -o saturation.frag.spv` (or
+`glslangValidator -V saturation.frag -o saturation.frag.spv`), then run
+`python3 embed.py`. On Windows, compile `compile.cpp` with the SDK MinGW C++
+compiler and `-ld3dcompiler`, then run it with `saturation.hlsl` and
+`../shaders_dxbc.h`. Commit all three shader sources, the SPIR-V file and both
+generated headers together. The DXBC target is pixel shader 5.1, matching SDL's
+Direct3D 12 path and register-space conventions.
+
+This is an internal built-in package contract, not a public arbitrary-shader
+loader. A future loader needs validated reflection, texture-slot metadata,
+binding limits, content identity and package-version compatibility checks before
+it can accept third-party packages. Other backends report this effect unsupported.

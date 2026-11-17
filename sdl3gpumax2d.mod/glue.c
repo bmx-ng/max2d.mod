@@ -8,11 +8,19 @@
 #include "shaders_dxbc.h"
 
 typedef struct GPUContext GPUContext;
+typedef struct GPUImageEffect GPUImageEffect;
 typedef struct GPUBlendPipeline {
 	int blend,kind,compact;
 	SDL_GPUGraphicsPipeline *pipeline;
 	struct GPUBlendPipeline *next;
 } GPUBlendPipeline;
+struct GPUImageEffect {
+	GPUContext *owner;
+	char *key;
+	SDL_GPUShader *fragment;
+	GPUBlendPipeline *pipelines;
+	GPUImageEffect *next;
+};
 typedef struct {
 	GPUContext *owner;
 	SDL_GPUTexture *texture;
@@ -26,6 +34,8 @@ typedef struct {
 	SDL_GPUGraphicsPipeline *pipeline;
 	SDL_Rect clip;
 	float transform[4];
+	GPUImageEffect *effect;
+	float effectParameters[4];
 } GPUDraw;
 struct GPUContext {
 	SDL_GPUDevice *device;
@@ -36,6 +46,8 @@ struct GPUContext {
 	SDL_GPUGraphicsPipeline *compactPipelines[4][6];
 	SDL_GPUSampler *samplers[2][32];
 	GPUBlendPipeline *customBlends;
+	GPUImageEffect *imageEffects,*selectedEffect;
+	float effectParameters[4];
 	SDL_GPUBuffer *vertices;
 	SDL_GPUTransferBuffer *upload;
 	Uint32 bufferSize;
@@ -201,6 +213,19 @@ void m2d_gpu_close(GPUContext *c) {
 		SDL_WaitForGPUIdle(c->device);
 		release_frame(c->backbuffer);
 		release_frame(c->white);
+		while(c->imageEffects) {
+			GPUImageEffect *effect=c->imageEffects;
+			c->imageEffects=effect->next;
+			while(effect->pipelines) {
+				GPUBlendPipeline *entry=effect->pipelines;
+				effect->pipelines=entry->next;
+				SDL_ReleaseGPUGraphicsPipeline(c->device,entry->pipeline);
+				free(entry);
+			}
+			SDL_ReleaseGPUShader(c->device,effect->fragment);
+			free(effect->key);
+			free(effect);
+		}
 		while(c->customBlends) {
 			GPUBlendPipeline *entry=c->customBlends;
 			c->customBlends=entry->next;
@@ -252,7 +277,7 @@ static SDL_GPUShader *shader(GPUContext *c,int stage) {
 	}
 	return SDL_CreateGPUShader(c->device,&info);
 }
-static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compact,int blend) {
+static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compact,int blend,SDL_GPUShader *fragment) {
 	if(compact && !c->compactVertex) {
 		c->compactVertex=shader(c,2);
 		if(!c->compactVertex) return NULL;
@@ -282,7 +307,7 @@ static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compa
 	}
 	SDL_GPUGraphicsPipelineCreateInfo pipeline={0};
 	pipeline.vertex_shader=compact?c->compactVertex:c->vertex;
-	pipeline.fragment_shader=c->fragment;
+	pipeline.fragment_shader=fragment;
 	if(!compact) pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
 	pipeline.primitive_type=SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 	pipeline.rasterizer_state.fill_mode=SDL_GPU_FILLMODE_FILL;
@@ -293,7 +318,7 @@ static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compa
 static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compact,int blend) {
 	if(blend>=1 && blend<=5) {
 		SDL_GPUGraphicsPipeline **p=compact?c->compactPipelines[kind]:c->pipelines[kind];
-		if(!p[blend]) p[blend]=create_pipeline(c,kind,compact,blend);
+		if(!p[blend]) p[blend]=create_pipeline(c,kind,compact,blend,c->fragment);
 		return p[blend];
 	}
 	M2DBlend spec;
@@ -306,10 +331,58 @@ static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compac
 	entry->blend=blend;
 	entry->kind=kind;
 	entry->compact=compact;
-	entry->pipeline=create_pipeline(c,kind,compact,blend);
+	entry->pipeline=create_pipeline(c,kind,compact,blend,c->fragment);
 	entry->next=c->customBlends;
 	c->customBlends=entry;
 	return entry->pipeline;
+}
+
+/* Optional modules supply shader packages. Native caches belong to this context;
+ * the ordinary drawing shader and its uniforms are unchanged. */
+void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info) {
+	for(GPUImageEffect *effect=c->imageEffects;effect;effect=effect->next)
+		if(strcmp(effect->key,key)==0) return effect;
+	if(info->stage!=SDL_GPU_SHADERSTAGE_FRAGMENT || info->num_samplers!=1 ||
+		info->num_uniform_buffers!=2 || info->num_storage_buffers || info->num_storage_textures) {
+		fail("Invalid image effect shader layout");
+		return NULL;
+	}
+	GPUImageEffect *effect=calloc(1,sizeof(*effect));
+	if(!effect) { fail("Out of memory"); return NULL; }
+	effect->key=malloc(strlen(key)+1);
+	if(!effect->key) { free(effect); fail("Out of memory"); return NULL; }
+	strcpy(effect->key,key);
+	effect->fragment=SDL_CreateGPUShader(c->device,info);
+	if(!effect->fragment) { free(effect->key); free(effect); return NULL; }
+	effect->owner=c;
+	effect->next=c->imageEffects;
+	c->imageEffects=effect;
+	return effect;
+}
+static SDL_GPUGraphicsPipeline *image_effect_pipeline(GPUContext *c,GPUImageEffect *effect,int kind,int compact,int blend) {
+	if(!effect || effect->owner!=c) { fail("Invalid image effect owner"); return NULL; }
+	for(GPUBlendPipeline *entry=effect->pipelines;entry;entry=entry->next)
+		if(entry->kind==kind && entry->compact==compact && entry->blend==blend) return entry->pipeline;
+	GPUBlendPipeline *entry=calloc(1,sizeof(*entry));
+	if(!entry) { fail("Out of memory"); return NULL; }
+	entry->pipeline=create_pipeline(c,kind,compact,blend,effect->fragment);
+	if(!entry->pipeline) { free(entry); return NULL; }
+	entry->kind=kind;
+	entry->compact=compact;
+	entry->blend=blend;
+	entry->next=effect->pipelines;
+	effect->pipelines=entry;
+	return entry->pipeline;
+}
+int m2d_gpu_image_effect_support(GPUContext *c,GPUImageEffect *effect,GPUFrame *target,int blend,int compact) {
+	return image_effect_pipeline(c,effect,target?target->kind:0,compact,blend)!=NULL;
+}
+void m2d_gpu_select_image_effect(GPUContext *c,GPUImageEffect *effect,float p0,float p1,float p2,float p3) {
+	c->selectedEffect=effect;
+	c->effectParameters[0]=p0;
+	c->effectParameters[1]=p1;
+	c->effectParameters[2]=p2;
+	c->effectParameters[3]=p3;
 }
 int m2d_gpu_blend(GPUContext *c,int blend) {
 	return blend_pipeline(c,0,0,blend)!=NULL;
@@ -396,7 +469,9 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
-	SDL_GPUGraphicsPipeline *pipeline=blend_pipeline(c,target?target->kind:0,compact,blend);
+	SDL_GPUGraphicsPipeline *pipeline=c->selectedEffect?
+		image_effect_pipeline(c,c->selectedEffect,target?target->kind:0,compact,blend):
+		blend_pipeline(c,target?target->kind:0,compact,blend);
 	if(!pipeline) return 0;
 	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
 	int padding=compact?(c->vertexCount & 1):0;
@@ -425,6 +500,8 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	}
 	GPUDraw *draw=&c->draws[c->drawCount++];
 	draw->pipeline=pipeline;
+	draw->effect=c->selectedEffect;
+	if(draw->effect) memcpy(draw->effectParameters,c->effectParameters,sizeof(draw->effectParameters));
 	draw->compact=compact;
 	draw->destination=target;
 	draw->source=source;
@@ -529,6 +606,7 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
+		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,draw->effectParameters,sizeof(draw->effectParameters));
 		SDL_BindGPUGraphicsPipeline(pass,draw->pipeline);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
