@@ -88,3 +88,17 @@ mask threshold and output-premultiplication rules run afterwards.
 
 Compile `brightpass.frag` to `brightpass.frag.spv`, run `embed.py`, and generate
 DXBC with `compile.exe brightpass.hlsl ../brightpass_dxbc.h brightpass`.
+
+## Tone-map package
+
+`max2d.tonemap.v1` uses the same ABI. Parameters x,y contain exposure and reciprocal
+gamma; zw are zero. After source unpremultiplication and drawing tint, negative
+RGB is clamped to zero and each channel uses `1 - 1/(1 + channel*exposure)`.
+The mapped value is raised to reciprocal gamma. The absolute value before `pow`
+asserts its nonnegative domain for shader compilers. Alpha is unchanged except
+for the usual drawing alpha. Mask threshold and output-premultiplication follow.
+This per-channel Reinhard curve can change colour ratios; gamma is an explicit
+power curve, not an automatic colour-space conversion or an sRGB transfer function.
+
+Compile `tonemap.frag` to `tonemap.frag.spv`, run `embed.py`, and generate DXBC
+with `compile.exe tonemap.hlsl ../tonemap_dxbc.h tonemap`.

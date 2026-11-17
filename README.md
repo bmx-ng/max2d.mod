@@ -341,3 +341,8 @@ alpha. Tint it directly or chain it with `CreateColorizeEffect`; see the
 `CreateBrightPassEffect` extracts highlights above a luminance threshold. Feed
 that layer into `CreateScaledBlur` and add the cached glow over the original
 with `LIGHTBLEND`; see the [interactive bloom example](examples/bloom_effects.bmx).
+
+`CreateToneMapEffect` maps floating-point HDR layers to display range with exposure,
+per-channel Reinhard mapping and configurable gamma. The
+[HDR bloom example](examples/hdr_bloom.bmx) compares clipped input, tone mapping,
+and bloom accumulated before tone mapping.

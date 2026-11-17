@@ -49,7 +49,7 @@ individual draws; it does not clip a group.
 ## Native SDL GPU image effects
 
 Import `Max2D.SDL3GPUEffects` alongside `Max2D.SDL3GPUMax2D` to register the
-optional saturation and blur shader provider. The effect description lives in
+optional built-in image-effect shader provider. The effect description lives in
 `Max2D.Effects` and can be created before opening graphics:
 
 ```blitzmax
@@ -183,8 +183,8 @@ per pass, and two retained output images. Their logical RGBA8 storage totals
 `width * height * 8` bytes, in addition to the source. No scratch allocation,
 pixel upload or readback is performed by a warmed draw. Cache the result and
 rebuild only when source pixels or radius change, as shown in the
-[interactive blur example](../examples/blur_effects.bmx). Wider blurs and automatic
-scratch pooling remain future work.
+[interactive blur example](../examples/blur_effects.bmx). Wider blur is available through the retained reduction levels described below.
+Automatic scratch pooling remains future work.
 
 ## Chaining whole-layer effects
 
@@ -571,3 +571,77 @@ unsupported; existing image-effect and scaled-blur regressions pass on all three
 macOS profiles. The GUI example was inspected with threshold/radius changes and
 bloom toggled off/on. DXBC compiles without warnings; Direct3D runtime validation
 remains outstanding. These pixel and submission checks are not GPU timing data.
+
+## HDR bloom and tone mapping
+
+`CreateToneMapEffect(exposure, gamma)` returns a reusable `TMax2DToneMapEffect`.
+Exposure defaults to one and accepts finite nonnegative multipliers. Gamma also
+defaults to one and accepts values from 0.1 to 10. The matching setters/getters
+update or inspect the description without allocating graphics resources.
+
+After normal sampling, source unpremultiplication and drawing tint, each channel
+is clamped to nonnegative values and mapped with the per-channel Reinhard curve
+`1 - 1/(1 + channel*exposure)`. The result is raised to `1/gamma`. Alpha is
+preserved, apart from normal drawing alpha. Zero exposure produces black while
+retaining alpha. Gamma one leaves mapped values linear; the example's gamma 2.2
+is a simple display power curve. No automatic transfer-function conversion,
+colour management, exposure adaptation or scene-wide brightness measurement is
+performed. Mapping channels independently can change colour ratios in highlights.
+
+Keep the source, extracted highlights, reduction levels, blur scratch, glow and
+composite in the same supported floating-point format, such as `PF_RGBA16F`.
+Check both float texture and render-image support. Bright-pass thresholds above
+one then select HDR highlights without first clipping them to white. The blur
+and effect-chain helpers accept these float render images without an intermediate
+RGBA8 copy. Combine source and glow in the HDR composite, then tone-map once at
+the final display draw:
+
+```blitzmax
+Local tone:TMax2DToneMapEffect = CreateToneMapEffect(1, 2.2)
+' hdrComposite contains the scene plus glow in floating-point storage.
+SetRenderImage(Null)
+SetBlend(ALPHABLEND)
+DrawImageEffect(hdrComposite, tone, 0, 0)
+```
+
+The composite needs valid alpha everywhere its light will be displayed.
+`LIGHTBLEND` adds colour while preserving destination alpha. Clear the HDR
+composite to an opaque background, draw the scene with `ALPHABLEND`, then add
+its glow. Adding light into zero-alpha pixels and subsequently treating that
+image as premultiplied content loses the halo when it is converted back to
+straight RGB. The example starts with an opaque HDR scene and copies it before
+adding the glow.
+
+The [HDR comparison](../examples/hdr_bloom.bmx) uploads synthetic linear float
+content once, keeps its work in RGBA16F, and compares clipped input, tone-mapped
+input and tone-mapped HDR bloom. Left/right change the extraction threshold,
+up/down change exposure and Space toggles the bloom. Exposure and toggle changes
+reuse the cached HDR images; only threshold changes rebuild the composite.
+
+With two reduction levels, rebuilding the cached HDR composite takes eight draws:
+one extraction, five scaled-blur passes, a source copy and additive glow. Displaying
+it with tone mapping adds one draw. The comparison's additional panels add their
+own display draws. The retained work comprises four full-size images (source,
+highlights, glow, composite), two reduction levels and low-resolution scratch;
+RGBA16F takes eight bytes per pixel. There is no per-frame texture allocation,
+upload or readback in the warmed operations. Float readback is used only by tests.
+
+### HDR validation (2026-11-17)
+
+The HDR regression passes on macOS Metal and Windows/Ubuntu Vulkan for both
+RGBA16F and RGBA32F targets, both native sprite paths and two context lifetimes.
+It compares tone-mapped energy and alpha against an independent CPU formula for
+negative channels, black, values up to 1000, partial alpha, four exposures and
+two gamma values. It checks parameter snapshots, batches, custom blending,
+drawing tint/alpha, float tone-map output and ordinary HDR drawing afterwards.
+Bright-pass extraction above one retains HDR colour and the expected alpha.
+
+The full float extraction/blur/composite path retains values above white and
+halo coverage outside the bright source. Every final display pixel matches the
+tone-mapped float composite. A warmed rebuild plus mapped display uses nine
+submissions with zero texture creation, upload or readback. Software SDL and
+OpenGL report the shader unsupported, and the existing bloom regression passes
+on all three macOS profiles. The GUI comparison was inspected with exposure and
+threshold changes and bloom toggled off/on. DXBC compiles without warnings;
+Direct3D runtime validation remains outstanding. This validates SDR display of
+HDR content, not an HDR monitor output mode or automatic colour management.

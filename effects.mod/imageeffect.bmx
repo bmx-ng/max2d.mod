@@ -223,6 +223,60 @@ Function CreateBrightPassEffect:TMax2DBrightPassEffect(threshold:Float = 0.6)
 End Function
 
 Rem
+bbdoc: Maps nonnegative HDR colour into display range with exposure, per-channel Reinhard mapping and a power curve.
+about: After drawing tint, each straight RGB channel is mapped as 1-1/(1+max(channel,0)*exposure), then raised to 1/gamma. Alpha is preserved. Gamma one leaves the mapped values linear; other values apply a simple power curve, not full colour management. Works with ordinary and render images, including floating-point sources.
+End Rem
+Type TMax2DToneMapEffect Extends TMax2DImageEffect
+
+	Private
+	Field exposure:Float = 1
+	Field gamma:Float = 1
+
+	Public
+	Rem
+	bbdoc: Sets a finite, nonnegative exposure multiplier; zero produces black.
+	End Rem
+	Method SetExposure(value:Float)
+		If value < 0 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: exposure must be finite and nonnegative"
+		exposure = value
+	End Method
+
+	Rem
+	bbdoc: Returns the exposure multiplier.
+	End Rem
+	Method GetExposure:Float()
+		Return exposure
+	End Method
+
+	Rem
+	bbdoc: Sets the power-curve gamma from 0.1 to 10; one leaves mapped RGB linear.
+	End Rem
+	Method SetGamma(value:Float)
+		If value < 0.1 Or value > 10 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: gamma must be finite and between 0.1 and 10"
+		gamma = value
+	End Method
+
+	Rem
+	bbdoc: Returns the selected gamma.
+	End Rem
+	Method GetGamma:Float()
+		Return gamma
+	End Method
+End Type
+
+Rem
+bbdoc: Creates a reusable tone-mapping effect without graphics resources.
+param: Finite, nonnegative exposure multiplier; defaults to one.
+param: Power-curve gamma from 0.1 to 10; defaults to one.
+End Rem
+Function CreateToneMapEffect:TMax2DToneMapEffect(exposure:Float = 1, gamma:Float = 1)
+	Local effect:TMax2DToneMapEffect = New TMax2DToneMapEffect
+	effect.SetExposure(exposure)
+	effect.SetGamma(gamma)
+	Return effect
+End Function
+
+Rem
 bbdoc: Import-based extension contract for explicit image effects.
 about: Backend modules register a provider once. Providers must preserve drawing state, capture parameters for queued draws and release native resources with their context. No provider is invoked for ordinary DrawImage calls.
 End Rem
