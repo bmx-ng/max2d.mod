@@ -57,3 +57,20 @@ replaces RGB, multiplies drawing tint/alpha, then uses the ordinary mask and
 output-premultiplication rules. It does not need to unpremultiply source RGB.
 Compile `colorize.frag` to `colorize.frag.spv`, run `embed.py`, and generate DXBC
 with `compile.exe colorize.hlsl ../colorize_dxbc.h colorize`.
+
+## Outline package
+
+`max2d.outline.v1` uses the same ABI. Parameters xy are the reciprocal source
+width and height; z is the integer radius (0–4); w is zero. The kernel samples
+alpha at integer offsets inside a disk (`x*x+y*y <= radius*radius`), including
+the centre. Its output alpha is `max(neighbour alpha) - centre alpha`, clamped
+to zero, then multiplied by drawing alpha. RGB is drawing tint. Existing mask
+threshold and output-premultiplication rules apply. Mip level zero is sampled,
+and taps outside the image are transparent. Sources must be render images, so
+UV offsets cannot reach adjacent atlas entries or trimmed image storage.
+
+There are 1, 5, 13, 29 and 49 selected samples for radii 0 through 4. The shader
+loops over a fixed 9×9 stencil and skips offsets outside the chosen disk. This
+is a bounded pixel stencil, not a distance-field outline or an arbitrary-radius
+stroke. Compile `outline.frag` to `outline.frag.spv`, run `embed.py`, and generate
+DXBC with `compile.exe outline.hlsl ../outline_dxbc.h outline`.

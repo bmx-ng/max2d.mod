@@ -466,3 +466,52 @@ At 256², retained RGBA8 image storage per case is 768, 640 and 608 KiB respecti
 at 512² it is 3, 2.5 and 2.375 MiB. Captures measure CPU frame time and include
 presentation pacing and VM overhead. They do not establish GPU execution cost
 or a reliable speedup, and the three rebuild cases use different blur radii.
+
+## Alpha outlines
+
+`CreateOutlineEffect(radius)` returns a reusable `TMax2DOutlineEffect` for the
+optional native SDL GPU provider. Radius is an integer from zero to four source
+pixels; `SetRadius` validates changes and `GetRadius` returns the current value.
+It works with `DrawImageEffect`, `DrawImageEffectBatch` and `ApplyLayerEffects`.
+Sources must be render images; ordinary images and atlas entries should first
+be drawn into a padded render layer.
+
+The effect ignores source RGB. Within a circular pixel stencil it finds the
+maximum alpha, subtracts the centre alpha and clamps the difference to zero.
+The output is a white mask, coloured by drawing tint and scaled by drawing
+alpha. Opaque interiors vanish, while transparent pixels next to content form
+the border. Soft alpha transitions produce a difference mask, including around
+holes; compositing this mask behind partially transparent content is not the
+same as replacing that content with a fully dilated silhouette. Radius zero
+produces a transparent mask.
+
+Padding is explicit: leave at least `radius` transparent source pixels around
+the content. The draw geometry stays inside the original image rectangle, so
+an unpadded edge clips the outline. Samples outside the image are transparent;
+mip level zero and the source's sampling filter are used. Output alpha obeys
+the ordinary mask threshold and blend rules. The discrete circular stencil can
+show pixel steps at large display scales; it is not a distance-field stroke.
+
+A draw uses one submission with no intermediate image. Radius four selects 49
+alpha samples inside a fixed 9×9 loop, so it is more expensive per output pixel
+than the nine-tap blur. Batch repeated copies to share a submission. For cached
+coloured outlines, chain outline and colourize into caller-owned images, then
+draw the cached border behind the original. The
+[interactive example](../examples/outline_effects.bmx) shows the original,
+white outline mask, and coloured composite; arrow keys adjust radius and Space
+changes colour. It rebuilds the two-pass chain only when settings change.
+
+### Outline validation (2026-11-17)
+
+The outline regression compares every alpha pixel with an independent CPU disk
+stencil for all five radii. It includes partial alpha, holes, image-edge content,
+and varied source RGB. It checks captured parameter changes, two-copy batching,
+custom blending, drawing tint/alpha, ordinary draws after effects, colourize
+chains, image handles, feedback rejection and render-image-only input. Both
+native sprite paths and two context lifetimes pass on macOS Metal and
+Windows/Ubuntu Vulkan under Parallels. The warmed batch takes one submission
+with zero texture creations, uploads and readbacks. Software SDL and OpenGL
+report the effect unsupported; existing colourize and chain regressions also
+pass on those macOS profiles and Metal. The GUI example was visually inspected,
+including live radius and colour changes. DXBC compiles without warnings;
+Direct3D runtime validation remains outstanding.

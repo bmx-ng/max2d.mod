@@ -333,3 +333,7 @@ with blur for cached silhouettes, soft shadows and coloured glows; see the
 Its `Apply` method downsamples, blurs and enlarges while preserving drawing state.
 See the [resolution comparison](examples/scaled_blur.bmx) and
 [storage, quality and pass costs](docs/effects-and-masking.md#wider-blur-with-retained-reduction-levels).
+
+`CreateOutlineEffect` builds a separate outer-border mask from a render layer's
+alpha. Tint it directly or chain it with `CreateColorizeEffect`; see the
+[interactive outline example](examples/outline_effects.bmx).

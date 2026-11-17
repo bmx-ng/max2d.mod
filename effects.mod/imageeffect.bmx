@@ -148,6 +148,44 @@ Function CreateBlurEffect:TMax2DBlurEffect(radius:Float = 4, horizontal:Int = Tr
 End Function
 
 Rem
+bbdoc: Produces an outer outline from a render image's alpha using a circular pixel neighbourhood.
+about: The output is a white mask with alpha equal to the maximum nearby alpha minus the centre alpha. Drawing tint colours the mask and drawing alpha scales it. The source colour is ignored. Radius is an integer from zero to four source pixels; zero produces a transparent mask. Requires a render-image source. Pad content by at least the radius to keep its outline inside the image bounds. This is a discrete circular stencil, not a distance-field stroke.
+End Rem
+Type TMax2DOutlineEffect Extends TMax2DImageEffect
+
+	Private
+	Field radius:Int = 1
+
+	Public
+
+	Rem
+	bbdoc: Sets the outline radius from zero to four source pixels.
+	about: Previously submitted draws retain their radius. Fractional radii are not supported.
+	End Rem
+	Method SetRadius(value:Int)
+		If value < 0 Or value > 4 Then Throw "Max2D Effects: outline radius must be between zero and four"
+		radius = value
+	End Method
+
+	Rem
+	bbdoc: Returns the outline radius in source pixels.
+	End Rem
+	Method GetRadius:Int()
+		Return radius
+	End Method
+End Type
+
+Rem
+bbdoc: Creates a reusable alpha-outline effect without graphics resources.
+param: Integer radius from zero to four source pixels.
+End Rem
+Function CreateOutlineEffect:TMax2DOutlineEffect(radius:Int = 1)
+	Local effect:TMax2DOutlineEffect = New TMax2DOutlineEffect
+	effect.SetRadius(radius)
+	Return effect
+End Function
+
+Rem
 bbdoc: Import-based extension contract for explicit image effects.
 about: Backend modules register a provider once. Providers must preserve drawing state, capture parameters for queued draws and release native resources with their context. No provider is invoked for ordinary DrawImage calls.
 End Rem

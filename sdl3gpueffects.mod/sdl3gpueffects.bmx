@@ -17,7 +17,7 @@ Private
 Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null)
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
@@ -38,12 +38,14 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	Private
 
 	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DOutlineEffect(effect) Then Return m2d_outline_shader(context.native, context.GetGPUDevice())
 		If TMax2DColorizeEffect(effect) Then Return m2d_colorize_shader(context.native, context.GetGPUDevice())
 		If TMax2DBlurEffect(effect) Then Return m2d_blur_shader(context.native, context.GetGPUDevice())
 		Return m2d_saturation_shader(context.native, context.GetGPUDevice())
 	End Method
 
 	Method DrawMany(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], x:Float, y:Float, frame:Int)
+		If TMax2DOutlineEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: outline requires a render-image source"
 		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(canvas.context)
 		Local shader:Byte Ptr = GetEffectShader(context, effect)
@@ -52,6 +54,8 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect = TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gpu_select_image_effect(context.native, shader, saturation.GetAmount(), 0, 0, 0)
+		Else If TMax2DOutlineEffect(effect) Then
+			m2d_gpu_select_image_effect(context.native, shader, 1.0 / image.width, 1.0 / image.height, TMax2DOutlineEffect(effect).GetRadius(), 0)
 		Else If TMax2DColorizeEffect(effect) Then
 			Local red:Int, green:Int, blue:Int
 			TMax2DColorizeEffect(effect).GetColor(red, green, blue)
@@ -88,6 +92,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 End Type
 
 Extern "C"
+	Function m2d_outline_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_colorize_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_blur_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_saturation_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
