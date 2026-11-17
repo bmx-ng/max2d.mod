@@ -47,6 +47,62 @@ Function CreateSaturationEffect:TMax2DSaturationEffect(amount:Float = 1)
 End Function
 
 Rem
+bbdoc: One axis of a nine-tap blur that filters premultiplied colour and alpha together.
+about: Requires a premultiplied render-image source. Draw horizontal and vertical effects into separate caller-owned render images for a two-dimensional blur. Radius is in source-image pixels, from zero to four. Pad the group with transparent pixels to retain the blur outside its content bounds. Each draw uses one pass; no scratch image is allocated automatically.
+End Rem
+Type TMax2DBlurEffect Extends TMax2DImageEffect
+
+	Private
+	Field radius:Float = 4
+	Field horizontal:Int = True
+
+	Public
+
+	Rem
+	bbdoc: Sets the source-pixel sampling radius from zero to four.
+	about: Four uses the full binomial kernel; smaller radii scale its sample spacing. Zero preserves the source. Values must be finite.
+	End Rem
+	Method SetRadius(value:Float)
+		If value < 0 Or value > 4 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: blur radius must be finite and between zero and four"
+		radius = value
+	End Method
+
+	Rem
+	bbdoc: Returns the source-pixel sampling radius.
+	End Rem
+	Method GetRadius:Float()
+		Return radius
+	End Method
+
+	Rem
+	bbdoc: Selects horizontal sampling when True, or vertical sampling when False.
+	End Rem
+	Method SetHorizontal(value:Int)
+		horizontal = value <> 0
+	End Method
+
+	Rem
+	bbdoc: Returns True for horizontal sampling.
+	End Rem
+	Method IsHorizontal:Int()
+		Return horizontal
+	End Method
+
+End Type
+
+Rem
+bbdoc: Creates a reusable single-axis blur description without graphics resources.
+param: Source-pixel sampling radius, from zero to four.
+param: True for horizontal sampling, False for vertical sampling.
+End Rem
+Function CreateBlurEffect:TMax2DBlurEffect(radius:Float = 4, horizontal:Int = True)
+	Local effect:TMax2DBlurEffect = New TMax2DBlurEffect
+	effect.SetRadius(radius)
+	effect.SetHorizontal(horizontal)
+	Return effect
+End Function
+
+Rem
 bbdoc: Import-based extension contract for explicit image effects.
 about: Backend modules register a provider once. Providers must preserve drawing state, capture parameters for queued draws and release native resources with their context. No provider is invoked for ordinary DrawImage calls.
 End Rem

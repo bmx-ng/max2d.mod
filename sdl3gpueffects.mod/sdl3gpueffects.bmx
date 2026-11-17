@@ -14,15 +14,15 @@ Import "glue.c"
 
 Private
 
-Type TSDLGPUSaturationBackend Extends TMax2DImageEffectBackend
+Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And TMax2DSaturationEffect(effect) <> Null
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
 		Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(canvas.context)
-		Local shader:Byte Ptr = m2d_saturation_shader(context.native, context.GetGPUDevice())
+		Local shader:Byte Ptr = GetEffectShader(context, effect)
 		If Not shader Then Return False
 		Return m2d_gpu_image_effect_support(context.native, shader, context.NativeFrame(context.target), canvas.state.blend, context.compactQuads)
 	End Method
@@ -37,12 +37,30 @@ Type TSDLGPUSaturationBackend Extends TMax2DImageEffectBackend
 
 	Private
 
+	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DBlurEffect(effect) Then Return m2d_blur_shader(context.native, context.GetGPUDevice())
+		Return m2d_saturation_shader(context.native, context.GetGPUDevice())
+	End Method
+
 	Method DrawMany(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], x:Float, y:Float, frame:Int)
+		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(canvas.context)
-		Local shader:Byte Ptr = m2d_saturation_shader(context.native, context.GetGPUDevice())
+		Local shader:Byte Ptr = GetEffectShader(context, effect)
 		If Not shader Then Throw "Max2D Effects: shader creation failed: " + SDL_GetError()
 		context.Flush()
-		m2d_gpu_select_image_effect(context.native, shader, TMax2DSaturationEffect(effect).GetAmount(), 0, 0, 0)
+		Local saturation:TMax2DSaturationEffect = TMax2DSaturationEffect(effect)
+		If saturation Then
+			m2d_gpu_select_image_effect(context.native, shader, saturation.GetAmount(), 0, 0, 0)
+		Else
+			Local blur:TMax2DBlurEffect = TMax2DBlurEffect(effect)
+			Local dx:Float, dy:Float
+			If blur.IsHorizontal() Then
+				dx = blur.GetRadius() / (4 * image.width)
+			Else
+				dy = blur.GetRadius() / (4 * image.height)
+			End If
+			m2d_gpu_select_image_effect(context.native, shader, dx, dy, 0, 0)
+		End If
 		Try
 			If positions Then
 				For Local i:Int = 0 Until positions.Length Step 2
@@ -65,9 +83,10 @@ Type TSDLGPUSaturationBackend Extends TMax2DImageEffectBackend
 End Type
 
 Extern "C"
+	Function m2d_blur_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_saturation_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_gpu_image_effect_support:Int(context:Byte Ptr, effect:Byte Ptr, target:Byte Ptr, blend:Int, compact:Int)
 	Function m2d_gpu_select_image_effect(context:Byte Ptr, effect:Byte Ptr, p0:Float, p1:Float, p2:Float, p3:Float)
 End Extern
 
-RegisterMax2DImageEffectBackend(New TSDLGPUSaturationBackend)
+RegisterMax2DImageEffectBackend(New TSDLGPUImageEffectBackend)

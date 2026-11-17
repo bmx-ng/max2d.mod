@@ -315,3 +315,8 @@ For native SDL GPU colour effects, import `Max2D.SDL3GPUEffects` and use
 accepts a cached masked layer. Each call submits one image, without an intermediate
 surface. `DrawImageEffectBatch` batches repeated copies from a reusable x,y
 positions array. See the [interactive saturation example](examples/image_effects.bmx).
+
+`CreateBlurEffect` supplies a small single-axis blur for premultiplied render
+images. Use horizontal and vertical passes with retained scratch/output images;
+see the [two-pass blur example](examples/blur_effects.bmx) and the radius, padding
+and storage details in [effects and masking](docs/effects-and-masking.md).

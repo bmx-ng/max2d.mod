@@ -21,13 +21,23 @@ Function PrepareLayer(layer:TRenderImage, mask:TImage)
 	SetColor(255, 255, 255)
 End Function
 
+Function PrepareBlur(layer:TRenderImage, scratch:TRenderImage, output:TRenderImage, horizontal:TMax2DBlurEffect, vertical:TMax2DBlurEffect)
+	SetBlend(SOLIDBLEND)
+	SetRenderImage(scratch)
+	DrawImageEffect(layer, horizontal, 0, 0)
+	SetRenderImage(output)
+	DrawImageEffect(scratch, vertical, 0, 0)
+	SetRenderImage(Null)
+	SetBlend(ALPHABLEND)
+End Function
+
 Try
 	Local measured:Int = 120
 	If AppArgs.Length > 1 Then measured = Int(AppArgs[1])
 	If measured < 100 Then Throw "Use at least 100 measured frames"
-	Print "size,mode,draw_mean_ms,frame_mean_ms,frame_p95_ms,batches_per_frame,texture_creations,uploads,readbacks,layer_and_mask_bytes"
+	Print "size,mode,draw_mean_ms,frame_mean_ms,frame_p95_ms,batches_per_frame,texture_creations,uploads,readbacks,retained_image_bytes"
 	For Local size:Int = EachIn [128, 512]
-		For Local mode:Int = 0 Until 3
+		For Local mode:Int = 0 Until 5
 			If Not Graphics(640, 600, 0, 0) Then Throw "Cannot create graphics"
 			Local effect:TMax2DSaturationEffect = CreateSaturationEffect(0)
 			If Not Max2DSupportsImageEffect(effect) Or Not Max2DSupportsLayerAlpha() Then Throw "Effects unavailable"
@@ -42,6 +52,17 @@ Try
 			Next
 			UnlockImage(mask)
 			PrepareLayer(layer, mask)
+			Local horizontal:TMax2DBlurEffect, vertical:TMax2DBlurEffect
+			Local scratch:TRenderImage, output:TRenderImage
+			Local retainedBytes:Long = Long(size) * size * 8
+			If mode >= 3 Then
+				horizontal = CreateBlurEffect(4)
+				vertical = CreateBlurEffect(4, False)
+				scratch = CreateRenderImage(UInt(size), UInt(size), FILTEREDIMAGE)
+				output = CreateRenderImage(UInt(size), UInt(size), FILTEREDIMAGE)
+				PrepareBlur(layer, scratch, output, horizontal, vertical)
+				retainedBytes :+ Long(size) * size * 8
+			End If
 			Local times:Double[measured]
 			Local drawTime:Double
 			Local frameTime:Double
@@ -51,9 +72,12 @@ Try
 				If AppTerminate() Or KeyDown(KEY_ESCAPE) Then Throw "Benchmark interrupted"
 				If max2d_bench_visibility(window) Then Throw "Benchmark window hidden or occluded"
 				If mode = 2 Then PrepareLayer(layer, mask)
+				If mode = 3 Then PrepareBlur(layer, scratch, output, horizontal, vertical)
 				SetClsColor(24, 29, 39)
 				Cls
-				If mode = 0 Then
+				If mode >= 3 Then
+					DrawImage(output, 20, 20)
+				Else If mode = 0 Then
 					DrawImage(layer, 20, 20)
 				Else
 					DrawImageEffect(layer, effect, 20, 20)
@@ -71,8 +95,8 @@ Try
 			Local stats:TMax2DStats = CaptureMax2DStats()
 			Print "# driver=" + SDLGPUMax2DDriverName() + " pixels=" + NativeResolutionWidth() + "x" + NativeResolutionHeight()
 			times.Sort()
-			Local names:String[] = ["cached", "shader", "rebuild_mask_shader"]
-			Print size + "," + names[mode] + "," + drawTime / measured + "," + frameTime / measured + "," + times[Int(Ceil(measured * 0.95)) - 1] + "," + Double(stats.submissions) / measured + "," + stats.textureCreations + "," + stats.textureUpdates + "," + stats.readbacks + "," + Long(size) * size * 8
+			Local names:String[] = ["cached", "shader", "rebuild_mask_shader", "blur_each_frame", "cached_blur"]
+			Print size + "," + names[mode] + "," + drawTime / measured + "," + frameTime / measured + "," + times[Int(Ceil(measured * 0.95)) - 1] + "," + Double(stats.submissions) / measured + "," + stats.textureCreations + "," + stats.textureUpdates + "," + stats.readbacks + "," + retainedBytes
 			EndGraphics
 		Next
 	Next

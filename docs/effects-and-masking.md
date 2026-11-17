@@ -49,7 +49,7 @@ individual draws; it does not clip a group.
 ## Native SDL GPU image effects
 
 Import `Max2D.SDL3GPUEffects` alongside `Max2D.SDL3GPUMax2D` to register the
-optional saturation shader provider. The effect description lives in
+optional saturation and blur shader provider. The effect description lives in
 `Max2D.Effects` and can be created before opening graphics:
 
 ```blitzmax
@@ -125,6 +125,66 @@ including OpenGL, D3D9, D3D11 and SDL_Renderer, report this shader effect
 unsupported. The public API does not silently fall back to a CPU conversion.
 This first package does not expose arbitrary shaders or additional texture
 slots; those require the validated package design below.
+
+## Two-pass layer blur
+
+`CreateBlurEffect(radius, horizontal)` describes one axis of a blur. Radius is
+finite and between zero and four source pixels; `SetRadius` and `SetHorizontal`
+update the reusable description. The native SDL GPU provider requires a
+`TRenderImage` source, whose stored colour is premultiplied. For an ordinary
+image, first draw it into a transparent render image. This avoids colour fringes
+when fractional sample positions interpolate pixels with different alpha.
+
+Use two effect descriptions and two caller-owned output images:
+
+```blitzmax
+Local horizontal:TMax2DBlurEffect = CreateBlurEffect(4, True)
+Local vertical:TMax2DBlurEffect = CreateBlurEffect(4, False)
+' source, scratch and result are distinct, same-sized render images.
+' Use default image handles and identity drawing transforms for these passes.
+Local scope:TMax2DStateScope = ScopedMax2DState()
+Try
+	SetColor(255, 255, 255)
+	SetAlpha(1)
+	SetBlend(SOLIDBLEND)
+	SetRenderImage(scratch)
+	DrawImageEffect(source, horizontal, 0, 0)
+	SetRenderImage(result)
+	DrawImageEffect(scratch, vertical, 0, 0)
+Finally
+	scope.Close()
+End Try
+```
+
+Check support with the desired output and blend selected before use. A pass
+uses the normal image handle, transforms, viewport, tint and blend. `SOLIDBLEND`
+replaces the whole output, so transparent source pixels erase previous contents;
+alpha blending into an uncleared output would accumulate old frames. The caller
+owns any state scope around the pair of passes. There is no transactional rollback
+of output pixels if the second pass fails.
+
+Create the render images with `FILTEREDIMAGE` for smooth fractional radii.
+The kernel weights are `[1,8,28,56,70,56,28,8,1] / 256`, sampled along the selected
+axis with spacing `radius / 4`. This is a small binomial blur, not a general
+large-radius Gaussian filter. Radius four uses one-pixel spacing; radius zero
+is an identity operation but still costs a draw. Sampling uses the base mip level
+so radius is measured in source pixels. Out-of-image taps are transparent. Keep
+at least `Ceil(radius)` transparent pixels around group content, or the output
+image will crop its halo. Linear filtering at the image boundary uses the normal
+sampler, so transparent padding is also needed to avoid clamped edge colours.
+
+The shader averages premultiplied colour and alpha together, converts back to
+straight colour for tint and custom blending, and applies the backend's ordinary
+output convention. It is suitable for a completed soft-masked group. Blur after
+masking spreads the mask's edge; mask after blur clips the softened result.
+
+A two-dimensional blur needs two image draws, nine texture samples per fragment
+per pass, and two retained output images. Their logical RGBA8 storage totals
+`width * height * 8` bytes, in addition to the source. No scratch allocation,
+pixel upload or readback is performed by a warmed draw. Cache the result and
+rebuild only when source pixels or radius change, as shown in the
+[interactive blur example](../examples/blur_effects.bmx). Wider blurs and automatic
+scratch pooling remain future work.
 
 ## Architecture for general shader effects
 
@@ -223,3 +283,23 @@ storage was 128 KiB and 2 MiB respectively. CPU whole-frame means were roughly
 19.5–20 ms with p95 around 41 ms, showing presentation pacing despite `Flip(0)`.
 These timings do not establish shader speed or GPU cost; use repeated captures
 and GPU profiling for that comparison.
+
+## Blur validation (2026-11-17)
+
+`blur_effects` passed on macOS Metal and Windows/Ubuntu Vulkan under Parallels,
+with both triangle and compact sprite paths and two context lifetimes. Pixel
+checks cover the exact kernel, both axes, zero radius, fractional spacing and
+preserved red colour around transparent pixels. Straight-image inputs and invalid
+radii are rejected. Software SDL and OpenGL report the shader unsupported. The
+existing saturation/batching regression still passes on Metal. DXBC compilation
+passed without warnings; Direct3D runtime validation remains outstanding.
+
+The macOS GUI example was opened and visually checked, including live radius
+changes. The [blur benchmark capture](blur-macos-smoke.csv) records a single
+30-warm-up/120-measured-frame smoke run per case. Rebuilding both blur passes and
+drawing the output takes three submissions; drawing the cached result takes one.
+Both have zero measured texture creations, pixel uploads or readbacks. The blur
+cases retain four images, totaling 256 KiB at 128 square and 4 MiB at 512 square.
+Two of those images are the blur outputs; the other two are the source layer and
+its retained mask. CPU timings include compositor/presentation effects and do not
+establish GPU execution time or a speedup.

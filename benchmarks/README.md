@@ -114,9 +114,11 @@ minimum 100). It requires native SDL GPU and the optional SDL3GPUEffects module.
 Keep its window visible. Each case warms for 30 frames and uses `Flip(0)`.
 
 The CSV compares a cached layer, that layer drawn through saturation, and a layer
-redrawn and alpha-masked before saturation, at 128 and 512 pixels square. It records
+redrawn and alpha-masked before saturation, at 128 and 512 pixels square. It also
+compares two-pass blur rebuilt every frame against drawing its cached output. It records
 CPU draw/whole-frame means, whole-frame p95, geometry submissions, texture creation,
-pixel uploads, readbacks and logical RGBA layer-plus-mask bytes. Memory excludes
+pixel uploads, readbacks and logical RGBA retained-image bytes. Blur cases retain
+the layer, mask and two outputs (four images); other cases retain two. Memory excludes
 driver alignment, the window backing surface and shared geometry buffers. The
 timings are CPU wall-clock intervals, not GPU timestamps; compositor pacing can
 dominate even with `Flip(0)`. See [effects and masking](../docs/effects-and-masking.md)

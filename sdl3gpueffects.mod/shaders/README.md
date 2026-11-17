@@ -1,4 +1,4 @@
-# Saturation shader package v1
+# Built-in image shader packages v1
 
 This optional package uses the native SDL GPU backend's existing triangle and
 compact vertex shaders. It changes only the fragment stage. Applications import
@@ -32,3 +32,19 @@ This is an internal built-in package contract, not a public arbitrary-shader
 loader. A future loader needs validated reflection, texture-slot metadata,
 binding limits, content identity and package-version compatibility checks before
 it can accept third-party packages. Other backends report this effect unsupported.
+
+## Blur package
+
+`max2d.blur.v1` uses the same resource ABI. Parameters x,y contain the UV step
+along the selected axis (`radius / (4 * image dimension)`); z,w are zero. The
+nine weights are 1,8,28,56,70,56,28,8,1, normalized by 256. Sampling explicitly
+uses mip level zero. Outside-image taps are transparent. Inputs must be
+premultiplied render images; interpolation and convolution preserve their alpha
+convention before converting to straight output for the usual tint/blend rules.
+
+Compile `blur.frag` to `blur.frag.spv` before running `embed.py`, which now embeds
+both packages. The Windows compiler accepts an optional package argument:
+`compile.exe blur.hlsl ../blur_dxbc.h blur`. Omitting the final argument keeps
+the original saturation build behavior. Keep blur sources, SPIR-V and generated
+headers together. Direct3D bytecode compilation does not establish runtime
+support on a device without a working Direct3D 12 GPU backend.
