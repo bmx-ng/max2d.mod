@@ -1,0 +1,79 @@
+SuperStrict
+Framework BRL.StandardIO
+Import Text.JSON
+Import BRL.FileSystem
+Import BRL.BankStream
+Include "../sdl3gpueffects.mod/packages/tool_common.bmx"
+
+Function Check(ok:Int, message:String)
+	If Not ok Then Throw message
+End Function
+
+ChangeDir(LaunchDir)
+Try
+	If AppArgs.Length<>3 Then Throw "Usage: shader_package_generator repository-root empty-scratch-directory"
+	Local root:String=RealPath(AppArgs[1]), scratch:String=RealPath(AppArgs[2])
+	If FileType(scratch) Then Throw "Scratch directory must not already exist"
+	CreateDir(scratch,True)
+	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage"]
+		Local manifest:String=directory+"/manifest.json"
+		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
+		Local output:String=scratch+"/"+name
+		GeneratePackage(manifest,output)
+		For Local ext:String=EachIn ["metal","frag","hlsl","bmx"]
+			Check(LoadText(output+"/"+name+"."+ext)=LoadText(directory+"/"+name+"."+ext),"Reproducible "+name+"."+ext)
+		Next
+		For Local ext:String=EachIn ["frag.spv","dxbc"]
+			Check(CopyFile(directory+"/"+name+"."+ext,output+"/"+name+"."+ext),"Copy compiled fixture")
+		Next
+		EmbedPackage(manifest,output)
+		Check(LoadText(output+"/"+name+"_assets.c")=LoadText(directory+"/"+name+"_assets.c"),"Reproducible embedded assets")
+	Next
+	Local manifest:String=root+"/sdl3gpueffects.mod/packages/colormatrix/manifest.json"
+	For Local invalid:Int=0 Until 10
+		Local data:TJSONObject=ReadManifest(manifest)
+		Local params:TJSONArray=TJSONArray(data.Get("parameters"))
+		Local first:TJSONObject=TJSONObject(params.Get(0)), bodies:TJSONObject=TJSONObject(data.Get("bodies"))
+		Select invalid
+			Case 0
+				data.Set("abi",New TJSONInteger.Create(2))
+			Case 1
+				data.Set("parameters",New TJSONArray.Create())
+			Case 2
+				TJSONObject(params.Get(1)).Set("name",New TJSONString.Create("row0"))
+			Case 3
+				first.Set("type",New TJSONString.Create("texture"))
+			Case 4
+				first.Set("name",New TJSONString.Create("c"))
+			Case 5
+				bodies.Set("glsl",New TJSONString.Create("} void main() {"))
+			Case 6
+				bodies.Set("metal",New TJSONString.Create("#include ~qother.h~q"))
+			Case 7
+				data.Set("name",New TJSONString.Create("../escape"))
+			Case 8
+				data.Set("extra",New TJSONString.Create("unexpected"))
+			Case 9
+				bodies.Set("glsl",New TJSONInteger.Create(1))
+		End Select
+		Local path:String=scratch+"/invalid.json", rejected:Int
+		SaveText(data.SaveString(),path)
+		Try
+			GeneratePackage(path,scratch+"/invalid")
+		Catch error:Object
+			rejected=True
+		End Try
+		Check(rejected,"Reject invalid manifest "+invalid)
+	Next
+	Local rejected:Int
+	Try
+		GeneratePackage(manifest,scratch+"/invalid","../")
+	Catch error:Object
+		rejected=True
+	End Try
+	Check(rejected,"Reject invalid prefix")
+	Print "shader_package_generator passed"
+Catch error:Object
+	Print "FAILED: "+error.ToString()
+	EndWithCode(1)
+End Try

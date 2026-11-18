@@ -1,0 +1,101 @@
+' Fixed version-one colour shader wrappers.
+Const HEAD_metal:String = """
+#include <metal_stdlib>
+using namespace metal;
+struct Output { float4 position [[position]]; float4 colour; float2 uv; };
+
+"""
+
+Const TAIL_metal:String = """
+fragment float4 m2dEffectMain(Output input [[stage_in]], texture2d<float> image [[texture(0)]], sampler sampleState [[sampler(0)]], constant float4 &mode [[buffer(0)]], constant float4 *p [[buffer(1)]]) {
+float4 c=image.sample(sampleState,input.uv);
+if(mode.x!=0) c=float4(1,1,1,c.r);
+if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:float3(0,0,0);
+c*=input.colour;
+c=userEffect(c,p);
+c.a=clamp(c.a,0.0,1.0);
+if(mode.z!=0 && c.a<0.5) discard_fragment();
+if(mode.w!=0) c.rgb*=c.a;
+return c;
+}
+
+"""
+
+Const HEAD_glsl:String = """
+#version 450
+layout(location=0) in vec4 tint;
+layout(location=1) in vec2 texcoord;
+layout(location=0) out vec4 result;
+layout(set=2,binding=0) uniform sampler2D image;
+layout(set=3,binding=0) uniform Modes { vec4 mode; };
+layout(set=3,binding=1) uniform Parameters { vec4 p[@COUNT@]; };
+
+"""
+
+Const TAIL_glsl:String = """
+void main() {
+vec4 c=texture(image,texcoord);
+if(mode.x!=0) c=vec4(1,1,1,c.r);
+if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:vec3(0);
+c*=tint;
+c=userEffect(c);
+c.a=clamp(c.a,0.0,1.0);
+if(mode.z!=0 && c.a<0.5) discard;
+if(mode.w!=0) c.rgb*=c.a;
+result=c;
+}
+
+"""
+
+Const HEAD_hlsl:String = """
+cbuffer Modes : register(b0, space3) { float4 mode; };
+cbuffer Parameters : register(b1, space3) { float4 p[@COUNT@]; };
+Texture2D image : register(t0, space2);
+SamplerState sampleState : register(s0, space2);
+struct Output { float4 position: SV_Position; float4 colour: TEXCOORD0; float2 uv: TEXCOORD1; };
+
+"""
+
+Const TAIL_hlsl:String = """
+float4 m2dEffectMain(Output input): SV_Target0 {
+float4 c=image.Sample(sampleState,input.uv);
+if(mode.x!=0) c=float4(1,1,1,c.r);
+if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:float3(0,0,0);
+c*=input.colour;
+c=userEffect(c);
+c.a=clamp(c.a,0.0,1.0);
+if(mode.z!=0 && c.a<0.5) discard;
+if(mode.w!=0) c.rgb*=c.a;
+return c;
+}
+
+"""
+
+
+Const BMX_WRAPPER:String = """
+' Generated package wrapper. Run embed after compiling shader assets.
+' Import @PREFIX@@NAME@_assets.c alongside your application imports.
+Function @FACTORY@:TMax2DShaderPackage()
+	Return TMax2DShaderPackage.Create("@NAME@", [@NAMES@], [@KINDS@], @ARGUMENTS@)
+End Function
+Private
+Extern "C"
+	Function @FACTORY@Asset:Byte Ptr(index:Int)
+	Function @FACTORY@Size:Int(index:Int)
+End Extern
+Function @FACTORY@Data:Byte[](source:Byte Ptr, length:Int)
+	Local data:Byte[] = New Byte[length]
+	MemCopy(data, source, Size_T(data.Length))
+	Return data
+End Function
+Public
+
+"""
+
+Const C_ASSET_FOOTER:String = """
+static const unsigned char *assets[] = {asset0,asset1,asset2};
+static const int sizes[] = {@SIZES@};
+const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<3?assets[i]:0; }
+int @FACTORY@Size(int i) { return i>=0 && i<3?sizes[i]:0; }
+
+"""

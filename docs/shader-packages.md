@@ -62,24 +62,35 @@ trusted function bodies for `metal`, `glsl` and `hlsl`; each returns a
 four-component colour. `c` is tinted straight RGBA, and named parameters are
 available as local values. This is not an automatic shader-language translator.
 
-From the packages directory, for the reference package:
+All three tools are BlitzMax console applications. The generator and embedder
+use `Text.JSON` plus BRL modules. Build them once from the packages directory:
 
 ```sh
-python3 generate.py colormatrix/manifest.json colormatrix
+bmk makeapp -r -t console -o generate generate.bmx
+bmk makeapp -r -t console -o embed embed.bmx
+```
+
+For the reference package (use `generate.exe`/`embed.exe` on Windows):
+
+```sh
+./generate colormatrix/manifest.json colormatrix
 glslc -O colormatrix/colormatrix.frag -o colormatrix/colormatrix.frag.spv
 ```
 
-On Windows, build `compile_dxbc.cpp` using the SDK MinGW C++ compiler with
-`-ld3dcompiler`, then run:
+On Windows, build and run the BlitzMax DXBC compiler tool. It calls
+`D3DCompile` in `d3dcompiler_47.dll` directly through a BlitzMax binding; no C++
+helper is required. It prints compiler diagnostics and exits nonzero on failure.
+The target remains `m2dEffectMain`, pixel shader 5.1, optimization level 3.
 
 ```text
+bmk makeapp -r -t console -o compile_dxbc compile_dxbc.bmx
 compile_dxbc.exe colormatrix/colormatrix.hlsl colormatrix/colormatrix.dxbc
 ```
 
 Finally embed the compiled assets:
 
 ```sh
-python3 embed.py colormatrix/manifest.json colormatrix
+./embed colormatrix/manifest.json colormatrix
 ```
 
 Import the generated `_assets.c` alongside your application imports, then
@@ -117,3 +128,19 @@ support.
 
 Validation on 2026-11-18: package regressions pass on macOS Metal and on
 Windows/Ubuntu Vulkan; software fallback rejects unsupported package draws.
+
+The build tools and their regression tests are written in BlitzMax. The shader
+compilers (`glslc` and Microsoft's `D3DCompile`) remain external platform tools.
+The generated `_assets.c` files contain only embedded data and accessors.
+Readable triple-quoted templates live in `packages/templates.bmx`.
+
+Run the generator regression without Python from the repository root:
+
+```sh
+bmk makeapp -r -t console -o shader_package_generator tests/shader_package_generator.bmx
+./shader_package_generator . /path/to/new-scratch-directory
+```
+
+It checks exact reproduction of both reference packages, including embedded
+assets, and rejects malformed schemas and function bodies. The tools resolve
+relative paths against the directory from which they were launched.
