@@ -15,6 +15,7 @@ Include "layereffect.bmx"
 Include "scaledblur.bmx"
 Include "effectbuffers.bmx"
 Include "bloom.bmx"
+Include "shadow.bmx"
 
 Private
 

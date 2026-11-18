@@ -9,6 +9,7 @@
 | Ordered effects on a layer | `ApplyLayerEffects` |
 | Wide blur | `TMax2DScaledBlur` |
 | Retained intermediate storage | [TMax2DEffectBuffers](effect-buffers.md) |
+| Cached soft shadows | [TMax2DShadow](shadows.md) |
 | Complete cached bloom | [TMax2DBloom](bloom.md) |
 | Linear artwork and HDR/SDR presentation | [Colour handling and HDR output](hdr-output.md) |
 
