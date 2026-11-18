@@ -134,3 +134,13 @@ respectively, so these cases demonstrate wider effects rather than equal output.
 RGBA8 size. Counters include the final display draw. Timings measure CPU
 whole-frame duration, including presentation; they are not GPU timings or proof
 of a speedup. Run with the window visible and without another local graphics test.
+
+## Cached effects
+
+`cached_effects.bmx` compares source-only, cached and rebuilt soft shadows, inner
+shadows and bloom at 128² and 512² with RGBA16F buffers. Optional arguments are
+measured frames (default/minimum 100) and repetitions (default 2). Every case has
+30 warm-up frames, and alternate repetitions reverse case order. It checks the
+expected steady-state submission counts and zero texture churn/readback. Keep
+its window visible. See the [gallery and benchmark guide](../docs/effects-gallery.md)
+for scene definitions, memory accounting and timing limitations.

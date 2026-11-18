@@ -30,6 +30,9 @@ soft cutouts with one ordinary draw and no shader package.
 colour, opacity and offset. [Inner shadows](docs/inner-shadows.md) add cached
 recessed shading inside shapes and text.
 
+Explore the [effects gallery](docs/effects-gallery.md) for side-by-side examples
+and explicit independent/group shadow comparisons.
+
 ## Get started
 
 Use a **bcc2-based BlitzMax NG SDK** with up-to-date BRL, Pub, Text and Math
