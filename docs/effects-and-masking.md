@@ -4,7 +4,7 @@
 
 | Task | API / guide |
 | --- | --- |
-| Alpha masks and opacity | `ApplyLayerAlphaMask`, `ApplyLayerOpacity` (below) |
+| Alpha masks, cutouts and opacity | `ApplyLayerAlphaMask`, `ApplyLayerInverseAlphaMask`, `ApplyLayerOpacity` (below) |
 | Single or repeated image effects | `DrawImageEffect`, `DrawImageEffectBatch` |
 | Ordered effects on a layer | `ApplyLayerEffects` |
 | Wide blur | `TMax2DScaledBlur` |
@@ -20,9 +20,9 @@ unused. The sections below retain the low-level APIs for custom composition.
 ## Layer masking
 
 `Max2D.Effects` is optional. Import it only in applications that use layer
-compositing. Layer masking provides two operations on a caller-owned
-`TRenderImage`: `ApplyLayerAlphaMask(mask)` and `ApplyLayerOpacity(opacity)`.
-Both multiply stored RGB and alpha, so a transparent layer remains in Max2D's
+compositing. Layer masking provides `ApplyLayerAlphaMask(mask)`,
+`ApplyLayerInverseAlphaMask(mask)` and `ApplyLayerOpacity(opacity)` on a
+caller-owned `TRenderImage`. All multiply stored RGB and alpha, so a transparent layer remains in Max2D's
 premultiplied format. They use one ordinary draw over the layer bounds, without
 readback, new allocation or a shader package. Query `Max2DSupportsLayerAlpha()`
 and `Max2DSupportsRenderImage(width, height, flags)` after opening graphics.
@@ -53,6 +53,34 @@ the current camera, transforms, image handle and viewport while it composites,
 then restores drawing state and the current target. The layer's pixels outside
 the mask become transparent only if those mask pixels have zero alpha.
 `ApplyLayerOpacity` also costs a pass; use `SetAlpha` on a single draw instead.
+
+### Inverse masks and cutouts
+
+`ApplyLayerInverseAlphaMask(mask)` multiplies the selected layer's stored RGB and
+alpha by **1 − mask alpha**. Opaque mask pixels erase the layer, transparent pixels
+leave it untouched, and partial mask alpha fades it. Mask RGB is ignored. This
+cuts holes without allocating an inverted mask image or requiring shader effects.
+
+Query `Max2DSupportsLayerInverseAlpha()` after opening graphics, alongside
+render-image support. It checks the exact inverse-alpha blend independently of
+normal masking. The mask must match the layer dimensions and cannot be the layer
+itself. Ordinary and render-image masks are accepted. As with normal masking,
+source handles and caller transforms, tint and viewport do not affect the pass;
+drawing state and target views are restored. Source mask pixels are unchanged.
+
+Each call costs one ordinary draw. A warmed call creates no texture, uploads no
+pixels and performs no readback. It modifies the layer in place: repeated calls
+multiply coverage again. Redraw or retain the unmasked source when toggling modes.
+The layer example uses Space to switch normal/inverse masking.
+
+`inverse_layer_masks` passes on macOS Metal/OpenGL and Windows/Ubuntu Vulkan.
+It checks the alpha-product formula across eight source and mask alpha values,
+ordinary and render-image masks, ignored handles/transforms/tint/viewport, source
+mask preservation, feedback rejection, both native sprite paths and two context
+lifetimes. Warmed operations use one submission without texture creation, upload
+or readback. Software SDL passes explicit unsupported-blend rejection. Existing
+normal mask/opacity tests also pass on Metal, OpenGL and software SDL. The GUI
+example was visually checked in normal and inverse modes.
 
 For nested groups, composite an inner render image into an outer one, then
 apply the outer mask. This exposes target switches and memory cost to the caller.

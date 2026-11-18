@@ -24,6 +24,8 @@ HDR output or sRGB-encoded SDR tone mapping.
 [Reusable effect buffers](docs/effect-buffers.md) manage retained intermediate
 images and blur pyramids for these operations. [Reusable bloom](docs/bloom.md)
 combines extraction, blur and composition behind an explicit cached-result API.
+[Inverse layer masks](docs/effects-and-masking.md#inverse-masks-and-cutouts) add
+soft cutouts with one ordinary draw and no shader package.
 [Reusable soft shadows](docs/shadows.md) cache alpha silhouettes with draw-time
 colour, opacity and offset.
 

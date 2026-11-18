@@ -17,6 +17,7 @@ Import Max2D.Effects
 Const layerWidth:Int = 240
 Const layerHeight:Int = 160
 
+AppTitle = "Max2D layer masks and cutouts"
 Graphics(720, 400)
 
 Local supported:Int = Max2DSupportsRenderImage(layerWidth, layerHeight, 0) And Max2DSupportsLayerAlpha()
@@ -39,7 +40,10 @@ If supported Then
 End If
 
 Local opacity:Float = 0.8
+Local inverse:Int
+Local inverseSupported:Int = Max2DSupportsLayerInverseAlpha()
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
+	If KeyHit(KEY_SPACE) And inverseSupported Then inverse = Not inverse
 	If KeyDown(KEY_UP) Then opacity = Min(1.0, opacity + 0.01)
 	If KeyDown(KEY_DOWN) Then opacity = Max(0.0, opacity - 0.01)
 
@@ -66,15 +70,22 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 		DrawOval(0, 0, layerWidth, layerHeight)
 		SetColor(255, 200, 85)
 		DrawRect(25, 50, 190, 60)
-		ApplyLayerAlphaMask(mask)
+		If inverse Then
+			ApplyLayerInverseAlphaMask(mask)
+		Else
+			ApplyLayerAlphaMask(mask)
+		End If
 		ApplyLayerOpacity(opacity)
 		SetRenderImage(Null)
 
 		SetColor(255, 255, 255)
 		SetAlpha(1)
-		DrawText("Soft alpha mask + group opacity", 370, 36)
+		Local label:String = "Soft mask + group opacity"
+		If inverse Then label = "Inverse mask: soft cutout"
+		DrawText(label, 370, 36)
 		DrawImage(layer, 370, 80)
 		DrawText("Up/Down: " + Int(opacity * 100) + "%", 370, 265)
+		If inverseSupported Then DrawText("Space: normal/inverse mask", 370, 290)
 	Else
 		SetColor(255, 255, 255)
 		DrawText("Layer alpha unavailable on this backend", 370, 100)
