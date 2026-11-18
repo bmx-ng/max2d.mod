@@ -45,8 +45,9 @@ blur storage; **0** adds a full-size blur scratch; positive counts add the pyram
 and a scratch matching its smallest level. The full-size count must be at least
 one. Reductions cannot continue after reaching 1×1.
 
-`examples/hdr_scene.bmx` now uses this owner for its highlights, glow, composite,
-reduction levels and blur scratch. The original low-level APIs remain available.
+[TMax2DBloom](bloom.md) uses this owner for its highlights, glow, composite,
+reduction levels and blur scratch, and is demonstrated in `examples/hdr_scene.bmx`.
+The original low-level APIs remain available.
 
 ## Ownership, resizing and release
 

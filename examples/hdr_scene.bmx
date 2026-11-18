@@ -8,19 +8,13 @@ Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current()
 Local hdrSupported:Int = context.SupportsHDROutput()
 If hdrSupported And context.HDRHeadroom() > 1 Then context.SetHDROutput(True)
 Local tone:TMax2DLinearOutputEffect = CreateLinearOutputEffect(context.HDROutput())
-Local bright:TMax2DBrightPassEffect = CreateBrightPassEffect(1.5)
-Local blur:TMax2DScaledBlur = CreateScaledBlur(12)
-Local extraction:TMax2DImageEffect[] = [TMax2DImageEffect(bright)]
-Local supported:Int = Max2DSupportsImageEffect(tone) And Max2DSupportsImageEffect(bright) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F) And Max2DTextureFormatSupport(PF_RGBA32F, 0) <> ETextureFormatSupport.Unsupported
-Local source:TRenderImage, highlights:TRenderImage, glow:TRenderImage, composite:TRenderImage
-Local buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
+Local bloom:TMax2DBloom = CreateBloom(1.5, 12)
+Local supported:Int = Max2DSupportsImageEffect(tone) And Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F) And Max2DTextureFormatSupport(PF_RGBA32F, 0) <> ETextureFormatSupport.Unsupported
+Local source:TRenderImage, composite:TRenderImage
 Local dirty:Int = True, enabled:Int = True
 If supported Then
 	source = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
-	buffers.Prepare(160, 128, 3, 2, PF_RGBA16F)
-	highlights = buffers.Image(0)
-	glow = buffers.Image(1)
-	composite = buffers.Image(2)
+	bloom.Prepare(160, 128, 2)
 	' Ordinary sRGB artwork is decoded once before filtering or composition.
 	Local artwork:TPixmap = CreatePixmap(160, 128, PF_RGBA8888)
 	For Local y:Int = 0 Until 128
@@ -74,7 +68,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If KeyHit(KEY_LEFT) Then change = -0.25
 	If KeyHit(KEY_RIGHT) Then change = 0.25
 	If change Then
-		bright.SetThreshold(Float(Max(0.0, Min(4.0, bright.GetThreshold()+change))))
+		bloom.SetThreshold(Float(Max(0.0, Min(4.0, bloom.GetThreshold()+change))))
 		dirty = True
 	End If
 	change = 0
@@ -85,16 +79,12 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If KeyHit(KEY_H) And hdrSupported Then context.SetHDROutput(Not context.HDROutput())
 	tone.SetHDR(context.HDROutput())
 	tone.SetWhiteLevel(context.SDRWhiteLevel())
+	If KeyHit(KEY_I) Then
+		bloom.SetIntensity(Float((bloom.GetIntensity()+0.5) Mod 3))
+		dirty = True
+	End If
 	If supported And dirty Then
-		buffers.ApplyChain(source, 0, extraction)
-		buffers.ApplyBlur(highlights, 1, blur)
-		SetRenderImage(composite)
-		SetBlend(SOLIDBLEND)
-		DrawImage(source, 0, 0)
-		SetBlend(LIGHTBLEND)
-		DrawImage(glow, 0, 0)
-		SetRenderImage(Null)
-		SetBlend(ALPHABLEND)
+		composite = bloom.Update(source)
 		dirty = False
 	End If
 	SetClsColor(0, 0, 0)
@@ -121,9 +111,9 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Else
 		DrawText("Required floating-point images or shaders are unavailable.", 25, 115)
 	End If
-	DrawText("H: HDR/SDR | Space: bloom | Arrows: threshold/exposure | Escape: exit", 25, 475)
-	DrawText("Threshold: "+bright.GetThreshold()+" | Exposure: "+tone.GetExposure(), 25, 505)
+	DrawText("H: HDR/SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
+	DrawText("Threshold: "+bloom.GetThreshold()+" | Exposure: "+tone.GetExposure()+" | Bloom intensity: "+bloom.GetIntensity(), 25, 505)
 	Flip
 Wend
-buffers.Release()
+bloom.Release()
 EndGraphics

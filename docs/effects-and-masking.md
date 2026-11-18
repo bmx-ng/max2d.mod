@@ -1,7 +1,25 @@
 # Effects and group masking
 
+## Choosing an API
+
+| Task | API / guide |
+| --- | --- |
+| Alpha masks and opacity | `ApplyLayerAlphaMask`, `ApplyLayerOpacity` (below) |
+| Single or repeated image effects | `DrawImageEffect`, `DrawImageEffectBatch` |
+| Ordered effects on a layer | `ApplyLayerEffects` |
+| Wide blur | `TMax2DScaledBlur` |
+| Retained intermediate storage | [TMax2DEffectBuffers](effect-buffers.md) |
+| Complete cached bloom | [TMax2DBloom](bloom.md) |
+| Linear artwork and HDR/SDR presentation | [Colour handling and HDR output](hdr-output.md) |
+
+Shader effects require `Max2D.SDL3GPUEffects`; the descriptions and buffer owners
+live in `Max2D.Effects`. Optional effects add no work to ordinary drawing when
+unused. The sections below retain the low-level APIs for custom composition.
+
+## Layer masking
+
 `Max2D.Effects` is optional. Import it only in applications that use layer
-compositing. The first slice provides two operations on a caller-owned
+compositing. Layer masking provides two operations on a caller-owned
 `TRenderImage`: `ApplyLayerAlphaMask(mask)` and `ApplyLayerOpacity(opacity)`.
 Both multiply stored RGB and alpha, so a transparent layer remains in Max2D's
 premultiplied format. They use one ordinary draw over the layer bounds, without

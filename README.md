@@ -22,7 +22,8 @@ with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
 `examples/hdr_scene.bmx` adds sRGB artwork conversion and linear bloom with
 HDR output or sRGB-encoded SDR tone mapping.
 [Reusable effect buffers](docs/effect-buffers.md) manage retained intermediate
-images and blur pyramids for these operations.
+images and blur pyramids for these operations. [Reusable bloom](docs/bloom.md)
+combines extraction, blur and composition behind an explicit cached-result API.
 
 ## Get started
 
