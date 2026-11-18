@@ -17,7 +17,7 @@ Private
 Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null Or TMax2DBrightPassEffect(effect) <> Null Or TMax2DToneMapEffect(effect) <> Null)
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null Or TMax2DBrightPassEffect(effect) <> Null Or TMax2DToneMapEffect(effect) <> Null Or TMax2DLinearOutputEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
@@ -38,6 +38,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	Private
 
 	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DLinearOutputEffect(effect) Then Return m2d_linearoutput_shader(context.native, context.GetGPUDevice())
 		If TMax2DToneMapEffect(effect) Then Return m2d_tonemap_shader(context.native, context.GetGPUDevice())
 		If TMax2DBrightPassEffect(effect) Then Return m2d_brightpass_shader(context.native, context.GetGPUDevice())
 		If TMax2DOutlineEffect(effect) Then Return m2d_outline_shader(context.native, context.GetGPUDevice())
@@ -56,6 +57,9 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect = TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gpu_select_image_effect(context.native, shader, saturation.GetAmount(), 0, 0, 0)
+		Else If TMax2DLinearOutputEffect(effect) Then
+			Local output:TMax2DLinearOutputEffect = TMax2DLinearOutputEffect(effect)
+			m2d_gpu_select_image_effect(context.native, shader, output.GetExposure(), output.GetWhiteLevel(), output.IsHDR(), 0)
 		Else If TMax2DToneMapEffect(effect) Then
 			Local tone:TMax2DToneMapEffect = TMax2DToneMapEffect(effect)
 			m2d_gpu_select_image_effect(context.native, shader, tone.GetExposure(), 1.0 / tone.GetGamma(), 0, 0)
@@ -99,6 +103,7 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 End Type
 
 Extern "C"
+	Function m2d_linearoutput_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_tonemap_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_brightpass_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)
 	Function m2d_outline_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr)

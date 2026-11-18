@@ -19,6 +19,8 @@ choose a backend without rewriting your scene code.
 
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
+`examples/hdr_scene.bmx` adds sRGB artwork conversion and linear bloom with
+HDR output or sRGB-encoded SDR tone mapping.
 
 ## Get started
 

@@ -76,3 +76,73 @@ Unsupported systems verify rejection without losing SDR rendering.
 The VMs do not validate physical Windows/Linux HDR display output. Direct3D 12
 HDR output is also unverified. HDR availability varies with the backend, OS,
 display configuration and virtualisation environment.
+
+## Preparing artwork and presenting a linear scene
+
+`Max2D.Effects` provides `SRGBPixmapToLinearTextureData(pixmap)` for ordinary
+8-bit sRGB artwork. It returns one RGBA32F level, with straight alpha unchanged.
+Convert once at loading time, before texture filtering or mip generation:
+
+```blitzmax
+Local pixels:TPixmap = LoadPixmap("artwork.png")
+Local image:TImage = LoadImage(SRGBPixmapToLinearTextureData(pixels), FILTEREDIMAGE)
+```
+
+The source pixmap is not changed. RGB uses the piecewise sRGB decode curve,
+including its linear section near black. Input must be an 8-bit pixmap with
+straight alpha and sRGB colour values. Embedded ICC profiles, wide-gamut artwork,
+and premultiplied source files need separate preparation. The returned texture
+contains no colour metadata: applications must keep track of its linear encoding.
+RGBA32F costs 16 bytes per pixel; check texture-format support before upload.
+
+The optional SDL GPU provider implements `CreateLinearOutputEffect()` for the
+last draw of a linear scene. It has two explicit modes:
+
+- `SetHDR(True)`: clamp negative channels to zero, apply the exposure multiplier,
+  then multiply by the selected SDR white level. Values above white survive.
+- `SetHDR(False)`: clamp negative channels to zero, apply exposure, map each
+  channel with Reinhard, then encode with the piecewise sRGB transfer curve.
+  The white-level setting is ignored in this mode.
+
+```blitzmax
+Local output:TMax2DLinearOutputEffect = CreateLinearOutputEffect()
+' Update these when the window mode or OS white level changes:
+output.SetHDR(context.HDROutput())
+output.SetWhiteLevel(context.SDRWhiteLevel())
+output.SetExposure(1)
+SetRenderImage(Null)
+SetColor(255, 255, 255)
+SetAlpha(1)
+SetBlend(SOLIDBLEND)
+DrawImageEffect(scene, output, 0, 0)
+```
+
+Check `Max2DSupportsImageEffect(output)` for the selected target. The effect does
+not change the window's mode. Compose into an opaque linear floating-point scene,
+then present it once; blending separately encoded SDR sprites would blend in the
+wrong colour space. Per-channel Reinhard can alter saturation. This is explicit
+sRGB conversion and presentation, not general ICC colour management.
+
+The transfer functions follow the [sRGB specification](https://www.w3.org/Graphics/Color/srgb).
+The older `CreateToneMapEffect` keeps its original configurable power-curve
+behaviour; use the new output effect when piecewise sRGB encoding is needed.
+
+`examples/hdr_scene.bmx` combines decoded artwork with HDR emitters and cached
+linear bloom. H switches HDR/SDR, Space toggles bloom, and the arrow keys adjust
+threshold/exposure. Exposure and mode changes only affect presentation; threshold
+changes rebuild the cached bloom. Each final scene draw is one effect submission,
+with no intermediate output image or additional transfer pass.
+
+### Colour validation (2026-11-18)
+
+`tests/linear_colour.bmx` covers all 256 sRGB codes, the alpha ramp, immutable
+source pixels, HDR white scaling, SDR output encoding, premultiplied render-image
+input, linear filtering, both sprite paths and two context lifetimes. A warmed
+batch uses one submission with no texture creation, upload or readback. The CPU
+conversion also runs with the software backend, which reports the shader as
+unsupported. Metal and Vulkan are the runtime validation targets; DXBC is compiled
+but Direct3D runtime output remains unverified.
+
+The final colour regression passed on macOS Metal, Windows 11 Vulkan and Ubuntu
+Vulkan; the software profile passed CPU conversion and unsupported-effect handling.
+The live scene was checked in both HDR and SDR, with bloom and exposure controls.

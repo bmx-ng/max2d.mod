@@ -102,3 +102,10 @@ power curve, not an automatic colour-space conversion or an sRGB transfer functi
 
 Compile `tonemap.frag` to `tonemap.frag.spv`, run `embed.py`, and generate DXBC
 with `compile.exe tonemap.hlsl ../tonemap_dxbc.h tonemap`.
+
+`linearoutput` presents linear RGB as extended linear HDR (exposure × white
+level), or as per-channel Reinhard followed by piecewise sRGB encoding. Parameters
+are exposure, white level, HDR boolean, and zero. It preserves coverage and uses
+the same premultiplied input/output contract as the other colour effects. Its
+Metal, SPIR-V and DXBC packages are generated with the tools above; pass
+`linearoutput` as the final argument to `compile.cpp`'s executable.

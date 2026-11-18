@@ -10,6 +10,7 @@ ModuleInfo "License: zlib/libpng"
 Import Max2D.Core
 
 Include "imageeffect.bmx"
+Include "linearcolour.bmx"
 Include "layereffect.bmx"
 Include "scaledblur.bmx"
 
