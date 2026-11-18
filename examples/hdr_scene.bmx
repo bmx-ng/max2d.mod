@@ -12,16 +12,15 @@ Local bright:TMax2DBrightPassEffect = CreateBrightPassEffect(1.5)
 Local blur:TMax2DScaledBlur = CreateScaledBlur(12)
 Local extraction:TMax2DImageEffect[] = [TMax2DImageEffect(bright)]
 Local supported:Int = Max2DSupportsImageEffect(tone) And Max2DSupportsImageEffect(bright) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F) And Max2DTextureFormatSupport(PF_RGBA32F, 0) <> ETextureFormatSupport.Unsupported
-Local source:TRenderImage, highlights:TRenderImage, glow:TRenderImage, composite:TRenderImage, scratch:TRenderImage
-Local levels:TRenderImage[]
+Local source:TRenderImage, highlights:TRenderImage, glow:TRenderImage, composite:TRenderImage
+Local buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
 Local dirty:Int = True, enabled:Int = True
 If supported Then
 	source = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
-	highlights = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
-	glow = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
-	composite = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
-	levels = [CreateRenderImage(80, 64, FILTEREDIMAGE, PF_RGBA16F), CreateRenderImage(40, 32, FILTEREDIMAGE, PF_RGBA16F)]
-	scratch = CreateRenderImage(40, 32, FILTEREDIMAGE, PF_RGBA16F)
+	buffers.Prepare(160, 128, 3, 2, PF_RGBA16F)
+	highlights = buffers.Image(0)
+	glow = buffers.Image(1)
+	composite = buffers.Image(2)
 	' Ordinary sRGB artwork is decoded once before filtering or composition.
 	Local artwork:TPixmap = CreatePixmap(160, 128, PF_RGBA8888)
 	For Local y:Int = 0 Until 128
@@ -87,8 +86,8 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	tone.SetHDR(context.HDROutput())
 	tone.SetWhiteLevel(context.SDRWhiteLevel())
 	If supported And dirty Then
-		ApplyLayerEffects(source, highlights, extraction)
-		blur.Apply(highlights, glow, levels, scratch)
+		buffers.ApplyChain(source, 0, extraction)
+		buffers.ApplyBlur(highlights, 1, blur)
 		SetRenderImage(composite)
 		SetBlend(SOLIDBLEND)
 		DrawImage(source, 0, 0)
@@ -126,4 +125,5 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	DrawText("Threshold: "+bright.GetThreshold()+" | Exposure: "+tone.GetExposure(), 25, 505)
 	Flip
 Wend
+buffers.Release()
 EndGraphics

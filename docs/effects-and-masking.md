@@ -645,3 +645,9 @@ on all three macOS profiles. The GUI comparison was inspected with exposure and
 threshold changes and bloom toggled off/on. DXBC compiles without warnings;
 Direct3D runtime validation remains outstanding. This validates SDR display of
 HDR content, not an HDR monitor output mode or automatic colour management.
+
+## Reusable buffer ownership
+
+`TMax2DEffectBuffers` can own the intermediate render images and blur pyramid
+used by the operations above. See [reusable effect buffers](effect-buffers.md)
+for preparation, indexed results, resizing, context ownership and release.
