@@ -16,6 +16,7 @@ Include "scaledblur.bmx"
 Include "effectbuffers.bmx"
 Include "bloom.bmx"
 Include "shadow.bmx"
+Include "innershadow.bmx"
 
 Private
 
