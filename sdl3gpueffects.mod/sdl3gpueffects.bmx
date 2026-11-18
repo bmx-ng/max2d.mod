@@ -11,13 +11,18 @@ ModuleInfo "CC_OPTS: -I%PWD%/../../sdl3.mod/sdl3.mod/SDL3/include"
 Import Max2D.Effects
 Import Max2D.SDL3GPUMax2D
 Import "glue.c"
+Import "package.c"
+Import "packages/colormatrix/colormatrix_assets.c"
+
+Include "packages/colormatrix/colormatrix.bmx"
+Include "package.bmx"
 
 Private
 
 Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Override
-		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null Or TMax2DBrightPassEffect(effect) <> Null Or TMax2DToneMapEffect(effect) <> Null Or TMax2DLinearOutputEffect(effect) <> Null)
+		Return TSDLGPUMax2DContext(context) <> Null And (TMax2DShaderEffect(effect) <> Null Or TMax2DSaturationEffect(effect) <> Null Or TMax2DBlurEffect(effect) <> Null Or TMax2DColorizeEffect(effect) <> Null Or TMax2DOutlineEffect(effect) <> Null Or TMax2DBrightPassEffect(effect) <> Null Or TMax2DToneMapEffect(effect) <> Null Or TMax2DLinearOutputEffect(effect) <> Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Override
@@ -38,6 +43,10 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	Private
 
 	Method GetEffectShader:Byte Ptr(context:TSDLGPUMax2DContext, effect:TMax2DImageEffect)
+		If TMax2DShaderEffect(effect) Then
+			Local custom:TMax2DShaderEffect = TMax2DShaderEffect(effect)
+			Return custom.NativeShader(context)
+		End If
 		If TMax2DLinearOutputEffect(effect) Then Return m2d_linearoutput_shader(context.native, context.GetGPUDevice())
 		If TMax2DToneMapEffect(effect) Then Return m2d_tonemap_shader(context.native, context.GetGPUDevice())
 		If TMax2DBrightPassEffect(effect) Then Return m2d_brightpass_shader(context.native, context.GetGPUDevice())
@@ -48,6 +57,10 @@ Type TSDLGPUImageEffectBackend Extends TMax2DImageEffectBackend
 	End Method
 
 	Method DrawMany(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], x:Float, y:Float, frame:Int)
+		If TMax2DShaderEffect(effect) Then
+			TMax2DShaderEffect(effect).DrawNative(canvas,image,positions,x,y,frame)
+			Return
+		End If
 		If TMax2DOutlineEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: outline requires a render-image source"
 		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(canvas.context)

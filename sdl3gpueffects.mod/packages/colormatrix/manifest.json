@@ -1,0 +1,32 @@
+{
+  "abi": 1,
+  "name": "colormatrix",
+  "factory": "CreateColorMatrixPackage",
+  "parameters": [
+    {
+      "name": "row0",
+      "type": "float4"
+    },
+    {
+      "name": "row1",
+      "type": "float4"
+    },
+    {
+      "name": "row2",
+      "type": "float4"
+    },
+    {
+      "name": "row3",
+      "type": "float4"
+    },
+    {
+      "name": "bias",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return float4(dot(row0,c), dot(row1,c), dot(row2,c), dot(row3,c)) + bias;",
+    "glsl": "return vec4(dot(row0,c), dot(row1,c), dot(row2,c), dot(row3,c)) + bias;",
+    "hlsl": "return float4(dot(row0,c), dot(row1,c), dot(row2,c), dot(row3,c)) + bias;"
+  }
+}

@@ -28,10 +28,10 @@ compiler and `-ld3dcompiler`, then run it with `saturation.hlsl` and
 generated headers together. The DXBC target is pixel shader 5.1, matching SDL's
 Direct3D 12 path and register-space conventions.
 
-This is an internal built-in package contract, not a public arbitrary-shader
-loader. A future loader needs validated reflection, texture-slot metadata,
-binding limits, content identity and package-version compatibility checks before
-it can accept third-party packages. Other backends report this effect unsupported.
+This directory describes internal built-ins. The public version-one
+[colour package API](../../docs/shader-packages.md) uses generated fixed wrappers
+and up to eight typed parameter slots. General texture layouts and reflection
+remain outside that contract. Other backends report these effects unsupported.
 
 ## Blur package
 

@@ -17,6 +17,7 @@ typedef struct GPUBlendPipeline {
 struct GPUImageEffect {
 	GPUContext *owner;
 	char *key;
+	Uint32 parameterBytes;
 	SDL_GPUShader *fragment;
 	GPUBlendPipeline *pipelines;
 	GPUImageEffect *next;
@@ -35,7 +36,7 @@ typedef struct {
 	SDL_Rect clip;
 	float transform[4];
 	GPUImageEffect *effect;
-	float effectParameters[4];
+	union { float small[4]; size_t offset; } effectParameters;
 } GPUDraw;
 struct GPUContext {
 	SDL_GPUDevice *device;
@@ -47,7 +48,9 @@ struct GPUContext {
 	SDL_GPUSampler *samplers[2][32];
 	GPUBlendPipeline *customBlends;
 	GPUImageEffect *imageEffects,*selectedEffect;
-	float effectParameters[4];
+	float effectParameters[32];
+	unsigned char *effectData;
+	size_t effectDataCount,effectDataCapacity;
 	SDL_GPUBuffer *vertices;
 	SDL_GPUTransferBuffer *upload;
 	Uint32 bufferSize;
@@ -251,6 +254,7 @@ void m2d_gpu_close(GPUContext *c) {
 	}
 	free(c->draws);
 	free(c->data);
+	free(c->effectData);
 	free(c);
 }
 static SDL_GPUShader *shader(GPUContext *c,int stage) {
@@ -357,9 +361,21 @@ void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCrea
 	effect->fragment=SDL_CreateGPUShader(c->device,info);
 	if(!effect->fragment) { free(effect->key); free(effect); return NULL; }
 	effect->owner=c;
+	effect->parameterBytes=16;
 	effect->next=c->imageEffects;
 	c->imageEffects=effect;
 	return effect;
+}
+/* Version-one packages use bounded float4 slots; built-ins retain 16-byte uniforms. */
+void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
+	if(bytes<16 || bytes>128 || bytes%16) { fail("Invalid effect parameter size"); return NULL; }
+	GPUImageEffect *effect=m2d_gpu_image_effect(c,key,info);
+	if(effect) effect->parameterBytes=(Uint32)bytes;
+	return effect;
+}
+void m2d_gpu_select_package_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters) {
+	c->selectedEffect=effect;
+	if(effect) memcpy(c->effectParameters,parameters,effect->parameterBytes);
 }
 static SDL_GPUGraphicsPipeline *image_effect_pipeline(GPUContext *c,GPUImageEffect *effect,int kind,int compact,int blend) {
 	if(!effect || effect->owner!=c) { fail("Invalid image effect owner"); return NULL; }
@@ -441,6 +457,7 @@ void m2d_gpu_destroy(GPUFrame *f) {
 	if(!flush(f->owner)) {
 		/* Queued, unsubmitted commands cannot outlive their source textures. */
 		f->owner->drawCount=0;
+		f->owner->effectDataCount=0;
 		f->owner->vertexCount=0;
 	}
 	release_frame(f);
@@ -529,6 +546,17 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 		c->data=data;
 		c->vertexCapacity=capacity;
 	}
+	/* Large package uniforms share a retained arena; ordinary draw records do not grow. */
+	if(c->selectedEffect && c->selectedEffect->parameterBytes>16) {
+		size_t needed=c->effectDataCount+c->selectedEffect->parameterBytes;
+		if(needed>c->effectDataCapacity) {
+			size_t capacity=c->effectDataCapacity?c->effectDataCapacity*2:4096;
+			if(capacity<needed) capacity=needed;
+			unsigned char *data=realloc(c->effectData,capacity);
+			if(!data) return fail("Out of memory");
+			c->effectData=data; c->effectDataCapacity=capacity;
+		}
+	}
 	if(padding) {
 		memset(c->data+(size_t)c->vertexCount*8,0,32);
 		++c->vertexCount;
@@ -536,7 +564,14 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	GPUDraw *draw=&c->draws[c->drawCount++];
 	draw->pipeline=pipeline;
 	draw->effect=c->selectedEffect;
-	if(draw->effect) memcpy(draw->effectParameters,c->effectParameters,sizeof(draw->effectParameters));
+	if(draw->effect) {
+		if(draw->effect->parameterBytes<=16) memcpy(draw->effectParameters.small,c->effectParameters,16);
+		else {
+			draw->effectParameters.offset=c->effectDataCount;
+			memcpy(c->effectData+c->effectDataCount,c->effectParameters,draw->effect->parameterBytes);
+			c->effectDataCount+=draw->effect->parameterBytes;
+		}
+	}
 	draw->compact=compact;
 	draw->destination=target;
 	draw->source=source;
@@ -641,7 +676,7 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
-		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,draw->effectParameters,sizeof(draw->effectParameters));
+		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,draw->effect->parameterBytes<=16?(void *)draw->effectParameters.small:(void *)(c->effectData+draw->effectParameters.offset),draw->effect->parameterBytes);
 		SDL_BindGPUGraphicsPipeline(pass,draw->pipeline);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
@@ -653,6 +688,7 @@ static int flush(GPUContext *c) {
 	}
 	if(pass) SDL_EndGPURenderPass(pass);
 	c->drawCount=0;
+	c->effectDataCount=0;
 	c->vertexCount=0;
 	return SDL_SubmitGPUCommandBuffer(cmd);
 }
