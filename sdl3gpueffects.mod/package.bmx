@@ -241,6 +241,30 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		values[slot+4]=yx; values[slot+5]=yy; values[slot+6]=ty
 	End Method
 	Rem
+	bbdoc: Aligns the second texture to a captured map placement for an upcoming image draw.
+	about: Requires ABI 4 and a bound second texture. Capture the map placement with CaptureImageTransform using that texture's pixel dimensions and handle. This method captures the source image at drawX/drawY in the current drawing state, including its handle, object transform, parent coordinates and camera. Call immediately before the matching DrawImageEffect; each sprite needs its own mapping update. Map placement and source placement must use the same virtual coordinate space. Singular or non-finite map transforms throw atomically. The supplied transform is read but not modified or retained.
+	End Rem
+	Method SetTextureMapping(mapTransform:TMax2DDrawTransform,image:TImage,drawX:Float,drawY:Float)
+		If Not package Or package.ABIVersion()<>4 Then Throw "Max2D package: texture mapping requires ABI 4"
+		If Not mapTransform Or Not image Or Not texture Then Throw "Max2D package: mapping requires a transform, source image and second texture"
+		If image.width<=0 Or image.height<=0 Or texture.width<=0 Or texture.height<=0 Then Throw "Max2D package: mapping requires nonempty images"
+		Local a:Double=mapTransform.xx,b:Double=mapTransform.xy,c:Double=mapTransform.yx,d:Double=mapTransform.yy
+		Local ox:Double=mapTransform.tx,oy:Double=mapTransform.ty
+		Local determinant:Double=a*d-b*c
+		If IsNan(a) Or IsInf(a) Or IsNan(b) Or IsInf(b) Or IsNan(c) Or IsInf(c) Or IsNan(d) Or IsInf(d) Or IsNan(ox) Or IsInf(ox) Or IsNan(oy) Or IsInf(oy) Or IsNan(determinant) Or IsInf(determinant) Or determinant=0 Then Throw "Max2D package: invalid map placement"
+		Local source:TMax2DDrawTransform=CaptureImageTransform(image,drawX,drawY)
+		Local xx:Float=Float(((d*source.xx-b*source.yx)/determinant)*image.width/texture.width)
+		Local xy:Float=Float(((d*source.xy-b*source.yy)/determinant)*image.height/texture.width)
+		Local yx:Float=Float(((a*source.yx-c*source.xx)/determinant)*image.width/texture.height)
+		Local yy:Float=Float(((a*source.yy-c*source.xy)/determinant)*image.height/texture.height)
+		Local tx:Float=Float((d*(source.tx-ox)-b*(source.ty-oy))/determinant/texture.width)
+		Local ty:Float=Float((a*(source.ty-oy)-c*(source.tx-ox))/determinant/texture.height)
+		If IsNan(xx) Or IsInf(xx) Or IsNan(xy) Or IsInf(xy) Or IsNan(yx) Or IsInf(yx) Or IsNan(yy) Or IsInf(yy) Or IsNan(tx) Or IsInf(tx) Or IsNan(ty) Or IsInf(ty) Then Throw "Max2D package: texture mapping is out of range"
+		Local slot:Int=(package.ParameterCount()+4)*4
+		values[slot]=xx; values[slot+1]=xy; values[slot+2]=tx
+		values[slot+4]=yx; values[slot+5]=yy; values[slot+6]=ty
+	End Method
+	Rem
 	bbdoc: Sets a finite scalar parameter by its declared name.
 	End Rem
 	Method SetFloat(name:String, value:Float)

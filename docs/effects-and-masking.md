@@ -713,3 +713,7 @@ and the [live example](../examples/texture_masks.bmx).
 Two-texture built-ins support `SetTextureTransform(offsetX,offsetY,scaleX,scaleY,rotation)`
 for independent map placement without redrawing the map. See
 [positioning the map](shader-packages.md#positioning-the-map).
+
+For one map spanning independently transformed sprites, capture its placement with
+`CaptureImageTransform` and call `effect.SetTextureMapping(placement,sprite,x,y)`
+before each effect draw. See [sharing a map](shader-packages.md#sharing-a-map-across-sprites).

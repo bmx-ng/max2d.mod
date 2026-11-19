@@ -189,13 +189,49 @@ and map alpha interpretation. Its maximum uniform size is 160 bytes; older
 versions keep their original layouts and sizes. Ordinary native draw records
 retain their previous size.
 
-For one unrotated world-space mask across axis-aligned sprites, set each sprite's
-map offset to `((maskCentreX-spriteX)/spriteWidth-0.5,
-(maskCentreY-spriteY)/spriteHeight-0.5)` and scale to
-`(maskWidth/spriteWidth,maskHeight/spriteHeight)`. Use sprite top-left coordinates
-after accounting for handles. A group layer is simpler when sprites have different
-rotations or parent transforms. A batch shares one transform; distinct placements
-need separate effect draws.
+### Sharing a map across sprites
+
+`SetTextureMapping(mapPlacement,image,drawX,drawY)` derives the source-to-map
+transform for the next image draw. Capture a map placement once, then reuse it
+across sprites:
+
+```blitzmax
+' Set the camera/parent/object transform for the map first.
+Local placement:TMax2DDrawTransform=CaptureImageTransform(maskImage,mapX,mapY)
+
+' Set the camera/parent/object transform for this sprite.
+SetRotation(spriteAngle)
+effect.SetTextureMapping(placement,sprite,x,y)
+DrawImageEffect(sprite,effect,x,y)
+```
+
+The bound second texture supplies the map's pixel dimensions. Capture its
+placement with that image's handle. The helper includes each sprite's own handle,
+origin, object rotation/scale/reflection, parent coordinate transform and camera.
+Both captures must describe the same virtual coordinate space. Map placement is
+read immediately and not modified or retained; later edits cannot change queued
+draws. The mapping replaces the previous `SetTextureTransform` or mapping value.
+
+Capture the map with the world camera applied for a world-aligned mask. Capture
+with `SetCamera(Null)` for a mask fixed in virtual screen space, then restore the
+sprite camera before mapping/drawing. This also works for displacement and
+dissolve effects. Render-target changes can change the coordinate space: capture
+and draw against matching target/view settings.
+
+Call the helper immediately before each corresponding `DrawImageEffect`, using
+the same image, position and drawing state. Each sprite needs its own update;
+a batch shares one transform and cannot represent independent placements. This
+convenience helper allocates a source-transform capture per call. It needs no
+intermediate image or texture upload. Rendering the group to a layer remains an
+alternative when one effect draw for the entire group is preferable.
+
+Null inputs, missing maps, singular/non-finite map placements and coefficients
+outside Float range throw without changing the previous mapping. A collapsed
+source transform is allowed; it does not require an inverse. ABI 4 is required.
+Trimmed sprites retain the existing restriction for coordinate effects.
+
+The [shared-map comparison](../examples/shared_texture_mapping.bmx) shows original
+sprites, per-sprite masks and one shared moving mask over rotating sprites.
 
 The [map-transform demo](../examples/texture_transforms.bmx) scrolls and rotates
 a displacement map and moves an elliptical soft mask. M toggles mouse control of
@@ -438,3 +474,12 @@ original ABI 3 package matches ABI 4 at identity. Existing displacement/dissolve
 texture-mask, combined and colour-package tests pass on Metal; software rejects
 unsupported effects. All three updated Direct3D assets compile; Direct3D runtime
 remains unverified.
+
+Shared-map validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass strict
+pixel comparisons between one masked layer and independently rotated/mirrored
+sprites, including handles, origin, parent transforms, camera zoom/offset,
+nearest/filtered masks, compact/triangle paths, queued snapshots, HDR and context
+recreation. A singular map placement preserves the previous mapping. Comparison
+geometry keeps edges between pixel centres to avoid ambiguous raster coverage.
+The existing transform regression passes on Metal. No shader ABI or assets change
+in this helper; Direct3D runtime remains unverified.

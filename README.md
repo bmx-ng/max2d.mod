@@ -377,3 +377,6 @@ and inverted texture masks, including a preview of the moving mask.
 
 The [map-transform example](examples/texture_transforms.bmx) demonstrates
 independent map scrolling, scale, rotation and a mouse-controlled soft mask.
+
+The [shared-map comparison](examples/shared_texture_mapping.bmx) keeps one mask
+aligned across independently rotating sprites.
