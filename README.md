@@ -371,3 +371,6 @@ waves and colour grading in one draw; see [shader packages](docs/shader-packages
 
 The [two-texture example](examples/two_texture_effects.bmx) shares a procedural
 map between displacement and a dissolve with an optional HDR edge glow.
+
+The [soft-mask example](examples/texture_masks.bmx) demonstrates reusable normal
+and inverted texture masks, including a preview of the moving mask.

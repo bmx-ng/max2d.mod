@@ -185,6 +185,46 @@ without an intermediate render image. Custom shaders use the same fixed second
 image mapping; arbitrary texture counts and separately transformed map UVs are
 not exposed by this ABI.
 
+### Texture masks
+
+```blitzmax
+Local mask:TMax2DShaderEffect=CreateTextureMaskEffect(maskImage)
+DrawImageEffect(image,mask,100,100)
+
+Local inverse:TMax2DShaderEffect=CreateTextureMaskEffect(maskImage,True)
+DrawImageEffect(image,inverse,400,100)
+```
+
+By default, map alpha multiplies the source alpha; source straight RGB stays
+unchanged, including HDR values. This supports ordinary RGBA masks, render-image
+masks and single-channel R8 coverage (`PF_A8`) masks. Drawing colour and alpha
+still apply normally. With alpha blending, fully transparent pixels have no
+visible RGB contribution.
+
+`channels` is a float4 of red, green, blue and alpha weights. The weighted sum is
+clamped to 0–1, then inverted when `invert` is above 0.5. Examples:
+
+```blitzmax
+mask.SetFloat4("channels",1,0,0,0) ' Red-channel mask.
+mask.SetFloat4("channels",0.2126,0.7152,0.0722,0) ' Weighted luminance.
+mask.SetFloat4("channels",0,0,0,1) ' Alpha (default).
+mask.SetFloat("invert",1)
+```
+
+Colour-channel masks use the map's straight RGB after alpha interpretation. A
+render image cannot recover colour from pixels with zero alpha; use an opaque
+RGBA map when colour channels are data. Coverage images expose coverage in alpha
+and white RGB. No implicit colour-space conversion is performed.
+
+Reuse the effect with `SetTexture` to change maps. `DrawImageEffectBatch` shares
+one mask across all instances in a batch. Each instance maps the mask to its own
+image-local bounds. For a mask spanning a group, first draw that group into a
+render image and apply the mask to the layer. This effect changes alpha during
+the draw; it does not change ambient clipping or stencil state.
+
+The [soft-mask example](../examples/texture_masks.bmx) uses one moving render-image
+mask for complementary normal and inverted reveals. Press M to preview the map.
+
 ## Package API
 
 `TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1)`
@@ -308,7 +348,7 @@ relative paths against the directory from which they were launched.
 Coordinate tests exercise both axes, atlas bounds, all edge modes, filtered
 repeat seams, HDR and alpha, tint, queued edge snapshots, native compact and
 triangle paths, batching, state recovery, trim rejection and context recreation.
-The generator regression reproduces all eight checked-in packages.
+The generator regression reproduces all nine checked-in packages.
 
 Validation on 2026-11-19: coordinate regressions pass on macOS Metal and
 Windows/Ubuntu Vulkan with strict numeric comparisons; software rejects the
@@ -330,3 +370,10 @@ map/feedback rejection, state recovery and context recreation. Existing colour,
 coordinate, combined, built-in image-effect and GPU lifetime regressions pass on
 Metal; software rejects the unsupported effects. Both new Direct3D assets compile;
 Direct3D runtime remains unverified.
+
+Texture-mask validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
+alpha/red/weighted masks, inverted coverage snapshots, HDR and tint, ordinary
+and render-image mask views, R8 coverage, alpha and mask blending, compact and
+triangle paths, batching and context recreation. Software rejects unsupported
+mask draws. The generator reproduces all nine packages. Direct3D shader
+compilation passes; Direct3D runtime remains unverified.

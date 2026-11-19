@@ -334,3 +334,19 @@ Function CreateDissolveEffect:TMax2DShaderEffect(map:TImage)
 	effect.SetFloat4("edge",4,1,0.1,1)
 	Return effect
 End Function
+
+Private
+Global defaultTextureMaskPackage:TMax2DShaderPackage
+Public
+Rem
+bbdoc: Creates a reusable mask that multiplies source alpha by a second image's coverage.
+about: Defaults to the mask alpha channel, including R8 coverage images. Set channels to RGBA weights with SetFloat4; the weighted sum is clamped to 0–1 before inversion. Set invert above 0.5 to invert coverage. Source straight RGB is unchanged, preserving HDR; drawing tint and alpha still apply. Map filtering, atlas bounds and render-image alpha interpretation follow ABI 3.
+End Rem
+Function CreateTextureMaskEffect:TMax2DShaderEffect(mask:TImage, inverted:Int=False)
+	If Not defaultTextureMaskPackage Then defaultTextureMaskPackage=CreateTextureMaskPackage()
+	Local effect:TMax2DShaderEffect=CreateShaderEffect(defaultTextureMaskPackage)
+	effect.SetTexture(mask)
+	effect.SetFloat4("channels",0,0,0,1)
+	effect.SetFloat("invert",inverted<>0)
+	Return effect
+End Function

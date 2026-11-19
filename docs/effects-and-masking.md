@@ -284,7 +284,7 @@ intermediate for its fixed three-step chain and lets you toggle grayscale.
 
 The public [shader package API](shader-packages.md) implements colour and
 coordinate effects, combined distortion and grading, and two-texture displacement
-and dissolve. Parameters are typed and image bounds have explicit edge modes.
+dissolve and texture masks. Parameters are typed and image bounds have explicit edge modes.
 Arbitrary texture layouts and shader reflection remain future work.
 
 The operations above exercise the target, parameter and compositing contracts.
@@ -704,3 +704,8 @@ HDR content, not an HDR monitor output mode or automatic colour management.
 `TMax2DEffectBuffers` can own the intermediate render images and blur pyramid
 used by the operations above. See [reusable effect buffers](effect-buffers.md)
 for preparation, indexed results, resizing, context ownership and release.
+
+For reusable image masks, use `CreateTextureMaskEffect(maskImage,inverted=False)`.
+It supports alpha, colour-channel and weighted masks with the same texture bounds
+and batching as other two-texture effects. See [texture masks](shader-packages.md#texture-masks)
+and the [live example](../examples/texture_masks.bmx).
