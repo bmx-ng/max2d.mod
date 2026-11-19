@@ -1,5 +1,5 @@
 {
-  "abi": 3,
+  "abi": 4,
   "name": "dissolve",
   "factory": "CreateDissolvePackage",
   "parameters": [

@@ -34,14 +34,14 @@ Function ReadManifest:TJSONObject(path:String)
 	End If
 	If Not TJSONInteger(root.Get("abi")) Then Throw "Expected integer ABI version"
 	Local abi:Long=root.GetInteger("abi")
-	If abi<>1 And abi<>2 And abi<>3 Then Throw "Expected package ABI 1, 2 or 3"
+	If abi<>1 And abi<>2 And abi<>3 And abi<>4 Then Throw "Expected package ABI 1, 2, 3 or 4"
 	If root.Get("colourBodies") And abi<2 Then Throw "colourBodies requires coordinate ABI 2 or 3"
 	If Not Identifier(TextValue(root.Get("name"))) Or Not Identifier(TextValue(root.Get("factory"))) Then Throw "Name and factory must be identifiers"
 	Local params:TJSONArray = TJSONArray(root.Get("parameters"))
 	If Not params Then Throw "Expected parameters array"
 	Local limit:Int=8
 	If abi=2 Then limit=6
-	If abi=3 Then limit=3
+	If abi>=3 Then limit=3
 	If params.Size()<1 Or params.Size()>limit Then Throw "Too many or too few parameters for package ABI"
 	Local names:String[] = New String[params.Size()]
 	For Local i:Int = 0 Until params.Size()
@@ -53,7 +53,8 @@ Function ReadManifest:TJSONObject(path:String)
 			If name=reserved Then Throw "Reserved parameter name: "+name
 		Next
 		If abi>=2 And name="uv" Then Throw "Reserved coordinate parameter name: uv"
-		If abi=3 And (name="m" Or name="secondImage" Or name="localUV") Then Throw "Reserved two-texture parameter name"
+		If abi>=3 And (name="m" Or name="secondImage" Or name="localUV") Then Throw "Reserved two-texture parameter name"
+		If abi=4 And name="mapUV" Then Throw "Reserved transformed-map parameter name"
 		For Local j:Int = 0 Until i
 			If name=names[j] Then Throw "Duplicate parameter name: "+name
 		Next
@@ -100,6 +101,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Local abi:Int=Int(root.GetInteger("abi")), count:Int=params.Size()
 	If abi=2 Then count:+2
 	If abi=3 Then count:+5
+	If abi=4 Then count:+7
 	For Local lang:String = EachIn ["metal","glsl","hlsl"]
 		Local vec:String="float4", head:String, tail:String, ext:String=lang
 		Select lang
@@ -116,7 +118,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			If lang="glsl" Then resultType="vec2"
 			argument=resultType+" uv"
 		End If
-		If abi=3 Then argument:+", "+vec+" m"
+		If abi>=3 Then argument:+", "+vec+" m"
 		Local helper:String=resultType+" userEffect("+argument
 		If lang="metal" Then helper:+", constant float4 *p"
 		helper:+") {~n"
@@ -154,22 +156,27 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			tail=tail.Replace(originalSample,vec+" c=sampleRegion("+uvCall+callArgs+");").Replace(originalCall,"")
 			If colourBodies Then
 				helper:+vec+" userColour("+vec+" c"
-				If abi=3 Then helper:+", "+vec+" m"
+				If abi>=3 Then helper:+", "+vec+" m"
 				If lang="metal" Then helper:+", constant float4 *p"
 				helper:+") {~n"+declarations+colourBodies.GetString(lang)+"~n}~n"
 				' Run after source alpha interpretation and drawing tint, before
 				' alpha clamp, mask discard and output premultiplication.
 				tail=tail.Replace("c.a=clamp(c.a,0.0,1.0);","c=userColour(c"+parameterArgs+");~nc.a=clamp(c.a,0.0,1.0);")
 			End If
-			If abi=3 Then
+			If abi>=3 Then
 				Local mapSampling:String=UV_SAMPLE.Replace("@VEC4@",vec).Replace("@VEC2@",resultType).Replace("@SAMPLER_ARGS@",samplerArgs)
 				mapSampling=mapSampling.Replace("@SAMPLE@",sample).Replace("@MIX@",mixName).Replace("@SLOTS@",String(params.Size()+2)).Replace("@INFO@",String(params.Size()+3))
 				mapSampling=mapSampling.Replace("sampleRegion","sampleMap").Replace("image","secondImage").Replace("sampleState","secondState")
 				Local mapArgs:String=callArgs.Replace("image","secondImage").Replace("sampleState","secondState")
 				Local prefix:String=resultType+" localUV=("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw;~n"
-				prefix:+vec+" m=sampleMap(localUV"+mapArgs+");~n"
-				prefix:+"if(p["+(params.Size()+4)+"].x!=0) m="+vec+"(1,1,1,m.r);~n"
-				prefix:+"if(p["+(params.Size()+4)+"].y!=0) m.rgb=m.a>0?m.rgb/m.a:"+vec.Replace("4","3")+"(0,0,0);~n"
+				Local mapUV:String="localUV", modeSlot:Int=params.Size()+4
+				If abi=4 Then
+					mapUV="mapUV"; modeSlot:+2
+					prefix:+resultType+" mapUV="+resultType+"(dot(p["+(params.Size()+4)+"].xy,localUV)+p["+(params.Size()+4)+"].z,dot(p["+(params.Size()+5)+"].xy,localUV)+p["+(params.Size()+5)+"].z);~n"
+				End If
+				prefix:+vec+" m=sampleMap("+mapUV+mapArgs+");~n"
+				prefix:+"if(p["+modeSlot+"].x!=0) m="+vec+"(1,1,1,m.r);~n"
+				prefix:+"if(p["+modeSlot+"].y!=0) m.rgb=m.a>0?m.rgb/m.a:"+vec.Replace("4","3")+"(0,0,0);~n"
 				tail=tail.Replace(vec+" c=sampleRegion("+uvCall, prefix+vec+" c=sampleRegion(userEffect(localUV,m"+parameterArgs+")")
 				tail=tail.Replace("c=userColour(c"+parameterArgs+")","c=userColour(c,m"+parameterArgs+")")
 				Select lang

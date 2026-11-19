@@ -42,7 +42,7 @@ void m2d_package_free(M2DPackage *p) {
 	free(p->metal); free(p->spirv); free(p->dxbc); free(p);
 }
 void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *spirv,int ns,const unsigned char *dxbc,int nd,int slots,int abi) {
-	if((abi!=1 && abi!=2 && abi!=3) || slots<1 || slots>(abi==3?3:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || !(nm||ns||nd)) {
+	if((abi!=1 && abi!=2 && abi!=3 && abi!=4) || slots<1 || slots>(abi>=3?3:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || !(nm||ns||nd)) {
 		SDL_SetError("Max2D package: invalid ABI/schema/assets (%d, %d, %d/%d/%d bytes)",abi,slots,nm,ns,nd); return NULL;
 	}
 	if(!valid_spirv(spirv,ns)) { SDL_SetError("Max2D package: malformed SPIR-V (%d bytes)",ns); return NULL; }
@@ -55,8 +55,8 @@ void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *
 	if(nm) { p->metal=malloc((size_t)nm+1); if(!p->metal) goto oom; memcpy(p->metal,metal,(size_t)nm); p->metal[nm]=0; p->metalSize=(size_t)nm+1; }
 	if(ns) { p->spirv=malloc((size_t)ns); if(!p->spirv) goto oom; memcpy(p->spirv,spirv,(size_t)ns); p->spirvSize=ns; }
 	if(nd) { p->dxbc=malloc((size_t)nd); if(!p->dxbc) goto oom; memcpy(p->dxbc,dxbc,(size_t)nd); p->dxbcSize=nd; }
-	p->samplers=abi==3?2:1;
-	p->slots=slots+(abi==3?5:abi==2?2:0);
+	p->samplers=abi>=3?2:1;
+	p->slots=slots+(abi==4?7:abi==3?5:abi==2?2:0);
 	int previous,id;
 	do {
 		previous=SDL_GetAtomicInt(&nextPackage);

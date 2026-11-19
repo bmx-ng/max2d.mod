@@ -15,7 +15,7 @@ Try
 	Local root:String=RealPath(AppArgs[1]), scratch:String=RealPath(AppArgs[2])
 	If FileType(scratch) Then Throw "Scratch directory must not already exist"
 	CreateDir(scratch,True)
-	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask"]
+	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask",root+"/tests/data/legacytexturemask"]
 		Local manifest:String=directory+"/manifest.json"
 		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
 		Local output:String=scratch+"/"+name
@@ -30,7 +30,7 @@ Try
 		Check(LoadText(output+"/"+name+"_assets.c")=LoadText(directory+"/"+name+"_assets.c"),"Reproducible embedded assets")
 	Next
 	Local manifest:String=root+"/sdl3gpueffects.mod/packages/colormatrix/manifest.json"
-	For Local invalid:Int=0 Until 19
+	For Local invalid:Int=0 Until 20
 		Local data:TJSONObject=ReadManifest(manifest)
 		Local params:TJSONArray=TJSONArray(data.Get("parameters"))
 		Local first:TJSONObject=TJSONObject(params.Get(0)), bodies:TJSONObject=TJSONObject(data.Get("bodies"))
@@ -90,6 +90,8 @@ Try
 				first.Set("name",New TJSONString.Create("m"))
 				shortParams.Append(first)
 				data.Set("parameters",shortParams)
+			Case 19
+				data.Set("abi",New TJSONInteger.Create(4))
 		End Select
 		Local path:String=scratch+"/invalid.json", rejected:Int
 		SaveText(data.SaveString(),path)

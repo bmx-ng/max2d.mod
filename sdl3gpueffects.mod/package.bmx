@@ -21,7 +21,7 @@ End Rem
 Const MAX2D_PARAMETER_FLOAT4:Int = 4
 
 Rem
-bbdoc: Immutable colour (ABI 1), coordinate (ABI 2) or two-texture (ABI 3) shader package for SDL GPU.
+bbdoc: Immutable colour (ABI 1), coordinate (ABI 2) or two-texture (ABI 3/4) shader package for SDL GPU.
 about: Create with generated wrapper assets. Assets and schema are copied. Manifest/container validation is not shader reflection or a security boundary; backend support queries compile shaders and pipelines. Packages may outlive contexts, whose native resources are released on close.
 End Rem
 Type TMax2DShaderPackage
@@ -33,13 +33,13 @@ Type TMax2DShaderPackage
 	Field version:Int
 	Public
 	Rem
-	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3.
-	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
+	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
+	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
 	End Rem
 	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1)
 		If name = "" Or parameterNames.Length < 1 Or parameterNames.Length > 8 Or parameterNames.Length <> parameterTypes.Length Then Throw "Max2D package: invalid name or schema size"
-		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 Then Throw "Max2D package: unsupported ABI version"
-		If abiVersion=3 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
+		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 And abiVersion<>4 Then Throw "Max2D package: unsupported ABI version"
+		If abiVersion>=3 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
 		If abiVersion=2 And parameterNames.Length>6 Then Throw "Max2D package: coordinate packages allow at most six parameters"
 		For Local i:Int = 0 Until parameterNames.Length
 			Local value:String = parameterNames[i]
@@ -73,7 +73,7 @@ Type TMax2DShaderPackage
 		Return names.Length
 	End Method
 	Rem
-	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates, 3 for two textures).
+	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates, 3 for two textures, 4 for transformed maps).
 	End Rem
 	Method ABIVersion:Int()
 		Return version
@@ -110,7 +110,7 @@ End Rem
 Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Private
 	Field package:TMax2DShaderPackage
-	Field values:Float[32]
+	Field values:Float[40]
 	Field edgeMode:Int
 	Field texture:TImage
 	Field textureFrame:Int, textureEdgeMode:Int
@@ -126,6 +126,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		If Not package Or package.ParameterCount() = 0 Then Throw "Max2D package: package is null or uninitialized"
 		Local effect:TMax2DShaderEffect = New TMax2DShaderEffect
 		effect.package = package
+		If package.ABIVersion()=4 Then effect.SetTextureTransform()
 		Return effect
 	End Function
 	Rem
@@ -156,7 +157,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 			values[offset+6]=edgeMode; values[offset+7]=(image.flags & FILTEREDIMAGE)<>0
 		End If
 		Local second:TImageFrame
-		If package.ABIVersion()=3 Then
+		If package.ABIVersion()>=3 Then
 			If Not texture Then Throw "Max2D package: second texture is required"
 			texture.CheckIndex(textureFrame)
 			If texture.Trim(textureFrame) Then Throw "Max2D package: second texture must be untrimmed"
@@ -195,7 +196,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets coordinate sampling to transparent (default), clamp, or repeat at image boundaries.
-	about: ABI 2 and 3 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero.
+	about: ABI 2–4 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero.
 	End Rem
 	Method SetEdgeMode(mode:Int)
 		If Not package Or package.ABIVersion()<2 Then Throw "Max2D package: edge modes require a coordinate package"
@@ -203,11 +204,11 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		edgeMode=mode
 	End Method
 	Rem
-	bbdoc: Sets the second image of an ABI 3 effect, retaining it for subsequent draws.
+	bbdoc: Sets the second image of an ABI 3/4 effect, retaining it for subsequent draws.
 	about: The selected frame maps across image-local UVs. Trimmed images are rejected. Passing Null clears the binding; drawing then throws. Queued draws retain the submitted texture binding.
 	End Rem
 	Method SetTexture(image:TImage, frame:Int=0)
-		If Not package Or package.ABIVersion()<>3 Then Throw "Max2D package: second texture requires ABI 3"
+		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3 or 4"
 		If image Then
 			image.CheckIndex(frame)
 			If image.Trim(frame) Then Throw "Max2D package: second texture must be untrimmed"
@@ -218,9 +219,26 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	bbdoc: Sets second-image boundary sampling to transparent, clamp or repeat.
 	End Rem
 	Method SetTextureEdgeMode(mode:Int)
-		If Not package Or package.ABIVersion()<>3 Then Throw "Max2D package: second texture requires ABI 3"
+		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3 or 4"
 		If mode<MAX2D_EDGE_TRANSPARENT Or mode>MAX2D_EDGE_REPEAT Then Throw "Max2D package: invalid edge mode"
 		textureEdgeMode=mode
+	End Method
+	Rem
+	bbdoc: Positions, scales and rotates the second image within source-local normalized coordinates.
+	about: Requires ABI 4. Offset is measured in source widths/heights; positive offsets move the map right/down. Scale is visible map size (1 fills the source), with negative values mirroring it. Rotation is clockwise in degrees around the map centre. Sampling applies the inverse transform before edge handling. Defaults restore identity. All arguments and derived coefficients must be finite; zero scales are rejected atomically.
+	End Rem
+	Method SetTextureTransform(offsetX:Float=0, offsetY:Float=0, scaleX:Float=1, scaleY:Float=1, rotation:Float=0)
+		If Not package Or package.ABIVersion()<>4 Then Throw "Max2D package: texture transforms require ABI 4"
+		If IsNan(offsetX) Or IsInf(offsetX) Or IsNan(offsetY) Or IsInf(offsetY) Or IsNan(scaleX) Or IsInf(scaleX) Or IsNan(scaleY) Or IsInf(scaleY) Or IsNan(rotation) Or IsInf(rotation) Or scaleX=0 Or scaleY=0 Then Throw "Max2D package: invalid texture transform"
+		Local cosine:Double=Cos(rotation), sine:Double=Sin(rotation)
+		Local xx:Float=Float(cosine/scaleX), xy:Float=Float(sine/scaleX)
+		Local yx:Float=Float(-sine/scaleY), yy:Float=Float(cosine/scaleY)
+		Local tx:Float=Float(0.5-Double(xx)*(0.5+offsetX)-Double(xy)*(0.5+offsetY))
+		Local ty:Float=Float(0.5-Double(yx)*(0.5+offsetX)-Double(yy)*(0.5+offsetY))
+		If IsNan(xx) Or IsInf(xx) Or IsNan(xy) Or IsInf(xy) Or IsNan(yx) Or IsInf(yx) Or IsNan(yy) Or IsInf(yy) Or IsNan(tx) Or IsInf(tx) Or IsNan(ty) Or IsInf(ty) Then Throw "Max2D package: texture transform is out of range"
+		Local slot:Int=(package.ParameterCount()+4)*4
+		values[slot]=xx; values[slot+1]=xy; values[slot+2]=tx
+		values[slot+4]=yx; values[slot+5]=yy; values[slot+6]=ty
 	End Method
 	Rem
 	bbdoc: Sets a finite scalar parameter by its declared name.
@@ -340,7 +358,7 @@ Global defaultTextureMaskPackage:TMax2DShaderPackage
 Public
 Rem
 bbdoc: Creates a reusable mask that multiplies source alpha by a second image's coverage.
-about: Defaults to the mask alpha channel, including R8 coverage images. Set channels to RGBA weights with SetFloat4; the weighted sum is clamped to 0–1 before inversion. Set invert above 0.5 to invert coverage. Source straight RGB is unchanged, preserving HDR; drawing tint and alpha still apply. Map filtering, atlas bounds and render-image alpha interpretation follow ABI 3.
+about: Defaults to the mask alpha channel, including R8 coverage images. Set channels to RGBA weights with SetFloat4; the weighted sum is clamped to 0–1 before inversion. Set invert above 0.5 to invert coverage. Source straight RGB is unchanged, preserving HDR; drawing tint and alpha still apply. Map filtering, atlas bounds and render-image alpha interpretation follow the two-texture ABI.
 End Rem
 Function CreateTextureMaskEffect:TMax2DShaderEffect(mask:TImage, inverted:Int=False)
 	If Not defaultTextureMaskPackage Then defaultTextureMaskPackage=CreateTextureMaskPackage()

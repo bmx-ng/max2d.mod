@@ -1,5 +1,5 @@
 cbuffer Modes : register(b0, space3) { float4 mode; };
-cbuffer Parameters : register(b1, space3) { float4 p[7]; };
+cbuffer Parameters : register(b1, space3) { float4 p[9]; };
 Texture2D image : register(t0, space2);
 SamplerState sampleState : register(s0, space2);
 struct Output { float4 position: SV_Position; float4 colour: TEXCOORD0; float2 uv: TEXCOORD1; };
@@ -91,9 +91,10 @@ return sampled;
 }
 float4 m2dEffectMain(Output input): SV_Target0 {
 float2 localUV=(input.uv-p[2].xy)/p[2].zw;
-float4 m=sampleMap(localUV);
-if(p[6].x!=0) m=float4(1,1,1,m.r);
-if(p[6].y!=0) m.rgb=m.a>0?m.rgb/m.a:float3(0,0,0);
+float2 mapUV=float2(dot(p[6].xy,localUV)+p[6].z,dot(p[7].xy,localUV)+p[7].z);
+float4 m=sampleMap(mapUV);
+if(p[8].x!=0) m=float4(1,1,1,m.r);
+if(p[8].y!=0) m.rgb=m.a>0?m.rgb/m.a:float3(0,0,0);
 float4 c=sampleRegion(userEffect(localUV,m));
 if(mode.x!=0) c=float4(1,1,1,c.r);
 if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:float3(0,0,0);

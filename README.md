@@ -374,3 +374,6 @@ map between displacement and a dissolve with an optional HDR edge glow.
 
 The [soft-mask example](examples/texture_masks.bmx) demonstrates reusable normal
 and inverted texture masks, including a preview of the moving mask.
+
+The [map-transform example](examples/texture_transforms.bmx) demonstrates
+independent map scrolling, scale, rotation and a mouse-controlled soft mask.

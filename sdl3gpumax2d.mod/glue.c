@@ -49,7 +49,7 @@ struct GPUContext {
 	SDL_GPUSampler *samplers[2][32];
 	GPUBlendPipeline *customBlends;
 	GPUImageEffect *imageEffects,*selectedEffect;
-	float effectParameters[32];
+	float effectParameters[40];
 	unsigned char *effectData;
 	size_t effectDataCount,effectDataCapacity;
 	SDL_GPUBuffer *vertices;
@@ -370,7 +370,7 @@ void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCrea
 }
 /* Packages use bounded float4 slots; built-ins retain 16-byte uniforms. */
 void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
-	if(bytes<16 || bytes>128 || bytes%16) { fail("Invalid effect parameter size"); return NULL; }
+	if(bytes<16 || bytes>160 || bytes%16) { fail("Invalid effect parameter size"); return NULL; }
 	GPUImageEffect *effect=m2d_gpu_image_effect(c,key,info);
 	if(effect) effect->parameterBytes=(Uint32)bytes;
 	return effect;

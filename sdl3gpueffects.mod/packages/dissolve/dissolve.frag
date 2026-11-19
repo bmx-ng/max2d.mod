@@ -4,7 +4,7 @@ layout(location=1) in vec2 texcoord;
 layout(location=0) out vec4 result;
 layout(set=2,binding=0) uniform sampler2D image;
 layout(set=3,binding=0) uniform Modes { vec4 mode; };
-layout(set=3,binding=1) uniform Parameters { vec4 p[8]; };
+layout(set=3,binding=1) uniform Parameters { vec4 p[10]; };
 layout(set=2,binding=1) uniform sampler2D secondImage;
 vec2 userEffect(vec2 uv, vec4 m) {
     float progress = p[0].x;
@@ -94,9 +94,10 @@ return sampled;
 }
 void main() {
 vec2 localUV=(texcoord-p[3].xy)/p[3].zw;
-vec4 m=sampleMap(localUV);
-if(p[7].x!=0) m=vec4(1,1,1,m.r);
-if(p[7].y!=0) m.rgb=m.a>0?m.rgb/m.a:vec3(0,0,0);
+vec2 mapUV=vec2(dot(p[7].xy,localUV)+p[7].z,dot(p[8].xy,localUV)+p[8].z);
+vec4 m=sampleMap(mapUV);
+if(p[9].x!=0) m=vec4(1,1,1,m.r);
+if(p[9].y!=0) m.rgb=m.a>0?m.rgb/m.a:vec3(0,0,0);
 vec4 c=sampleRegion(userEffect(localUV,m));
 if(mode.x!=0) c=vec4(1,1,1,c.r);
 if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:vec3(0);

@@ -709,3 +709,7 @@ For reusable image masks, use `CreateTextureMaskEffect(maskImage,inverted=False)
 It supports alpha, colour-channel and weighted masks with the same texture bounds
 and batching as other two-texture effects. See [texture masks](shader-packages.md#texture-masks)
 and the [live example](../examples/texture_masks.bmx).
+
+Two-texture built-ins support `SetTextureTransform(offsetX,offsetY,scaleX,scaleY,rotation)`
+for independent map placement without redrawing the map. See
+[positioning the map](shader-packages.md#positioning-the-map).

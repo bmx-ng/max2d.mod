@@ -2,8 +2,8 @@
 
 Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
-coordinates before sampling; ABI 3 also samples a second image. Existing ABI 1
-and 2 packages remain compatible. Arbitrary resource layouts remain outside
+coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
+independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
 Software SDL and OpenGL report these packages unsupported.
 
@@ -84,10 +84,10 @@ No new work is added to ordinary draws or the native renderer's draw records.
 
 ## Combined distortion and colour
 
-ABI 2 and 3 manifests may add `colourBodies`, an object with equivalent `metal`,
+ABI 2–4 manifests may add `colourBodies`, an object with equivalent `metal`,
 `glsl` and `hlsl` function bodies returning a four-component colour. These receive
 `c` (straight RGBA) and the same named parameters as the coordinate body.
-The two functions share the package parameter slots (six for ABI 2, three for ABI 3). See
+The two functions share the package parameter slots (six for ABI 2, three for ABI 3/4). See
 `tests/data/combined/manifest.json` for a minimal example.
 
 The order is coordinate transformation, bounded sampling, source alpha
@@ -149,6 +149,58 @@ source sampling, map bounds, map sampling and map alpha interpretation. Total
 uniform data remains at most 128 bytes. The texture binding is stored alongside
 queued uniforms; ordinary draw records remain unchanged in size.
 
+### Positioning the map
+
+The built-in displacement, dissolve and texture-mask factories now create ABI 4
+packages. They start with an identity map transform, so existing calls behave as
+before. Custom packages opt in with `"abi": 4` and regenerated/compiled assets.
+Original ABI 3 binaries remain usable with their original layout; attempting to
+set a transform on them throws rather than silently ignoring it.
+
+```blitzmax
+effect.SetTextureTransform(offsetX,offsetY,scaleX,scaleY,rotation)
+effect.SetTextureTransform() ' Restore identity.
+```
+
+Offsets use source-local widths/heights: `(0.25,0)` moves the map right by one
+quarter of the source width. Scale is the visible map size: `(0.5,0.5)` makes it
+half-size, or repeats it twice per axis with repeat edges. Negative scale mirrors
+that axis. Rotation is clockwise in degrees about the map centre. Rotation uses
+normalized coordinates; a non-square source stretches that coordinate space.
+
+The shader samples using the inverse placement transform:
+
+`mapUV = 0.5 + inverseScale * rotate(-rotation, sourceUV - 0.5 - offset)`
+
+Map edge handling and bounded filtering follow the transform. Source sampling
+coordinates remain independent; the map sample still drives the user functions
+through `m`. Translation can move a transparent map completely out of view.
+For a displacement map, transparent outside samples have zero RG, which means
+negative displacement; choose clamp/repeat when that is unwanted.
+
+Arguments and the resulting matrix coefficients must be finite. Zero scale and
+coefficient overflow are rejected without changing the previous transform.
+Parameters and transforms are snapshotted together for queued draws. The setter
+creates no parameter arrays and needs no texture upload or intermediate image.
+
+ABI 4 keeps three user slots and uses seven reserved slots: source bounds,
+source sampling, map bounds, map sampling, two affine rows `(x,y,translation,0)`,
+and map alpha interpretation. Its maximum uniform size is 160 bytes; older
+versions keep their original layouts and sizes. Ordinary native draw records
+retain their previous size.
+
+For one unrotated world-space mask across axis-aligned sprites, set each sprite's
+map offset to `((maskCentreX-spriteX)/spriteWidth-0.5,
+(maskCentreY-spriteY)/spriteHeight-0.5)` and scale to
+`(maskWidth/spriteWidth,maskHeight/spriteHeight)`. Use sprite top-left coordinates
+after accounting for handles. A group layer is simpler when sprites have different
+rotations or parent transforms. A batch shares one transform; distinct placements
+need separate effect draws.
+
+The [map-transform demo](../examples/texture_transforms.bmx) scrolls and rotates
+a displacement map and moves an elliptical soft mask. M toggles mouse control of
+the mask; up/down changes map size; E cycles displacement-map edge modes.
+
 ### Displacement
 
 ```blitzmax
@@ -181,9 +233,8 @@ the source quad or add bloom outside it.
 
 The [live example](../examples/two_texture_effects.bmx) shares one procedural map
 between displacement and dissolve. Both effects support `DrawImageEffectBatch`
-without an intermediate render image. Custom shaders use the same fixed second
-image mapping; arbitrary texture counts and separately transformed map UVs are
-not exposed by this ABI.
+without an intermediate render image. ABI 4 custom shaders use the same transform controls as the built-ins.
+Arbitrary texture counts remain outside this contract.
 
 ### Texture masks
 
@@ -230,10 +281,10 @@ mask for complementary normal and inverted reveals. Press M to preview the map.
 `TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1)`
 copies the schema and shader bytes. Names must be unique identifiers. Declare
 one to eight `MAX2D_PARAMETER_FLOAT` or `MAX2D_PARAMETER_FLOAT4` parameters
-for ABI 1, one to six for ABI 2, or one to three for ABI 3.
+for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
 Each occupies one 16-byte slot, including scalars; including reserved slots,
 total uniforms are at most
-128 bytes. At least one platform asset is required, each at most 4 MiB.
+128 bytes for ABI 1–3 or 160 bytes for ABI 4. At least one platform asset is required, each at most 4 MiB.
 
 `CreateShaderEffect(package)` creates reusable, initially zero parameters.
 Use `SetFloat(name,value)` and `SetFloat4(name,x,y,z,w)`. Unknown names, type
@@ -257,7 +308,7 @@ The tools live in `sdl3gpueffects.mod/packages`. Start from the checked-in
 A manifest has `abi`, `name`, `factory`, `parameters` and `bodies` fields.
 Each parameter has `name` and `type` (`float` or `float4`). Supply equivalent
 trusted function bodies for `metal`, `glsl` and `hlsl`; each returns a
-four-component colour for ABI 1 or two-component coordinates for ABI 2 and 3.
+four-component colour for ABI 1 or two-component coordinates for ABI 2–4.
 In ABI 1, `c` is tinted straight RGBA; in ABI 2, `uv` is image-local. Named parameters are
 available as local values. This is not an automatic shader-language translator.
 
@@ -302,7 +353,7 @@ linked into the application. Metal source is compiled by the system on use.
 All versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
 set 3; HLSL uses t0/s0 space2 and b0/b1 space3, shader model 5.1. Metal uses
-`m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3 adds image/sampler
+`m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3/4 adds image/sampler
 1 in the same resource spaces.
 
 ## Validation and cost
@@ -348,7 +399,8 @@ relative paths against the directory from which they were launched.
 Coordinate tests exercise both axes, atlas bounds, all edge modes, filtered
 repeat seams, HDR and alpha, tint, queued edge snapshots, native compact and
 triangle paths, batching, state recovery, trim rejection and context recreation.
-The generator regression reproduces all nine checked-in packages.
+The generator regression reproduces all ten checked-in packages, including the
+original ABI 3 compatibility fixture.
 
 Validation on 2026-11-19: coordinate regressions pass on macOS Metal and
 Windows/Ubuntu Vulkan with strict numeric comparisons; software rejects the
@@ -377,3 +429,12 @@ and render-image mask views, R8 coverage, alpha and mask blending, compact and
 triangle paths, batching and context recreation. Software rejects unsupported
 mask draws. The generator reproduces all nine packages. Direct3D shader
 compilation passes; Direct3D runtime remains unverified.
+
+Map-transform validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
+translation, clockwise rotation, mirroring, scale, transformed transparent/clamp/
+repeat sampling, filtered seams, atlas views, render-image maps, queued transform
+snapshots, invalid-input atomicity, HDR, batching and context recreation. An
+original ABI 3 package matches ABI 4 at identity. Existing displacement/dissolve,
+texture-mask, combined and colour-package tests pass on Metal; software rejects
+unsupported effects. All three updated Direct3D assets compile; Direct3D runtime
+remains unverified.

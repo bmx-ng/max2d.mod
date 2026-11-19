@@ -30,7 +30,7 @@ Direct3D 12 path and register-space conventions.
 
 This directory describes internal built-ins. The public
 [shader package API](../../docs/shader-packages.md) uses generated fixed wrappers
-for colour (ABI 1), coordinates (ABI 2), or a second texture (ABI 3), with typed parameter slots. General texture layouts and reflection
+for colour (ABI 1), coordinates (ABI 2), or a second texture (ABI 3/4), with typed parameter slots. General texture layouts and reflection
 remain outside that contract. Other backends report these effects unsupported.
 
 ## Blur package

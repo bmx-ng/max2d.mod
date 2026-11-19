@@ -79,9 +79,10 @@ return sampled;
 }
 fragment float4 m2dEffectMain(Output input [[stage_in]], texture2d<float> image [[texture(0)]], sampler sampleState [[sampler(0)]], texture2d<float> secondImage [[texture(1)]], sampler secondState [[sampler(1)]], constant float4 &mode [[buffer(0)]], constant float4 *p [[buffer(1)]]) {
 float2 localUV=(input.uv-p[1].xy)/p[1].zw;
-float4 m=sampleMap(localUV,secondImage,secondState,p);
-if(p[5].x!=0) m=float4(1,1,1,m.r);
-if(p[5].y!=0) m.rgb=m.a>0?m.rgb/m.a:float3(0,0,0);
+float2 mapUV=float2(dot(p[5].xy,localUV)+p[5].z,dot(p[6].xy,localUV)+p[6].z);
+float4 m=sampleMap(mapUV,secondImage,secondState,p);
+if(p[7].x!=0) m=float4(1,1,1,m.r);
+if(p[7].y!=0) m.rgb=m.a>0?m.rgb/m.a:float3(0,0,0);
 float4 c=sampleRegion(userEffect(localUV,m,p),image,sampleState,p);
 if(mode.x!=0) c=float4(1,1,1,c.r);
 if(mode.y!=0) c.rgb=c.a>0?c.rgb/c.a:float3(0,0,0);
