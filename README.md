@@ -368,3 +368,6 @@ and bloom accumulated before tone mapping.
 
 The [combined distortion example](examples/graded_distortion.bmx) demonstrates
 waves and colour grading in one draw; see [shader packages](docs/shader-packages.md).
+
+The [two-texture example](examples/two_texture_effects.bmx) shares a procedural
+map between displacement and a dissolve with an optional HDR edge glow.

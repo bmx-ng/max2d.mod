@@ -21,7 +21,7 @@ End Rem
 Const MAX2D_PARAMETER_FLOAT4:Int = 4
 
 Rem
-bbdoc: Immutable single-source colour (ABI 1) or coordinate (ABI 2) shader package for SDL GPU.
+bbdoc: Immutable colour (ABI 1), coordinate (ABI 2) or two-texture (ABI 3) shader package for SDL GPU.
 about: Create with generated wrapper assets. Assets and schema are copied. Manifest/container validation is not shader reflection or a security boundary; backend support queries compile shaders and pipelines. Packages may outlive contexts, whose native resources are released on close.
 End Rem
 Type TMax2DShaderPackage
@@ -33,12 +33,13 @@ Type TMax2DShaderPackage
 	Field version:Int
 	Public
 	Rem
-	bbdoc: Creates a package with typed parameters: one to eight for colour ABI 1, or one to six for coordinate ABI 2.
-	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. Use the package generator for the fixed sampling/alpha ABI. Coordinate packages reserve two extra slots for image bounds and edge settings. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
+	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3.
+	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
 	End Rem
 	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1)
 		If name = "" Or parameterNames.Length < 1 Or parameterNames.Length > 8 Or parameterNames.Length <> parameterTypes.Length Then Throw "Max2D package: invalid name or schema size"
-		If abiVersion<>1 And abiVersion<>2 Then Throw "Max2D package: unsupported ABI version"
+		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 Then Throw "Max2D package: unsupported ABI version"
+		If abiVersion=3 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
 		If abiVersion=2 And parameterNames.Length>6 Then Throw "Max2D package: coordinate packages allow at most six parameters"
 		For Local i:Int = 0 Until parameterNames.Length
 			Local value:String = parameterNames[i]
@@ -72,7 +73,7 @@ Type TMax2DShaderPackage
 		Return names.Length
 	End Method
 	Rem
-	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates).
+	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates, 3 for two textures).
 	End Rem
 	Method ABIVersion:Int()
 		Return version
@@ -103,7 +104,7 @@ Type TMax2DShaderPackage
 End Type
 
 Rem
-bbdoc: Reusable typed parameters for a single-source packaged colour or coordinate effect.
+bbdoc: Reusable typed parameters and an optional second texture for packaged image effects.
 about: Values start at zero. Updates affect subsequent draws; queued draws retain their snapshots. Named setters allocate no parameter arrays. Shader package assets are immutable and shared by instances.
 End Rem
 Type TMax2DShaderEffect Extends TMax2DImageEffect
@@ -111,6 +112,8 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Field package:TMax2DShaderPackage
 	Field values:Float[32]
 	Field edgeMode:Int
+	Field texture:TImage
+	Field textureFrame:Int, textureEdgeMode:Int
 	Method Slot:Int(name:String, kind:Int)
 		If Not package Then Throw "Max2D package: use CreateShaderEffect"
 		Return package.ParameterOffset(name, kind)
@@ -140,7 +143,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		If Not context Then Throw "Max2D package: native SDL GPU context required"
 		Local shader:Byte Ptr = NativeShader(context)
 		If Not shader Then Throw "Max2D package: " + SDL_GetError()
-		If package.ABIVersion()=2 Then
+		If package.ABIVersion()>=2 Then
 			image.CheckIndex(frame)
 			If image.Trim(frame) Then Throw "Max2D package: coordinate effects require untrimmed images; render the trimmed image into a layer first"
 			Local source:TImageSource=image.sources[frame]
@@ -152,8 +155,27 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 			values[offset+4]=1.0/source.width; values[offset+5]=1.0/source.height
 			values[offset+6]=edgeMode; values[offset+7]=(image.flags & FILTEREDIMAGE)<>0
 		End If
+		Local second:TImageFrame
+		If package.ABIVersion()=3 Then
+			If Not texture Then Throw "Max2D package: second texture is required"
+			texture.CheckIndex(textureFrame)
+			If texture.Trim(textureFrame) Then Throw "Max2D package: second texture must be untrimmed"
+			second=texture.Frame(textureFrame,canvas)
+			Local source:TImageSource=texture.sources[textureFrame]
+			Local offset:Int=(package.ParameterCount()+2)*4
+			values[offset]=Float(texture.sourceX[textureFrame])/source.width
+			values[offset+1]=Float(texture.sourceY[textureFrame])/source.height
+			values[offset+2]=Float(texture.width)/source.width
+			values[offset+3]=Float(texture.height)/source.height
+			values[offset+4]=1.0/source.width; values[offset+5]=1.0/source.height
+			values[offset+6]=textureEdgeMode; values[offset+7]=(texture.flags & FILTEREDIMAGE)<>0
+		End If
 		context.Flush()
-		m2d_gpu_select_package_effect(context.native, shader, values)
+		If second Then
+			context.Require(m2d_gpu_select_texture_effect(context.native,shader,values,context.NativeFrame(second)))
+		Else
+			m2d_gpu_select_package_effect(context.native, shader, values)
+		End If
 		Try
 			If positions Then
 				For Local i:Int = 0 Until positions.Length Step 2
@@ -173,12 +195,32 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets coordinate sampling to transparent (default), clamp, or repeat at image boundaries.
-	about: Only ABI 2 supports edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero.
+	about: ABI 2 and 3 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero.
 	End Rem
 	Method SetEdgeMode(mode:Int)
-		If Not package Or package.ABIVersion()<>2 Then Throw "Max2D package: edge modes require a coordinate package"
+		If Not package Or package.ABIVersion()<2 Then Throw "Max2D package: edge modes require a coordinate package"
 		If mode<MAX2D_EDGE_TRANSPARENT Or mode>MAX2D_EDGE_REPEAT Then Throw "Max2D package: invalid edge mode"
 		edgeMode=mode
+	End Method
+	Rem
+	bbdoc: Sets the second image of an ABI 3 effect, retaining it for subsequent draws.
+	about: The selected frame maps across image-local UVs. Trimmed images are rejected. Passing Null clears the binding; drawing then throws. Queued draws retain the submitted texture binding.
+	End Rem
+	Method SetTexture(image:TImage, frame:Int=0)
+		If Not package Or package.ABIVersion()<>3 Then Throw "Max2D package: second texture requires ABI 3"
+		If image Then
+			image.CheckIndex(frame)
+			If image.Trim(frame) Then Throw "Max2D package: second texture must be untrimmed"
+		End If
+		texture=image; textureFrame=frame
+	End Method
+	Rem
+	bbdoc: Sets second-image boundary sampling to transparent, clamp or repeat.
+	End Rem
+	Method SetTextureEdgeMode(mode:Int)
+		If Not package Or package.ABIVersion()<>3 Then Throw "Max2D package: second texture requires ABI 3"
+		If mode<MAX2D_EDGE_TRANSPARENT Or mode>MAX2D_EDGE_REPEAT Then Throw "Max2D package: invalid edge mode"
+		textureEdgeMode=mode
 	End Method
 	Rem
 	bbdoc: Sets a finite scalar parameter by its declared name.
@@ -210,6 +252,7 @@ Extern "C"
 	Function m2d_package_create:Byte Ptr(metal:Byte Ptr, nm:Int, spirv:Byte Ptr, ns:Int, dxbc:Byte Ptr, nd:Int, slots:Int, abi:Int)
 	Function m2d_package_free(package:Byte Ptr)
 	Function m2d_package_shader:Byte Ptr(context:Byte Ptr, device:Byte Ptr, package:Byte Ptr)
+	Function m2d_gpu_select_texture_effect:Int(context:Byte Ptr,effect:Byte Ptr,values:Float Ptr,texture:Byte Ptr)
 	Function m2d_gpu_select_package_effect(context:Byte Ptr, effect:Byte Ptr, values:Float Ptr)
 End Extern
 Public
@@ -260,5 +303,34 @@ Function CreateGradedDistortionEffect:TMax2DShaderEffect(strength:Float=0.03, fr
 	effect.SetFloat("frequency",frequency)
 	effect.SetFloat4("grade",1,1,1,0)
 	effect.SetFloat4("gradeTint",1,1,1,1)
+	Return effect
+End Function
+
+Private
+Global defaultDisplacementPackage:TMax2DShaderPackage
+Global defaultDissolvePackage:TMax2DShaderPackage
+Public
+Rem
+bbdoc: Creates texture-driven displacement using the map's straight red and green channels.
+about: Map values 0.5 leave coordinates unchanged; 0 and 1 offset by minus and plus strength, measured as fractions of source width and height. The map uses image-local UVs and is not tinted. Source and map bounds have separate edge modes.
+End Rem
+Function CreateDisplacementEffect:TMax2DShaderEffect(map:TImage, strengthX:Float=0.03, strengthY:Float=0.03)
+	If Not defaultDisplacementPackage Then defaultDisplacementPackage=CreateDisplacementPackage()
+	Local effect:TMax2DShaderEffect=CreateShaderEffect(defaultDisplacementPackage)
+	effect.SetFloat4("amount",strengthX,strengthY,0,0)
+	effect.SetTexture(map)
+	Return effect
+End Function
+
+Rem
+bbdoc: Creates a texture-driven dissolve with an optional HDR edge glow.
+about: Set progress from 0 (fully visible) to 1 (invisible). Intermediate values retain pixels whose map red channel is at least progress. width controls the soft glow band in map-value units; edge is RGB colour and intensity in its fourth component. Glow preserves source alpha. Defaults are progress 0, width 0.1 and edge (4,1,0.1,1). Map alpha does not affect the threshold.
+End Rem
+Function CreateDissolveEffect:TMax2DShaderEffect(map:TImage)
+	If Not defaultDissolvePackage Then defaultDissolvePackage=CreateDissolvePackage()
+	Local effect:TMax2DShaderEffect=CreateShaderEffect(defaultDissolvePackage)
+	effect.SetTexture(map)
+	effect.SetFloat("width",0.1)
+	effect.SetFloat4("edge",4,1,0.1,1)
 	Return effect
 End Function

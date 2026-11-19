@@ -282,10 +282,10 @@ intermediate for its fixed three-step chain and lets you toggle grayscale.
 
 ## Architecture for general shader effects
 
-The public [shader package API](shader-packages.md) implements single-source
-colour and coordinate effects, including combined distortion and grading in one
-draw, with typed parameters and explicit edge modes. Additional textures and reflected
-resource layouts remain future work.
+The public [shader package API](shader-packages.md) implements colour and
+coordinate effects, combined distortion and grading, and two-texture displacement
+and dissolve. Parameters are typed and image bounds have explicit edge modes.
+Arbitrary texture layouts and shader reflection remain future work.
 
 The operations above exercise the target, parameter and compositing contracts.
 Further shader work should keep two explicit categories:

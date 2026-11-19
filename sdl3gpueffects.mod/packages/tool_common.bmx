@@ -34,13 +34,14 @@ Function ReadManifest:TJSONObject(path:String)
 	End If
 	If Not TJSONInteger(root.Get("abi")) Then Throw "Expected integer ABI version"
 	Local abi:Long=root.GetInteger("abi")
-	If abi<>1 And abi<>2 Then Throw "Expected package ABI 1 or 2"
-	If root.Get("colourBodies") And abi<>2 Then Throw "colourBodies requires coordinate ABI 2"
+	If abi<>1 And abi<>2 And abi<>3 Then Throw "Expected package ABI 1, 2 or 3"
+	If root.Get("colourBodies") And abi<2 Then Throw "colourBodies requires coordinate ABI 2 or 3"
 	If Not Identifier(TextValue(root.Get("name"))) Or Not Identifier(TextValue(root.Get("factory"))) Then Throw "Name and factory must be identifiers"
 	Local params:TJSONArray = TJSONArray(root.Get("parameters"))
 	If Not params Then Throw "Expected parameters array"
 	Local limit:Int=8
 	If abi=2 Then limit=6
+	If abi=3 Then limit=3
 	If params.Size()<1 Or params.Size()>limit Then Throw "Too many or too few parameters for package ABI"
 	Local names:String[] = New String[params.Size()]
 	For Local i:Int = 0 Until params.Size()
@@ -51,7 +52,8 @@ Function ReadManifest:TJSONObject(path:String)
 		For Local reserved:String = EachIn ["c","p","image","mode","input","result"]
 			If name=reserved Then Throw "Reserved parameter name: "+name
 		Next
-		If abi=2 And name="uv" Then Throw "Reserved coordinate parameter name: uv"
+		If abi>=2 And name="uv" Then Throw "Reserved coordinate parameter name: uv"
+		If abi=3 And (name="m" Or name="secondImage" Or name="localUV") Then Throw "Reserved two-texture parameter name"
 		For Local j:Int = 0 Until i
 			If name=names[j] Then Throw "Duplicate parameter name: "+name
 		Next
@@ -97,6 +99,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Local colourBodies:TJSONObject=TJSONObject(root.Get("colourBodies"))
 	Local abi:Int=Int(root.GetInteger("abi")), count:Int=params.Size()
 	If abi=2 Then count:+2
+	If abi=3 Then count:+5
 	For Local lang:String = EachIn ["metal","glsl","hlsl"]
 		Local vec:String="float4", head:String, tail:String, ext:String=lang
 		Select lang
@@ -108,11 +111,12 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 				head=HEAD_hlsl; tail=TAIL_hlsl
 		End Select
 		Local argument:String=vec+" c", resultType:String=vec
-		If abi=2 Then
+		If abi>=2 Then
 			resultType="float2"
 			If lang="glsl" Then resultType="vec2"
 			argument=resultType+" uv"
 		End If
+		If abi=3 Then argument:+", "+vec+" m"
 		Local helper:String=resultType+" userEffect("+argument
 		If lang="metal" Then helper:+", constant float4 *p"
 		helper:+") {~n"
@@ -124,7 +128,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			declarations:+"    "+kind+" "+p.GetString("name")+" = p["+i+"]"+suffix+";~n"
 		Next
 		helper:+declarations+bodies.GetString(lang)+"~n}~n"
-		If abi=2 Then
+		If abi>=2 Then
 			Local samplerArgs:String, sample:String, callArgs:String, mixName:String="mix", originalSample:String, originalCall:String
 			Select lang
 				Case "metal"
@@ -150,11 +154,33 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			tail=tail.Replace(originalSample,vec+" c=sampleRegion("+uvCall+callArgs+");").Replace(originalCall,"")
 			If colourBodies Then
 				helper:+vec+" userColour("+vec+" c"
+				If abi=3 Then helper:+", "+vec+" m"
 				If lang="metal" Then helper:+", constant float4 *p"
 				helper:+") {~n"+declarations+colourBodies.GetString(lang)+"~n}~n"
 				' Run after source alpha interpretation and drawing tint, before
 				' alpha clamp, mask discard and output premultiplication.
 				tail=tail.Replace("c.a=clamp(c.a,0.0,1.0);","c=userColour(c"+parameterArgs+");~nc.a=clamp(c.a,0.0,1.0);")
+			End If
+			If abi=3 Then
+				Local mapSampling:String=UV_SAMPLE.Replace("@VEC4@",vec).Replace("@VEC2@",resultType).Replace("@SAMPLER_ARGS@",samplerArgs)
+				mapSampling=mapSampling.Replace("@SAMPLE@",sample).Replace("@MIX@",mixName).Replace("@SLOTS@",String(params.Size()+2)).Replace("@INFO@",String(params.Size()+3))
+				mapSampling=mapSampling.Replace("sampleRegion","sampleMap").Replace("image","secondImage").Replace("sampleState","secondState")
+				Local mapArgs:String=callArgs.Replace("image","secondImage").Replace("sampleState","secondState")
+				Local prefix:String=resultType+" localUV=("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw;~n"
+				prefix:+vec+" m=sampleMap(localUV"+mapArgs+");~n"
+				prefix:+"if(p["+(params.Size()+4)+"].x!=0) m="+vec+"(1,1,1,m.r);~n"
+				prefix:+"if(p["+(params.Size()+4)+"].y!=0) m.rgb=m.a>0?m.rgb/m.a:"+vec.Replace("4","3")+"(0,0,0);~n"
+				tail=tail.Replace(vec+" c=sampleRegion("+uvCall, prefix+vec+" c=sampleRegion(userEffect(localUV,m"+parameterArgs+")")
+				tail=tail.Replace("c=userColour(c"+parameterArgs+")","c=userColour(c,m"+parameterArgs+")")
+				Select lang
+					Case "metal"
+						tail=tail.Replace("constant float4 &mode [[buffer(0)]]","texture2d<float> secondImage [[texture(1)]], sampler secondState [[sampler(1)]], constant float4 &mode [[buffer(0)]]")
+					Case "glsl"
+						head:+"layout(set=2,binding=1) uniform sampler2D secondImage;~n"
+					Case "hlsl"
+						head:+"Texture2D secondImage : register(t1, space2);~nSamplerState secondState : register(s1, space2);~n"
+				End Select
+				helper:+mapSampling
 			End If
 			helper:+sampling
 		End If
@@ -173,7 +199,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Local source:String=BMX_WRAPPER.Replace("@PREFIX@",prefix).Replace("@NAME@",name).Replace("@FACTORY@",factory)
 	source=source.Replace("@NAMES@",", ".Join(names)).Replace("@KINDS@",", ".Join(kinds)).Replace("@ARGUMENTS@",", ".Join(arguments))
 	Local abiArgument:String
-	If abi=2 Then abiArgument=", 2"
+	If abi>=2 Then abiArgument=", "+abi
 	source=source.Replace("@ABI_ARGUMENT@",abiArgument)
 	WriteTextFile(output+"/"+name+".bmx",source)
 End Function

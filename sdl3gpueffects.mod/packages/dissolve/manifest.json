@@ -1,0 +1,29 @@
+{
+  "abi": 3,
+  "name": "dissolve",
+  "factory": "CreateDissolvePackage",
+  "parameters": [
+    {
+      "name": "progress",
+      "type": "float"
+    },
+    {
+      "name": "width",
+      "type": "float"
+    },
+    {
+      "name": "edge",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float keep=progress<=0.0?1.0:(progress>=1.0?0.0:step(progress,m.r));\nfloat rim=(progress>0.0 && progress<1.0 && width>0.0)?(1.0-smoothstep(progress,progress+max(width,0.000001),m.r))*keep:0.0;\nreturn float4(c.rgb+edge.rgb*edge.a*rim,c.a*keep);",
+    "glsl": "float keep=progress<=0.0?1.0:(progress>=1.0?0.0:step(progress,m.r));\nfloat rim=(progress>0.0 && progress<1.0 && width>0.0)?(1.0-smoothstep(progress,progress+max(width,0.000001),m.r))*keep:0.0;\nreturn vec4(c.rgb+edge.rgb*edge.a*rim,c.a*keep);",
+    "hlsl": "float keep=progress<=0.0?1.0:(progress>=1.0?0.0:step(progress,m.r));\nfloat rim=(progress>0.0 && progress<1.0 && width>0.0)?(1.0-smoothstep(progress,progress+max(width,0.000001),m.r))*keep:0.0;\nreturn float4(c.rgb+edge.rgb*edge.a*rim,c.a*keep);"
+  }
+}

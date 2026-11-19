@@ -1,9 +1,10 @@
 # Custom shader packages
 
-Import `Max2D.SDL3GPUEffects` to use single-source packages on SDL GPU.
+Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
-coordinates before sampling. Existing ABI 1 packages remain compatible.
-Additional textures and arbitrary resource layouts are outside these contracts.
+coordinates before sampling; ABI 3 also samples a second image. Existing ABI 1
+and 2 packages remain compatible. Arbitrary resource layouts remain outside
+these contracts.
 Software SDL and OpenGL report these packages unsupported.
 
 ## Colour matrix
@@ -83,10 +84,10 @@ No new work is added to ordinary draws or the native renderer's draw records.
 
 ## Combined distortion and colour
 
-ABI 2 manifests may add `colourBodies`, an object with equivalent `metal`,
+ABI 2 and 3 manifests may add `colourBodies`, an object with equivalent `metal`,
 `glsl` and `hlsl` function bodies returning a four-component colour. These receive
 `c` (straight RGBA) and the same named parameters as the coordinate body.
-The two functions share the existing six parameter slots. See
+The two functions share the package parameter slots (six for ABI 2, three for ABI 3). See
 `tests/data/combined/manifest.json` for a minimal example.
 
 The order is coordinate transformation, bounded sampling, source alpha
@@ -119,12 +120,77 @@ This is an explicitly authored combined shader; existing effect chains are not
 automatically fused. It uses one draw without an intermediate render image, and
 supports `DrawImageEffectBatch`. This is not a GPU timing claim.
 
+## Two-texture effects
+
+ABI 3 adds one required image bound with `effect.SetTexture(map,frame=0)`.
+Its view maps across the drawn source's normalized 0–1 coordinates, independently
+of source size, drawing tint or coordinate distortion. Both shader bodies receive
+`m`, the sampled **straight RGBA** map value. The coordinate body also receives
+`uv`; the optional colour body receives `c` after source sampling and drawing tint.
+For example, a custom colour body can return `c * float4(1,1,1,m.a)` for a texture
+mask (use `vec4` in GLSL).
+
+The map is sampled at mip zero before source distortion. Source and map use their
+own atlas bounds and nearest/bilinear filtering flags. `SetEdgeMode` controls source
+sampling; `SetTextureEdgeMode` controls map sampling, including filtered repeat
+seams. Both default to transparent. Map pixels use the same alpha interpretation
+as normal images: render images are unpremultiplied after interpolation; R8 coverage
+images produce white RGB and coverage alpha. Use an RGBA map for red-channel data.
+
+`SetTexture` retains the image; queued draws snapshot the binding and parameters.
+It does not copy the texture's pixels. Normal texture updates flush prior draws
+before changing pixels. Passing Null clears the binding; subsequent drawing throws.
+Trimmed maps and sampling the current render target are rejected. Render-image
+maps must belong to the current graphics context. Use an untrimmed layer when
+starting from trimmed artwork.
+
+ABI 3 provides one to three typed user slots and five reserved slots: source bounds,
+source sampling, map bounds, map sampling and map alpha interpretation. Total
+uniform data remains at most 128 bytes. The texture binding is stored alongside
+queued uniforms; ordinary draw records remain unchanged in size.
+
+### Displacement
+
+```blitzmax
+Local water:TMax2DShaderEffect=CreateDisplacementEffect(map,0.03,0.02)
+water.SetEdgeMode(MAX2D_EDGE_REPEAT)
+DrawImageEffect(image,water,100,100)
+```
+
+Map red and green encode horizontal and vertical displacement. A value of 0.5 is
+neutral; 0 and 1 apply minus/plus the respective strength as a fraction of source
+width/height. Update strengths with `SetFloat4("amount",x,y,0,0)`.
+
+### Dissolve
+
+```blitzmax
+Local burn:TMax2DShaderEffect=CreateDissolveEffect(noise)
+burn.SetFloat("progress",0.5)
+burn.SetFloat("width",0.1)
+burn.SetFloat4("edge",4,1,0.1,1) ' HDR RGB and intensity.
+DrawImageEffect(image,burn,100,100)
+```
+
+Progress 0 preserves the entire source; progress 1 hides it entirely. Between
+these endpoints, map red values below progress become transparent. A smooth glow
+band extends from progress to progress + width on the visible side. `edge.rgb`
+adds colour scaled by `edge.a` and the band weight; source alpha is preserved.
+Width <= 0 disables glow. Map alpha is ignored by this built-in effect. RGB is
+unclamped, but an SDR destination can clip the glow. The effect does not expand
+the source quad or add bloom outside it.
+
+The [live example](../examples/two_texture_effects.bmx) shares one procedural map
+between displacement and dissolve. Both effects support `DrawImageEffectBatch`
+without an intermediate render image. Custom shaders use the same fixed second
+image mapping; arbitrary texture counts and separately transformed map UVs are
+not exposed by this ABI.
+
 ## Package API
 
 `TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1)`
 copies the schema and shader bytes. Names must be unique identifiers. Declare
 one to eight `MAX2D_PARAMETER_FLOAT` or `MAX2D_PARAMETER_FLOAT4` parameters
-for ABI 1, or one to six for ABI 2.
+for ABI 1, one to six for ABI 2, or one to three for ABI 3.
 Each occupies one 16-byte slot, including scalars; including reserved slots,
 total uniforms are at most
 128 bytes. At least one platform asset is required, each at most 4 MiB.
@@ -151,7 +217,7 @@ The tools live in `sdl3gpueffects.mod/packages`. Start from the checked-in
 A manifest has `abi`, `name`, `factory`, `parameters` and `bodies` fields.
 Each parameter has `name` and `type` (`float` or `float4`). Supply equivalent
 trusted function bodies for `metal`, `glsl` and `hlsl`; each returns a
-four-component colour for ABI 1 or two-component coordinates for ABI 2.
+four-component colour for ABI 1 or two-component coordinates for ABI 2 and 3.
 In ABI 1, `c` is tinted straight RGBA; in ABI 2, `uv` is image-local. Named parameters are
 available as local values. This is not an automatic shader-language translator.
 
@@ -193,10 +259,11 @@ SPIR-V, DXBC, BMX wrapper and `_assets.c` together in version control. C arrays
 embed the assets without runtime file access. No build-time shader compiler is
 linked into the application. Metal source is compiled by the system on use.
 
-Both versions use image/sampler 0 and two uniform buffers: Max2D mode
+All versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
 set 3; HLSL uses t0/s0 space2 and b0/b1 space3, shader model 5.1. Metal uses
-`m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`.
+`m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3 adds image/sampler
+1 in the same resource spaces.
 
 ## Validation and cost
 
@@ -241,7 +308,7 @@ relative paths against the directory from which they were launched.
 Coordinate tests exercise both axes, atlas bounds, all edge modes, filtered
 repeat seams, HDR and alpha, tint, queued edge snapshots, native compact and
 triangle paths, batching, state recovery, trim rejection and context recreation.
-The generator regression reproduces all six checked-in packages.
+The generator regression reproduces all eight checked-in packages.
 
 Validation on 2026-11-19: coordinate regressions pass on macOS Metal and
 Windows/Ubuntu Vulkan with strict numeric comparisons; software rejects the
@@ -254,3 +321,12 @@ HDR, tinted straight alpha, atlas views, filtering, all edge modes, queued
 parameter snapshots, six-slot uniforms, compact/triangle paths, batching, mask
 thresholds and context recreation. Software rejects unsupported draws. Both new
 Direct3D assets compile; Direct3D runtime remains unverified.
+
+Two-texture validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
+displacement and dissolve checks for atlas views, ordinary/render-image maps,
+nearest/bilinear interpolation, source edge modes, HDR and alpha, queued texture
+changes, arena growth, compact/triangle paths, one-submission batching, missing
+map/feedback rejection, state recovery and context recreation. Existing colour,
+coordinate, combined, built-in image-effect and GPU lifetime regressions pass on
+Metal; software rejects the unsupported effects. Both new Direct3D assets compile;
+Direct3D runtime remains unverified.
