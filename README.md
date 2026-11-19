@@ -17,8 +17,8 @@ choose a backend without rewriting your scene code.
 - [Capabilities and limitations](#capabilities-and-limitations)
 - [Examples and documentation](#examples-and-documentation)
 
-[Custom colour shader packages](docs/shader-packages.md) provide typed parameters
-and a reusable colour-matrix effect for SDL GPU.
+[Custom shader packages](docs/shader-packages.md) provide typed parameters,
+colour matrices, waves and ripples for SDL GPU.
 
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.

@@ -15,7 +15,7 @@ Try
 	Local root:String=RealPath(AppArgs[1]), scratch:String=RealPath(AppArgs[2])
 	If FileType(scratch) Then Throw "Scratch directory must not already exist"
 	CreateDir(scratch,True)
-	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage"]
+	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion"]
 		Local manifest:String=directory+"/manifest.json"
 		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
 		Local output:String=scratch+"/"+name
@@ -30,13 +30,13 @@ Try
 		Check(LoadText(output+"/"+name+"_assets.c")=LoadText(directory+"/"+name+"_assets.c"),"Reproducible embedded assets")
 	Next
 	Local manifest:String=root+"/sdl3gpueffects.mod/packages/colormatrix/manifest.json"
-	For Local invalid:Int=0 Until 10
+	For Local invalid:Int=0 Until 13
 		Local data:TJSONObject=ReadManifest(manifest)
 		Local params:TJSONArray=TJSONArray(data.Get("parameters"))
 		Local first:TJSONObject=TJSONObject(params.Get(0)), bodies:TJSONObject=TJSONObject(data.Get("bodies"))
 		Select invalid
 			Case 0
-				data.Set("abi",New TJSONInteger.Create(2))
+				data.Set("abi",New TJSONInteger.Create(99))
 			Case 1
 				data.Set("parameters",New TJSONArray.Create())
 			Case 2
@@ -55,6 +55,18 @@ Try
 				data.Set("extra",New TJSONString.Create("unexpected"))
 			Case 9
 				bodies.Set("glsl",New TJSONInteger.Create(1))
+			Case 10
+				data.Set("abi",New TJSONInteger.Create(2))
+				For Local i:Int=5 Until 7
+					Local extra:TJSONObject=New TJSONObject.Create()
+					extra.Set("name",New TJSONString.Create("extra"+i)); extra.Set("type",New TJSONString.Create("float"))
+					params.Append(extra)
+				Next
+			Case 11
+				data.Set("abi",New TJSONInteger.Create(2))
+				first.Set("name",New TJSONString.Create("uv"))
+			Case 12
+				data.Set("abi",New TJSONInteger.Create(4294967297:Long))
 		End Select
 		Local path:String=scratch+"/invalid.json", rejected:Int
 		SaveText(data.SaveString(),path)

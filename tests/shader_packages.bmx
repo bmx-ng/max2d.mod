@@ -35,7 +35,7 @@ Try
 				Case 5
 					TMax2DShaderPackage.Create("bad",["x"],[99],Null,Null,Null)
 				Case 6
-					TMax2DShaderPackage.Create("bad",["x"],[1],[Byte(32)],Null,Null,2)
+					TMax2DShaderPackage.Create("bad",["x"],[1],[Byte(32)],Null,Null,99)
 			End Select
 		Catch error:Object
 			rejected = True

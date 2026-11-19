@@ -1,4 +1,4 @@
-' Fixed version-one colour shader wrappers.
+' Fixed colour (ABI 1) and coordinate (ABI 2) shader wrappers.
 Const HEAD_metal:String = """
 #include <metal_stdlib>
 using namespace metal;
@@ -76,7 +76,7 @@ Const BMX_WRAPPER:String = """
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import @PREFIX@@NAME@_assets.c alongside your application imports.
 Function @FACTORY@:TMax2DShaderPackage()
-	Return TMax2DShaderPackage.Create("@NAME@", [@NAMES@], [@KINDS@], @ARGUMENTS@)
+	Return TMax2DShaderPackage.Create("@NAME@", [@NAMES@], [@KINDS@], @ARGUMENTS@@ABI_ARGUMENT@)
 End Function
 Private
 Extern "C"
@@ -97,5 +97,47 @@ static const unsigned char *assets[] = {asset0,asset1,asset2};
 static const int sizes[] = {@SIZES@};
 const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<3?assets[i]:0; }
 int @FACTORY@Size(int i) { return i>=0 && i<3?sizes[i]:0; }
+
+"""
+
+' Coordinate packages use normalized image-local UVs and explicit LOD zero.
+' @SAMPLE@ / @ARG@ adapt the fixed sampler binding to each shader language.
+Const UV_SAMPLE:String = """
+@VEC4@ sampleRegion(@VEC2@ uv@SAMPLER_ARGS@) {
+@VEC4@ bounds=p[@SLOTS@], info=p[@INFO@];
+@VEC2@ origin=floor(bounds.xy/info.xy+0.5);
+@VEC2@ size=floor(bounds.zw/info.xy+0.5);
+@VEC4@ sampled=@VEC4@(0,0,0,0);
+bool outside=uv.x<0.0 || uv.y<0.0 || uv.x>=1.0 || uv.y>=1.0;
+if(info.z>=0.5 || !outside) {
+    if(info.z>1.5) uv=uv-floor(uv);
+    else uv=clamp(uv,@VEC2@(0,0),@VEC2@(1,1));
+    if(info.w>0.5) {
+        @VEC2@ pixel=uv*size-0.5;
+        @VEC2@ lo=floor(pixel), weight=pixel-lo;
+        @VEC2@ a=lo, b=lo+1.0;
+        if(info.z>1.5) {
+            a-=floor(a/size)*size;
+            b-=floor(b/size)*size;
+        } else {
+            a=clamp(a,@VEC2@(0,0),size-1.0);
+            b=clamp(b,@VEC2@(0,0),size-1.0);
+        }
+        @VEC2@ q=origin+a;
+        @VEC4@ c00=@SAMPLE@;
+        q=origin+@VEC2@(b.x,a.y);
+        @VEC4@ c10=@SAMPLE@;
+        q=origin+@VEC2@(a.x,b.y);
+        @VEC4@ c01=@SAMPLE@;
+        q=origin+b;
+        @VEC4@ c11=@SAMPLE@;
+        sampled=@MIX@(@MIX@(c00,c10,weight.x),@MIX@(c01,c11,weight.x),weight.y);
+    } else {
+        @VEC2@ q=origin+clamp(floor(uv*size),@VEC2@(0,0),size-1.0);
+        sampled=@SAMPLE@;
+    }
+}
+return sampled;
+}
 
 """

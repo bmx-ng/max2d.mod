@@ -1,0 +1,16 @@
+{
+  "abi": 2,
+  "name": "testcoordinates",
+  "factory": "CreateTestCoordinatesPackage",
+  "parameters": [
+    {
+      "name": "offset",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv+offset.xy;",
+    "glsl": "return uv+offset.xy;",
+    "hlsl": "return uv+offset.xy;"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "abi": 2,
+  "name": "distortion",
+  "factory": "CreateDistortionPackage",
+  "parameters": [
+    {
+      "name": "time",
+      "type": "float"
+    },
+    {
+      "name": "strength",
+      "type": "float"
+    },
+    {
+      "name": "frequency",
+      "type": "float"
+    },
+    {
+      "name": "ripple",
+      "type": "float"
+    }
+  ],
+  "bodies": {
+    "metal": "float2 displacement=float2(0,0);\nif (ripple > 0.5) {\n    float2 delta=uv-float2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=float2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;",
+    "glsl": "vec2 displacement=vec2(0,0);\nif (ripple > 0.5) {\n    vec2 delta=uv-vec2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=vec2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;",
+    "hlsl": "float2 displacement=float2(0,0);\nif (ripple > 0.5) {\n    float2 delta=uv-float2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=float2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;"
+  }
+}

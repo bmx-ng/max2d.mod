@@ -13,8 +13,10 @@ Import Max2D.SDL3GPUMax2D
 Import "glue.c"
 Import "package.c"
 Import "packages/colormatrix/colormatrix_assets.c"
+Import "packages/distortion/distortion_assets.c"
 
 Include "packages/colormatrix/colormatrix.bmx"
+Include "packages/distortion/distortion.bmx"
 Include "package.bmx"
 
 Private
