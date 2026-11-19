@@ -78,9 +78,46 @@ straight-colour textures retain their existing interpolation convention.
 Distortion only changes sampling within the drawn quad; it does not expand
 geometry or layer padding. Trimmed sprites are rejected explicitly because
 removed pixels cannot be recovered by coordinate sampling. Draw them into an
-untrimmed transparent render-image layer first. A coordinate package changes
-sampling only; chain a colour effect through a layer when both are required.
+untrimmed transparent render-image layer first. A coordinate package can also apply a colour body in the same draw, as described below.
 No new work is added to ordinary draws or the native renderer's draw records.
+
+## Combined distortion and colour
+
+ABI 2 manifests may add `colourBodies`, an object with equivalent `metal`,
+`glsl` and `hlsl` function bodies returning a four-component colour. These receive
+`c` (straight RGBA) and the same named parameters as the coordinate body.
+The two functions share the existing six parameter slots. See
+`tests/data/combined/manifest.json` for a minimal example.
+
+The order is coordinate transformation, bounded sampling, source alpha
+interpretation, drawing tint, colour body, alpha clamp, mask discard and output
+premultiplication. RGB remains unclamped for HDR. No colour-space conversion is
+implicit. A colour body that adds alpha can make transparent or outside samples
+visible; preserve `c.a` if that is unwanted. The colour body does not receive `uv`.
+
+`CreateGradedDistortionEffect(strength=0.03,frequency=20)` combines the wave/ripple
+controls above with two float4 parameters:
+
+- `grade`: saturation, exposure multiplier, contrast around 0.5, brightness offset.
+  Defaults to `(1,1,1,0)`.
+- `gradeTint`: RGBA multipliers, default `(1,1,1,1)`.
+
+With zero strength and default grading it preserves the source. Saturation uses
+luminance weights `(0.2126,0.7152,0.0722)`, then exposure, contrast, brightness and
+tint are applied in that order. All controls use the source's numeric colour space.
+
+```blitzmax
+Local effect:TMax2DShaderEffect=CreateGradedDistortionEffect()
+effect.SetFloat("time",elapsedSeconds)
+effect.SetFloat4("grade",0,1,1.2,0) ' Monochrome with extra contrast.
+DrawImageEffect(image,effect,100,100)
+```
+
+The [interactive example](../examples/graded_distortion.bmx) offers natural,
+monochrome, warm and cool grades. Press G to cycle them.
+This is an explicitly authored combined shader; existing effect chains are not
+automatically fused. It uses one draw without an intermediate render image, and
+supports `DrawImageEffectBatch`. This is not a GPU timing claim.
 
 ## Package API
 
@@ -197,16 +234,23 @@ bmk makeapp -r -t console -o shader_package_generator tests/shader_package_gener
 ./shader_package_generator . /path/to/new-scratch-directory
 ```
 
-It checks exact reproduction of both reference packages, including embedded
+It checks exact reproduction of the reference packages, including embedded
 assets, and rejects malformed schemas and function bodies. The tools resolve
 relative paths against the directory from which they were launched.
 
 Coordinate tests exercise both axes, atlas bounds, all edge modes, filtered
 repeat seams, HDR and alpha, tint, queued edge snapshots, native compact and
 triangle paths, batching, state recovery, trim rejection and context recreation.
-The generator regression reproduces all four checked-in packages.
+The generator regression reproduces all six checked-in packages.
 
 Validation on 2026-11-19: coordinate regressions pass on macOS Metal and
 Windows/Ubuntu Vulkan with strict numeric comparisons; software rejects the
 unsupported effects. Both Direct3D assets compile without warnings; Direct3D
 12 runtime remains unverified. Existing ABI 1 and generator tests also pass.
+
+Combined effects validation on 2026-11-19: macOS Metal and Windows/Ubuntu
+Vulkan pass strict comparisons against an explicit two-pass reference, covering
+HDR, tinted straight alpha, atlas views, filtering, all edge modes, queued
+parameter snapshots, six-slot uniforms, compact/triangle paths, batching, mask
+thresholds and context recreation. Software rejects unsupported draws. Both new
+Direct3D assets compile; Direct3D runtime remains unverified.

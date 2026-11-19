@@ -26,10 +26,16 @@ End Function
 Function ReadManifest:TJSONObject(path:String)
 	Local error:TJSONError
 	Local root:TJSONObject = TJSONObject(TJSON.Load(LoadText(path),0,error))
-	Fields(root,["abi","name","factory","parameters","bodies"])
+	If Not root Then Throw "Expected a package manifest object"
+	If root.Get("colourBodies") Then
+		Fields(root,["abi","name","factory","parameters","bodies","colourBodies"])
+	Else
+		Fields(root,["abi","name","factory","parameters","bodies"])
+	End If
 	If Not TJSONInteger(root.Get("abi")) Then Throw "Expected integer ABI version"
 	Local abi:Long=root.GetInteger("abi")
 	If abi<>1 And abi<>2 Then Throw "Expected package ABI 1 or 2"
+	If root.Get("colourBodies") And abi<>2 Then Throw "colourBodies requires coordinate ABI 2"
 	If Not Identifier(TextValue(root.Get("name"))) Or Not Identifier(TextValue(root.Get("factory"))) Then Throw "Name and factory must be identifiers"
 	Local params:TJSONArray = TJSONArray(root.Get("parameters"))
 	If Not params Then Throw "Expected parameters array"
@@ -52,7 +58,12 @@ Function ReadManifest:TJSONObject(path:String)
 		names[i]=name
 		If kind<>"float" And kind<>"float4" Then Throw "Only float and float4 are supported"
 	Next
-	Local bodies:TJSONObject = TJSONObject(root.Get("bodies"))
+	ValidateBodies(TJSONObject(root.Get("bodies")))
+	If root.Get("colourBodies") Then ValidateBodies(TJSONObject(root.Get("colourBodies")))
+	Return root
+End Function
+
+Function ValidateBodies(bodies:TJSONObject)
 	Fields(bodies,["metal","glsl","hlsl"])
 	For Local lang:String = EachIn ["metal","glsl","hlsl"]
 		Local body:String = TextValue(bodies.Get(lang)), depth:Int
@@ -64,7 +75,6 @@ Function ReadManifest:TJSONObject(path:String)
 		Next
 		If depth Then Throw "Unbalanced function body"
 	Next
-	Return root
 End Function
 
 Function WriteTextFile(path:String, value:String)
@@ -84,6 +94,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Local name:String=root.GetString("name"), factory:String=root.GetString("factory")
 	Local params:TJSONArray=TJSONArray(root.Get("parameters"))
 	Local bodies:TJSONObject=TJSONObject(root.Get("bodies"))
+	Local colourBodies:TJSONObject=TJSONObject(root.Get("colourBodies"))
 	Local abi:Int=Int(root.GetInteger("abi")), count:Int=params.Size()
 	If abi=2 Then count:+2
 	For Local lang:String = EachIn ["metal","glsl","hlsl"]
@@ -105,13 +116,14 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 		Local helper:String=resultType+" userEffect("+argument
 		If lang="metal" Then helper:+", constant float4 *p"
 		helper:+") {~n"
+		Local declarations:String
 		For Local i:Int=0 Until params.Size()
 			Local p:TJSONObject=TJSONObject(params.Get(i))
 			Local kind:String=vec, suffix:String
 			If p.GetString("type")="float" Then kind="float"; suffix=".x"
-			helper:+"    "+kind+" "+p.GetString("name")+" = p["+i+"]"+suffix+";~n"
+			declarations:+"    "+kind+" "+p.GetString("name")+" = p["+i+"]"+suffix+";~n"
 		Next
-		helper:+bodies.GetString(lang)+"~n}~n"
+		helper:+declarations+bodies.GetString(lang)+"~n}~n"
 		If abi=2 Then
 			Local samplerArgs:String, sample:String, callArgs:String, mixName:String="mix", originalSample:String, originalCall:String
 			Select lang
@@ -136,6 +148,14 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			If lang="metal" Then parameterArgs=",p"
 			Local uvCall:String="userEffect(("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw"+parameterArgs+")"
 			tail=tail.Replace(originalSample,vec+" c=sampleRegion("+uvCall+callArgs+");").Replace(originalCall,"")
+			If colourBodies Then
+				helper:+vec+" userColour("+vec+" c"
+				If lang="metal" Then helper:+", constant float4 *p"
+				helper:+") {~n"+declarations+colourBodies.GetString(lang)+"~n}~n"
+				' Run after source alpha interpretation and drawing tint, before
+				' alpha clamp, mask discard and output premultiplication.
+				tail=tail.Replace("c.a=clamp(c.a,0.0,1.0);","c=userColour(c"+parameterArgs+");~nc.a=clamp(c.a,0.0,1.0);")
+			End If
 			helper:+sampling
 		End If
 		WriteTextFile(output+"/"+name+"."+ext,head.Replace("@COUNT@",String(count))+helper+tail)

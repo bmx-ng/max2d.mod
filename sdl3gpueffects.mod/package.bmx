@@ -245,3 +245,20 @@ Function CreateDistortionEffect:TMax2DShaderEffect(strength:Float=0.03, frequenc
 	effect.SetFloat("frequency",frequency)
 	Return effect
 End Function
+
+Private
+Global defaultGradedDistortionPackage:TMax2DShaderPackage
+Public
+Rem
+bbdoc: Creates a reusable wave/ripple and colour-grade effect executed in one draw.
+about: Uses time, strength, frequency and ripple as CreateDistortionEffect. The grade float4 contains saturation, exposure multiplier, contrast around 0.5 and brightness offset. gradeTint multiplies RGBA after grading. Defaults preserve colour and alpha. Colour processing follows drawing tint; no implicit colour-space conversion is performed. RGB remains unclamped, and final alpha is clamped to 0–1. All six parameter slots share one snapshot with coordinate edge settings.
+End Rem
+Function CreateGradedDistortionEffect:TMax2DShaderEffect(strength:Float=0.03, frequency:Float=20)
+	If Not defaultGradedDistortionPackage Then defaultGradedDistortionPackage=CreateGradedDistortionPackage()
+	Local effect:TMax2DShaderEffect=CreateShaderEffect(defaultGradedDistortionPackage)
+	effect.SetFloat("strength",strength)
+	effect.SetFloat("frequency",frequency)
+	effect.SetFloat4("grade",1,1,1,0)
+	effect.SetFloat4("gradeTint",1,1,1,1)
+	Return effect
+End Function

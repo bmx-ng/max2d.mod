@@ -365,3 +365,6 @@ with `LIGHTBLEND`; see the [interactive bloom example](examples/bloom_effects.bm
 per-channel Reinhard mapping and configurable gamma. The
 [HDR bloom example](examples/hdr_bloom.bmx) compares clipped input, tone mapping,
 and bloom accumulated before tone mapping.
+
+The [combined distortion example](examples/graded_distortion.bmx) demonstrates
+waves and colour grading in one draw; see [shader packages](docs/shader-packages.md).

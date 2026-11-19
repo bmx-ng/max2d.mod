@@ -1,0 +1,29 @@
+{
+  "abi": 2,
+  "name": "testcombined",
+  "factory": "CreateTestCombinedPackage",
+  "parameters": [
+    {
+      "name": "offset",
+      "type": "float4"
+    },
+    {
+      "name": "gain",
+      "type": "float"
+    },
+    {
+      "name": "bias",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv+offset.xy;",
+    "glsl": "return uv+offset.xy;",
+    "hlsl": "return uv+offset.xy;"
+  },
+  "colourBodies": {
+    "metal": "return float4(c.rgb*gain,c.a)+bias;",
+    "glsl": "return vec4(c.rgb*gain,c.a)+bias;",
+    "hlsl": "return float4(c.rgb*gain,c.a)+bias;"
+  }
+}
