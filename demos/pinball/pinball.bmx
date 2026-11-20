@@ -252,8 +252,8 @@ Function DrawTable()
  If outletLength>0.01 Then
   Local outletX:Float=0.7+0.8*outletLength,outletY:Float=11.4-0.4*outletLength
   Paint(2,5,14,0.8); Line(0.79,11.56,outletX+0.09,outletY+0.16,11)
-  Paint(35,83,104); Line(0.7,11.4,outletX,outletY,8)
-  Paint(129,224,234); Line(0.7,11.4,outletX,outletY,2)
+  Paint(112,68,35); Line(0.7,11.4,outletX,outletY,8)
+  Paint(232,157,85); Line(0.7,11.4,outletX,outletY,5)
  End If
  Local forgeX:Float=TX+3.2*SCALE,forgeY:Float=TY+10.9*SCALE
  If table.forgeCharge=3 Then
