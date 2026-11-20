@@ -43,8 +43,8 @@ cancels touches and pauses. Controls account for native output scale and
 letterboxing. Physical touchscreen hardware has not yet been tested.
 
 The table starts with a ball in the shooter lane. A quick tap launches at minimum
-power; holding charges a stronger shot. A ball returning down the shooter lane
-can be launched again. Raised flippers can cradle the ball: release and stroke
+power; holding charges a stronger shot. A one-way gate closes after the ball
+clears the shooter lane, preventing it from returning to the launcher. Raised flippers can cradle the ball: release and stroke
 again to put it back into play.
 
 ## Implementation
@@ -78,7 +78,7 @@ From the repository directory:
 /tmp/flux-input
 ```
 
-Physics checks cover launch-lane delivery, flipper limits/return, a 30-unit/s
+Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain and a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,

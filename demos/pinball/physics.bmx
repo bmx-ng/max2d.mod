@@ -29,6 +29,7 @@ Type TPinTable
  Field score:Int,balls:Int=3,waiting:Int=True,gameOver:Int,hits:Int,litMask:Int,surges:Int
  Field elapsed:Float,surge:Float,charge:Float,saveTime:Float,drainDelay:Float
  Field previousX:Float,previousY:Float,previousAngle:Float[2]
+ Field gate:b2Shape,gateClosed:Int
  Field maxSpeed:Float
  Method New()
   Local bounds:b2AABB=New b2AABB.Create(New b2Vec2.Create(-20,-20),New b2Vec2.Create(40,50))
@@ -49,6 +50,12 @@ Type TPinTable
   Rail(2,12.8,3.5,15.4,3); Rail(8.1,15.4,9.6,12.8,4)
   MakeFlipper(0,3.4,17,20)
   MakeFlipper(1,8.4,17,160)
+  Local gateDef:b2BodyDef=New b2BodyDef
+  gateDef.SetPosition(New b2Vec2.Create(11.25,4))
+  Local gateShape:b2PolygonDef=New b2PolygonDef
+  gateShape.SetAsBox(0.75,0.1); gateShape.SetFilterCategoryBits(2); gateShape.SetFilterMaskBits(0)
+  gateShape.SetRestitution(0.55); gateShape.SetFriction(0.08)
+  gate=world.CreateBody(gateDef).CreateShape(gateShape)
   Spawn()
  End Method
  Method Rail(x1:Float,y1:Float,x2:Float,y2:Float,target:Int=-1)
@@ -81,16 +88,25 @@ Type TPinTable
   flipper[index]=world.CreateBody(def)
   Local shape:b2PolygonDef=New b2PolygonDef
   shape.SetFilterCategoryBits(4); shape.SetFilterMaskBits(1)
-  shape.SetAsBox(1.05,0.16); shape.SetDensity(5); shape.SetFriction(0.35); shape.SetRestitution(0.25)
+  shape.SetAsBox(1.05,0.16); shape.SetDensity(2); shape.SetFriction(0.35); shape.SetRestitution(0.25)
   flipper[index].CreateShape(shape); flipper[index].SetMassFromShapes()
   Local jd:b2RevoluteJointDef=New b2RevoluteJointDef
   jd.Initialize(world.GetGroundBody(),flipper[index],New b2Vec2.Create(x,y))
-  jd.EnableMotor(True); jd.SetMaxMotorTorque(120); jd.EnableLimit(True)
+  jd.EnableMotor(True); jd.SetMaxMotorTorque(700); jd.EnableLimit(True)
   If index=0 Then jd.SetLowerAngle(-48); jd.SetUpperAngle(0) Else jd.SetLowerAngle(0); jd.SetUpperAngle(48)
   joint[index]=b2RevoluteJoint(world.CreateJoint(jd))
   previousAngle[index]=angle
  End Method
+ Method SetGate(closed:Int)
+  If gateClosed=closed Then Return
+  gateClosed=closed
+  Local filter:b2FilterData=gate.GetFilterData()
+  filter.maskBits=0
+  If closed Then filter.maskBits=1
+  gate.SetFilterData(filter); world.Refilter(gate)
+ End Method
  Method Spawn()
+  SetGate(False)
   If ball Then world.DestroyBody(ball)
   Local def:b2BodyDef=New b2BodyDef
   def.SetPosition(New b2Vec2.Create(11.25,18.5)); def.SetIsBullet(True); def.SetLinearDamping(0.025)
@@ -111,8 +127,9 @@ Type TPinTable
    previousAngle[i]=flipper[i].GetAngle()
    Local held:Int=left
    If i=1 Then held=right
-   Local speed:Float=450
-   If held Then speed=-900
+   Local speed:Float=500
+   joint[i].SetMaxMotorTorque(200)
+   If held Then speed=-1200; joint[i].SetMaxMotorTorque(700)
    If held And Abs(joint[i].GetJointAngle())>46 Then speed=-25
    If i=1 Then speed=-speed
    joint[i].SetMotorSpeed(speed)
@@ -147,6 +164,8 @@ Type TPinTable
   ' Bound pathological energy spikes while retaining ordinary flipper shots.
   If speed>32 Then ball.SetLinearVelocity(New b2Vec2.Create(v.GetX()*32/speed,v.GetY()*32/speed))
   p=ball.GetPosition()
+  ' Close only after the whole launched ball has cleared the gate.
+  If Not waiting And Not gateClosed And p.GetY()<3.5 Then SetGate(True)
   If Not waiting And Not gameOver Then
    If p.GetY()>20.5 Then
     If saveTime>0 Then

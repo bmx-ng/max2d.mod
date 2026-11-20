@@ -16,7 +16,20 @@ For Local i:Int=0 Until 480
  If p.GetX()<10 And p.GetY()<10 Then entered=True
 Next
 Check(entered,"Launcher failed to enter playfield")
-Print "PASS launch lane"
+Check(t.gateClosed,"Launch gate did not close")
+t.ball.SetXForm(New b2Vec2.Create(11.25,3.3),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,30))
+For Local i:Int=0 Until 12
+ t.Tick(False,False)
+ Check(t.ball.GetPosition().GetY()<3.8,"Ball returned through launch gate")
+Next
+t.Spawn()
+Check(Not t.gateClosed,"New ball did not reopen gate")
+Print "PASS launch lane and one-way gate"
+For Local i:Int=0 Until 12
+ t.Tick(True,True)
+Next
+Check(Abs(t.joint[0].GetJointAngle())>44 And Abs(t.joint[1].GetJointAngle())>44,"Flippers did not rise within 100 ms")
+Print "PASS fast flipper rise"
 For Local i:Int=0 Until 90
  t.Tick(True,True)
 Next
@@ -55,7 +68,7 @@ For Local i:Int=0 Until 25
  t.Tick(True,False)
  upward=Min(upward,t.ball.GetLinearVelocity().GetY())
 Next
-Check(upward < -3,"Flipper does not launch ball upwards")
+Check(upward < -12,"Flipper does not launch ball upwards")
 Print "PASS flipper strike (upward velocity "+upward+")"
 t.balls=1; t.waiting=False; t.saveTime=0
 t.ball.SetXForm(New b2Vec2.Create(6,21),0); t.Tick(False,False)
