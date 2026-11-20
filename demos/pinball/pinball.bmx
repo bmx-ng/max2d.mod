@@ -26,6 +26,7 @@ Const WIDTH:Int=1000,HEIGHT:Int=820,SCALE:Float=34,TX:Float=80,TY:Float=42
 Global table:TPinTable=New TPinTable
 Global controls:TPinControls
 Global audio:TPinSound,visuals:TPinVisuals
+Global tableFont:TImageFont
 Global bloom:TMax2DBloom,halo:TMax2DShadow
 Global staticLight:TRenderImage,lightSource:TRenderImage
 Global paused:Int,leftDown:Int,rightDown:Int,launchDown:Int
@@ -57,7 +58,22 @@ If FileType(fontPath)=FILETYPE_FILE Then
  Local font:TScalableImageFont=LoadScalableImageFont(fontPath,19)
  If font Then SetImageFont(font)
 End If
+' Dedicated condensed lettering for the physical table; fall back to the UI font.
+tableFont=GetImageFont()
+Local tableFontPath:String
+?osx
+tableFontPath="/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf"
+?win32
+tableFontPath=getenv_("WINDIR")+"/Fonts/bahnschrift.ttf"
+?linux
+tableFontPath="/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf"
+?
+If FileType(tableFontPath)=FILETYPE_FILE Then
+ Local loaded:TScalableImageFont=LoadScalableImageFont(tableFontPath,32)
+ If loaded Then tableFont=loaded
+End If
 controls=New TPinControls
+
 controls.SetStickEnabled(False)
 SetupLights()
 audio=New TPinSound
@@ -165,6 +181,25 @@ End Function
 Function Text(value:String,x:Float,y:Float,size:Float=1,r:Int=213,g:Int=228,b:Int=242)
  Paint(r,g,b); SetScale(size,size); DrawText(value,x,y); SetScale(1,1)
 End Function
+' Centre visible glyph ink, including font bearings, rather than guessed offsets.
+' Height and width are logical pixels, independent of the chosen font metrics.
+Function TableText(value:String,cx:Float,cy:Float,height:Float,r:Int=213,g:Int=228,b:Int=242,maxWidth:Float=200)
+ Local scope:TMax2DStateScope=ScopedMax2DState()
+ Try
+  SetImageFont(tableFont)
+  Local layout:TTextLayout=CreateTextLayout(value)
+  If layout.boundsHeight<=0 Or layout.boundsWidth<=0 Then Return
+  Local scale:Float=Min(height/layout.boundsHeight,maxWidth/layout.boundsWidth)
+  Local x:Float=cx-(layout.boundsX+layout.boundsWidth/2)*scale
+  Local y:Float=cy-(layout.boundsY+layout.boundsHeight/2)*scale
+  SetScale(scale,scale)
+  ' A small engraved shadow and crisp face; the playfield bloom lights the face.
+  Paint(1,5,13,0.9); DrawTextLayout(layout,x,y+1)
+  Paint(r,g,b); DrawTextLayout(layout,x,y)
+ Finally
+  scope.Close()
+ End Try
+End Function
 Function Line(x1:Float,y1:Float,x2:Float,y2:Float,width:Float)
  SetLineWidth(width); DrawLine(TX+x1*SCALE,TY+y1*SCALE,TX+x2*SCALE,TY+y2*SCALE); SetLineWidth(1)
 End Function
@@ -232,20 +267,20 @@ Function DrawTable()
   If lit Then Glow(x,y,1.6,255,196,82,0.7+table.rolloverFlash[i])
   If lit Then Paint(255,217,135) Else Paint(87,115,136)
   Ring(x,y,17,2)
-  Text(String(i+1),x-5,y-10,0.75)
+  TableText(String(i+1),x,y,14)
  Next
  Local jackpotX:Float=TX+5.6*SCALE,jackpotY:Float=TY+11*SCALE
  If table.jackpotTime>0 Or table.jackpotFlash>0 Then
   Glow(jackpotX,jackpotY,2.8,255,190,86,0.65+table.jackpotFlash)
   Paint(255,221,143); Ring(jackpotX,jackpotY,27+Float(Sin(clockTime*240))*3,2)
-  Text("1000",jackpotX-19,jackpotY-10,0.75,255,235,179)
+  TableText("1000",jackpotX,jackpotY,14,255,235,179,42)
  Else
   Paint(51,74,93); Ring(jackpotX,jackpotY,27)
   If table.frenzyCharge=3 Then
    Glow(jackpotX,jackpotY,2.2,179,129,255,0.8)
-   Text("FRENZY",jackpotX-27,jackpotY-7,0.55,213,180,255)
+   TableText("FRENZY",jackpotX,jackpotY,10,213,180,255,42)
   Else
-   Text("JACKPOT",jackpotX-30,jackpotY-7,0.5,89,118,140)
+   TableText("JACKPOT",jackpotX,jackpotY,10,112,145,166,42)
   End If
 
  End If
@@ -257,7 +292,7 @@ Function DrawTable()
   Paint(62,84,111)
  End If
  Ring(multiX,multiY,22,2)
- Text("MULTI",multiX-22,multiY-7,0.55,158,190,235)
+ TableText("MULTI",multiX,multiY,10,158,190,235,34)
  ' Forge target bay and retracting shutter.
 
  For Local i:Int=0 Until 3
@@ -286,7 +321,7 @@ Function DrawTable()
   Paint(91,102,108)
  End If
  Ring(forgeX,forgeY,22,2)
- Text("FORGE",forgeX-23,forgeY-7,0.55,226,181,128)
+ TableText("FORGE",forgeX,forgeY,10,226,181,128,34)
  If table.forgeTime>0 Then
   Paint(255,195,109,Float(0.5+Sin(clockTime*240)*0.25))
   Line(3.5,9.2,2.5,8.8,2); Line(2.5,8.8,2.9,8.6,2)
@@ -341,19 +376,19 @@ Function DrawTable()
   Paint(255,255,255); DrawOval(x-5,y-5,5,5)
  End If
  Paint(233,94,128,0.5); Line(4.5,20.2,7.2,20.2,2)
- Text("D R A I N",236,735,0.55,160,94,126)
+ TableText("D R A I N",TX+5.85*SCALE,744,9,160,94,126,90)
  If table.surge>0 Then
   Paint(238,111,191,Float(0.5+Sin(clockTime*240)*0.2)); Ring(TX+5.6*SCALE,TY+7*SCALE,145)
  End If
  DrawFlipperButton(180,776,"L",leftDown)
  DrawFlipperButton(405,776,"R",rightDown)
- Text("HOLD TO FLIP",242,773,0.55,110,149,170)
+ TableText("HOLD TO FLIP",292.5,776,8,110,149,170,130)
 End Function
 Function DrawFlipperButton(x:Float,y:Float,label:String,held:Int)
  Paint(18,39,56); DrawOval(x-33,y-33,66,66)
  If held Then Paint(255,206,142) Else Paint(78,146,171)
  Ring(x,y,32,2)
- Text(label,x-7,y-12,1.1)
+ TableText(label,x,y,20)
 End Function
 Function DrawInterface()
  visuals.DrawConsole()

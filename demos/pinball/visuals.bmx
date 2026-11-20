@@ -202,8 +202,8 @@ Type TPinVisuals
     Paint(102,197,216,0.35); DrawOval(x-1.5,y-1.5,3,3)
    Next
   Next
-  Text("F L U X",204,495,1.3,48,79,96)
-  Text("ENERGY REACTOR",207,530,0.48,56,88,105)
+  TableText("F L U X",TX+5.6*SCALE,512,25,65,106,127,150)
+  TableText("ENERGY REACTOR",TX+5.6*SCALE,539,8,84,117,137,150)
   ' Moving light chases follow the actual rails rather than changing geometry.
   For Local rail:TPinRail=EachIn table.rails
    If rail.active Then Continue
@@ -302,7 +302,7 @@ Type TPinVisuals
   Next
   SetBlend(ALPHABLEND)
   If celebration>0 Then
-   Text("POWER COLLECTED",155,595,0.75,255,225,160)
+   TableText("POWER COLLECTED",TX+5.6*SCALE,608,14,255,225,160,205)
   End If
  End Method
  Method DrawConsole()

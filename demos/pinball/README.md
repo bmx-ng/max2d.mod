@@ -186,8 +186,14 @@ Unavailable effects fall back to simpler rendering.
 flippers, launch, mode start, completion, drain and rollovers. SDL3 plays these
 through a bounded twelve-voice pool with stereo placement and conservative
 volume. Press **M** or tap **SFX ON/OFF** to mute; pausing silences current cues.
-The game still runs if an audio device is unavailable. No music is bundled yet;
-the cues leave space for the separately generated soundtrack.
+The game still runs if an audio device is unavailable. This demo uses sound
+effects only, with no soundtrack.
 
 The effects pass and both game modes were smoke-tested on macOS with Metal and
 OpenGL, and the mute touch region is covered by the input checks.
+
+Table labels use visible glyph bounds for centring, including bearings, with
+a dedicated condensed display font and engraved shadow. macOS uses DIN
+Condensed Bold, Windows tries Bahnschrift, and Linux tries DejaVu Sans Condensed
+Bold; unavailable fonts fall back to the interface font. Label heights and width
+limits remain consistent across these choices. The font files are not bundled.
