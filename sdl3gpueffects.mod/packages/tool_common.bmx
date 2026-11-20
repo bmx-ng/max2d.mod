@@ -192,7 +192,16 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			helper:+sampling
 		End If
 		WriteTextFile(output+"/"+name+"."+ext,head.Replace("@COUNT@",String(count))+helper+tail)
-		If abi=1 And lang="glsl" Then WriteTextFile(output+"/"+name+".glsl",HEAD_gl120.Replace("@COUNT@",String(count))+helper+TAIL_gl120)
+		If abi<=2 And lang="glsl" Then
+			Local desktopHelper:String=helper, desktopTail:String=TAIL_gl120
+			If abi=2 Then
+				desktopHelper=GL120_TEXEL+helper.Replace("texelFetch(image,ivec2(q),0)","m2dTexel(q,info.xy)")
+				desktopTail=desktopTail.Replace("vec2 uv=texcoord;~nif(sourceTarget!=0) uv.y=1.0-uv.y;~nvec4 c=texture2D(image,uv);", "vec4 c=sampleRegion(userEffect((texcoord-p["+params.Size()+"].xy)/p["+params.Size()+"].zw));")
+				desktopTail=desktopTail.Replace("c=userEffect(c);~n", "")
+				If colourBodies Then desktopTail=desktopTail.Replace("c.a=clamp(c.a,0.0,1.0);", "c=userColour(c);~nc.a=clamp(c.a,0.0,1.0);")
+			End If
+			WriteTextFile(output+"/"+name+".glsl",HEAD_gl120.Replace("@COUNT@",String(count))+desktopHelper+desktopTail)
+		End If
 	Next
 	Local names:String[], kinds:String[], arguments:String[]
 	names=New String[params.Size()]; kinds=New String[params.Size()]; arguments=New String[3]
@@ -208,7 +217,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	source=source.Replace("@NAMES@",", ".Join(names)).Replace("@KINDS@",", ".Join(kinds)).Replace("@ARGUMENTS@",", ".Join(arguments))
 	Local abiArgument:String
 	If abi>=2 Then abiArgument=", "+abi
-	If abi=1 Then abiArgument=", 1, "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
+	If abi<=2 Then abiArgument=", "+abi+", "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
 	source=source.Replace("@ABI_ARGUMENT@",abiArgument)
 	WriteTextFile(output+"/"+name+".bmx",source)
 End Function
@@ -218,7 +227,7 @@ Function EmbedPackage(manifest:String, output:String)
 	Local name:String=root.GetString("name"), factory:String=root.GetString("factory")
 	Local text:String="/* Generated shader assets. */~n"
 	Local extensions:String[]=["metal","frag.spv","dxbc"]
-	If root.GetInteger("abi")=1 Then extensions=extensions+["glsl"]
+	If root.GetInteger("abi")<=2 Then extensions=extensions+["glsl"]
 	Local sizes:String[]=New String[extensions.Length]
 	For Local i:Int=0 Until extensions.Length
 		Local blob:TBank=LoadBank(output+"/"+name+"."+extensions[i])

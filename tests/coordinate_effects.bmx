@@ -1,10 +1,14 @@
 SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
-?
+?Not max2d_gl
 Import Max2D.SDL3GPUEffects
+?
 Import BRL.StandardIO
 Import "data/coordinates/testcoordinates_assets.c"
 Include "data/coordinates/testcoordinates.bmx"
@@ -15,7 +19,7 @@ End Function
 Function Near(actual:Float,expected:Float,message:String)
 	If Abs(actual-expected)>0.0005 Then Throw message+": "+actual+" expected "+expected
 End Function
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
 ?
 Try
@@ -31,9 +35,9 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(64,64)
 		If Not Max2DSupportsImageEffect(effect) Then
-?max2d_sdlgpu
+?max2d_sdlgpu Or max2d_gl
 			Throw "Native coordinate effect unsupported"
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 			rejected=False
 			Try
 				DrawImageEffect(CreateImage(2,2),effect,0,0)
@@ -138,6 +142,13 @@ Try
 		DrawImageEffect(region,effect,0,0)
 		Local result:TPixmap=ReadRenderImage(square)
 		Check(result.ReadPixel(0,0)=$ffffff00 And result.ReadPixel(1,0)=$ff0000ff And result.ReadPixel(0,1)=$ff00ff00 And result.ReadPixel(1,1)=$ffff0000,"Both axes wrap inside offset atlas region")
+		' Render-image regions use the same top-down coordinates as ordinary images.
+		Local gridLayer:TRenderImage=CreateRenderImage(4,4)
+		SetRenderImage(gridLayer); DrawImage(gridImage,0,0)
+		SetRenderImage(square)
+		DrawImageEffect(CreateImageView(gridLayer,1,1,2,2),effect,0,0)
+		result=ReadRenderImage(square)
+		Check(result.ReadPixel(0,0)=$ffffff00 And result.ReadPixel(1,0)=$ff0000ff And result.ReadPixel(0,1)=$ff00ff00 And result.ReadPixel(1,1)=$ffff0000,"Render-image region wraps with correct vertical orientation")
 		region.SetTrim(0,0,0,2,2)
 		rejected=False
 		Try
@@ -146,6 +157,33 @@ Try
 			rejected=True
 		End Try
 		Check(rejected,"Trimmed storage rejected explicitly")
+?max2d_gl
+		' Coordinate packages implement their own interpolation at mip zero.
+		Local mipSource:TRenderImage=CreateRenderImage(32,32,MIPMAPPEDIMAGE|FILTEREDIMAGE)
+		SetRenderImage(mipSource); SetClsColor(0,0,0,1); Cls
+		SetColor(255,255,255); DrawRect(14,14,4,4)
+		SetRenderImage(square); SetScale(1.0/32,1.0/32)
+		effect.SetFloat4("offset",0,0,0,0)
+		DrawImageEffect(mipSource,effect,0,0)
+		Local baseLevel:Int,maxLevel:Int,minFilter:Int,magFilter:Int
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,Varptr baseLevel)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,Varptr maxLevel)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,Varptr minFilter)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,Varptr magFilter)
+		Check(baseLevel=0 And maxLevel>0 And minFilter=GL_LINEAR_MIPMAP_LINEAR And magFilter=GL_LINEAR,"Coordinate draw restores mip range and filters")
+		DrawImage(mipSource,1,0); SetScale(1,1)
+		result=ReadRenderImage(square)
+		Check((result.ReadPixel(0,0)&255)>250 And (result.ReadPixel(1,0)&255)<6,"Coordinate uses mip zero; ordinary draw resumes mip sampling")
+		Local coverage:TPixmap=CreatePixmap(2,2,PF_A8)
+		coverage.pixels[0]=64; coverage.pixels[1]=128
+		coverage.pixels[coverage.pitch]=192; coverage.pixels[coverage.pitch+1]=255
+		Local mask:TImage=LoadImage(coverage,0)
+		effect.SetFloat4("offset",0.5,0.5,0,0)
+		DrawImageEffect(mask,effect,0,0)
+		result=ReadRenderImage(square)
+		Check((result.ReadPixel(0,0)&$ffffff)=$ffffff And ((result.ReadPixel(0,0) Shr 24)&255)=255,"Coordinate coverage samples white RGB and shifted alpha")
+		Check(Abs(((result.ReadPixel(1,1) Shr 24)&255)-64)<=1,"Coverage wraps both axes")
+?
 		EndGraphics
 	Next
 	Print "coordinate_effects passed"

@@ -86,7 +86,7 @@ Try
 ?max2d_gl
 		Local missing:TMax2DShaderEffect=CreateShaderEffect(TMax2DShaderPackage.Create("legacy",["gain","bias"],[1,4],CreateTestGainPackageData(CreateTestGainPackageAsset(0),CreateTestGainPackageSize(0)),Null,Null))
 		Local invalidGL:TMax2DShaderEffect=GLPackage("not valid GLSL")
-		Local unsupported:TMax2DShaderEffect[]=[missing,invalidGL,CreateDistortionEffect(),CreateDisplacementEffect(Null),CreateThresholdMaskEffect(Null)]
+		Local unsupported:TMax2DShaderEffect[]=[missing,invalidGL,CreateDisplacementEffect(Null),CreateThresholdMaskEffect(Null)]
 		For Local effect:TMax2DShaderEffect=EachIn unsupported
 			Check(Not Max2DSupportsImageEffect(effect),"unsupported ABI, missing asset or compiler failure rejected")
 		Next

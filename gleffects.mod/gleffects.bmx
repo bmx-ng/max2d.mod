@@ -1,8 +1,8 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1 shader packages.
-about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Coordinate and two-texture shader packages remain unsupported.
+bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1/2 shader packages.
+about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Two-texture shader packages remain unsupported.
 End Rem
 Module Max2D.GLEffects
 ModuleInfo "Version: 0.01"

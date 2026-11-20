@@ -1,14 +1,14 @@
 # Custom shader packages
 
 Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU, or
-`Max2D.GLEffects` for ABI 1 colour packages on OpenGL. Both import the shared
+`Max2D.GLEffects` for ABI 1 colour and ABI 2 coordinate packages on OpenGL. Both import the shared
 `Max2D.ShaderEffects` API; existing SDL imports and package factories remain valid.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
 coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
 independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
-Software SDL reports packages unsupported. OpenGL supports ABI 1 packages with
-a desktop GLSL asset; ABI 2–4 coordinate and secondary-map packages remain
+Software SDL reports packages unsupported. OpenGL supports ABI 1/2 packages with
+a desktop GLSL asset; ABI 3/4 secondary-map packages remain
 unsupported. Always query `Max2DSupportsImageEffect` before use.
 
 ## Colour matrix
@@ -390,19 +390,29 @@ SPIR-V, DXBC, BMX wrapper and `_assets.c` together in version control. C arrays
 embed the assets without runtime file access. No build-time shader compiler is
 linked into the application. Metal source is compiled by the system on use.
 
-ABI 1 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
+ABI 1/2 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
 `glsl` body, distinct from the Vulkan `.frag` source. The embedder includes it
 as asset 3; OpenGL compiles it on first use. It uses sampler `image`, the Max2D
-mode uniforms and a `vec4 p[]` parameter array. Keep colour bodies compatible
-with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1
+mode uniforms and a `vec4 p[]` parameter array. Keep shader bodies compatible
+with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1/2
 packages to add OpenGL support; their Metal/SPIR-V/DXBC assets need no changes.
 
 Direct callers may pass desktop GLSL bytes as the optional final argument to
 `TMax2DShaderPackage.Create(..., abiVersion, glsl)`. Existing calls remain valid.
-A GLSL-only ABI 1 package is allowed; missing renderer assets report unsupported.
+A GLSL-only ABI 1/2 package is allowed; missing renderer assets report unsupported.
 The shared module owns immutable assets and typed values, while each renderer
 registers its own adapter and owns compiled resources per context.
-`examples/color_matrix.bmx` accepts `-ud max2d_gl`.
+`examples/color_matrix.bmx`, `examples/coordinate_effects.bmx` and
+`examples/graded_distortion.bmx` accept `-ud max2d_gl`.
+
+OpenGL coordinate packages share the ABI 2 bounds and edge-mode slots. They
+fetch texel centres at mip level zero, using nearest texture taps and explicit
+interpolation for filtered images. Transparent, clamp and repeat modes stay
+inside the source image region, including atlas views. Render-image taps flip
+Y before sampling. The renderer restores the source texture's minification,
+magnification and mip-range settings after submission. Combined colour bodies
+run after sampling, alpha interpretation and tint, before alpha clamping and
+mask discard. Trimmed images retain the existing explicit rejection.
 
 SDL GPU versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
@@ -563,3 +573,29 @@ The macOS GUI colour-matrix example was built with `-t gui -ud max2d_gl`,
 opened and inspected. Contrast/brightness and sepia render correctly; resetting
 the matrix makes its image match the original. The package API and GL provider
 changes are contained in Max2D; BRL OpenGL code is unchanged.
+
+## OpenGL coordinate-package validation (2026-11-20)
+
+23 selected checks passed:
+
+- OpenGL on macOS, Windows and Ubuntu: `coordinate_effects`, `combined_effects`,
+  `shader_packages` and `gl_effects` (12 checks).
+- macOS Metal and software SDL: coordinate, combined and colour-package suites
+  (6 checks), plus package-generator reproduction (1 check).
+- Windows/Ubuntu Vulkan: coordinate and combined suites (4 checks).
+
+The coordinate regression verifies transparent/clamp/repeat boundaries, negative
+wrapping and filtered seams inside atlas views, HDR and fractional alpha, tint,
+batching, invalid frames, trimmed-image rejection and context recreation.
+Added checks cover offset render-image regions on both axes and, on OpenGL,
+coverage textures, minified mip-zero sampling and restoration of filtering and
+mip ranges before ordinary draws. Combined effects retain the full six user
+slots and verify colour/coordinate snapshots, mask discard and alpha clamping.
+
+The BlitzMax generator reproduces all eleven package fixtures, including new
+GLSL 1.20 assets for the four ABI 2 packages. Existing Metal, SPIR-V and DXBC
+assets are unchanged. ABI 3/4 maps remain unsupported on OpenGL.
+
+Both macOS GUI examples were built with `-t gui -ud max2d_gl` and inspected:
+waves/radial ripples with transparent boundaries, and combined distortion with
+warm grading. All renderer changes remain within Max2D.

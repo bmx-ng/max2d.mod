@@ -18,7 +18,7 @@ choose a backend without rewriting your scene code.
 - [Examples and documentation](#examples-and-documentation)
 
 [Custom shader packages](docs/shader-packages.md) provide typed parameters,
-colour matrices on SDL GPU and OpenGL, plus waves and ripples for SDL GPU.
+colour matrices, waves and ripples on SDL GPU and OpenGL.
 
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
@@ -371,7 +371,7 @@ The [colour-matrix example](examples/color_matrix.bmx) shows contrast, brightnes
 and sepia packages; add `-ud max2d_gl` to use OpenGL.
 
 The [combined distortion example](examples/graded_distortion.bmx) demonstrates
-waves and colour grading in one draw; see [shader packages](docs/shader-packages.md).
+waves and colour grading in one draw (also with `-ud max2d_gl`); see [shader packages](docs/shader-packages.md).
 
 The [two-texture example](examples/two_texture_effects.bmx) shares a procedural
 map between displacement and a dissolve with an optional HDR edge glow.

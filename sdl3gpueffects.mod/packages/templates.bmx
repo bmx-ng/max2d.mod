@@ -142,7 +142,7 @@ return sampled;
 
 """
 
-' Desktop OpenGL colour-package wrapper. User bodies use GLSL 1.20 syntax.
+' Desktop OpenGL package wrapper. User bodies use GLSL 1.20 syntax.
 Const HEAD_gl120:String = """
 #version 120
 uniform sampler2D image;
@@ -165,6 +165,16 @@ c.a=clamp(c.a,0.0,1.0);
 if(mask!=0 && c.a<0.5) discard;
 if(premultiply!=0) c.rgb*=c.a;
 gl_FragColor=c;
+}
+
+"""
+
+' Coordinate taps use nearest filtering and mip level zero, selected by the provider.
+Const GL120_TEXEL:String = """
+vec4 m2dTexel(vec2 pixel, vec2 texelSize) {
+vec2 uv=(pixel+0.5)*texelSize;
+if(sourceTarget!=0) uv.y=1.0-uv.y;
+return texture2D(image,uv);
 }
 
 """

@@ -1,7 +1,7 @@
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import testcoordinates_assets.c alongside your application imports.
 Function CreateTestCoordinatesPackage:TMax2DShaderPackage()
-	Return TMax2DShaderPackage.Create("testcoordinates", ["offset"], [MAX2D_PARAMETER_FLOAT4], CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(0), CreateTestCoordinatesPackageSize(0)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(1), CreateTestCoordinatesPackageSize(1)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(2), CreateTestCoordinatesPackageSize(2)), 2)
+	Return TMax2DShaderPackage.Create("testcoordinates", ["offset"], [MAX2D_PARAMETER_FLOAT4], CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(0), CreateTestCoordinatesPackageSize(0)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(1), CreateTestCoordinatesPackageSize(1)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(2), CreateTestCoordinatesPackageSize(2)), 2, CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(3), CreateTestCoordinatesPackageSize(3)))
 End Function
 Private
 Extern "C"

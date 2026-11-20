@@ -1,7 +1,7 @@
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import testcombined_assets.c alongside your application imports.
 Function CreateTestCombinedPackage:TMax2DShaderPackage()
-	Return TMax2DShaderPackage.Create("testcombined", ["offset", "gain", "bias"], [MAX2D_PARAMETER_FLOAT4, MAX2D_PARAMETER_FLOAT, MAX2D_PARAMETER_FLOAT4], CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(0), CreateTestCombinedPackageSize(0)), CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(1), CreateTestCombinedPackageSize(1)), CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(2), CreateTestCombinedPackageSize(2)), 2)
+	Return TMax2DShaderPackage.Create("testcombined", ["offset", "gain", "bias"], [MAX2D_PARAMETER_FLOAT4, MAX2D_PARAMETER_FLOAT, MAX2D_PARAMETER_FLOAT4], CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(0), CreateTestCombinedPackageSize(0)), CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(1), CreateTestCombinedPackageSize(1)), CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(2), CreateTestCombinedPackageSize(2)), 2, CreateTestCombinedPackageData(CreateTestCombinedPackageAsset(3), CreateTestCombinedPackageSize(3)))
 End Function
 Private
 Extern "C"

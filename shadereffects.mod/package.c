@@ -51,7 +51,7 @@ void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *
 	if(nm && (!metal || memchr(metal,0,(size_t)nm))) {
 		package_fail("Max2D package: embedded zero in Metal source"); return NULL;
 	}
-	if(ng && (abi!=1 || !glsl || memchr(glsl,0,(size_t)ng))) { package_fail("Max2D package: invalid GLSL source or ABI"); return NULL; }
+	if(ng && (abi>2 || !glsl || memchr(glsl,0,(size_t)ng))) { package_fail("Max2D package: invalid GLSL source or ABI"); return NULL; }
 	M2DPackage *p=calloc(1,sizeof(*p));
 	if(!p) goto oom;
 	if(nm) { p->metal=malloc((size_t)nm+1); if(!p->metal) goto oom; memcpy(p->metal,metal,(size_t)nm); p->metal[nm]=0; p->metalSize=(size_t)nm+1; }
