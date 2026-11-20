@@ -7,6 +7,9 @@ result caching or automatic allocations to ordinary drawing.
 
 ## Effect chains
 
+The fragment below assumes an open graphics context and an existing source
+layer. For a complete program, see [Applying effects](effects-quickstart.md).
+
 ```blitzmax
 Local buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
 buffers.Prepare(640, 360) ' Two full-size images, no blur storage.
@@ -85,10 +88,6 @@ A nonempty chain uses one draw per effect; an empty chain uses one copy draw.
 `tests/effect_buffers.bmx` checks eager allocation counts, image/pixel retention,
 invalid-layout recovery, selected-target guards, odd-size blur parity against
 manual buffers, warm draw counts without texture churn, resize cleanup, live
-context rejection and recreation after context closure. Software and OpenGL can
-use the buffer owner even where optional shader effects are unavailable.
-
-Validation on 2026-11-18 passed on macOS Metal, OpenGL and software rendering,
-plus Windows 11 and Ubuntu Vulkan VMs. The HDR scene was also built as a macOS
-GUI application and visually checked while rebuilding bloom with the retained
-buffers. The Windows temporary validation task was removed after the run.
+context rejection and recreation after context closure. The buffer owner can also be used without a shader provider for ordinary
+render-image storage and empty-chain copies. Nonempty chains and blur require
+a compatible provider.

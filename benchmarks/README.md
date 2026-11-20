@@ -122,7 +122,7 @@ the layer, mask and two outputs (four images); other cases retain two. Memory ex
 driver alignment, the window backing surface and shared geometry buffers. The
 timings are CPU wall-clock intervals, not GPU timestamps; compositor pacing can
 dominate even with `Flip(0)`. See [effects and masking](../docs/effects-and-masking.md)
-for the initial validation and the implementation's batching limits.
+for the operations and their batching limits.
 
 ## Scaled blur
 
@@ -144,3 +144,11 @@ measured frames (default/minimum 100) and repetitions (default 2). Every case ha
 expected steady-state submission counts and zero texture churn/readback. Keep
 its window visible. See the [gallery and benchmark guide](../docs/effects-gallery.md)
 for scene definitions, memory accounting and timing limitations.
+
+Reference CPU captures are available for [image effects](../docs/effects-macos-smoke.csv),
+[small blur](../docs/blur-macos-smoke.csv), scaled blur on
+[macOS](../docs/scaled-blur-macos-smoke.csv),
+[Windows](../docs/scaled-blur-windows-smoke.csv) and
+[Linux](../docs/scaled-blur-linux-smoke.csv), and
+[cached helpers](../docs/cached-effects-macos.csv). Treat these as sample data
+for the documented workloads, not cross-device GPU performance guarantees.

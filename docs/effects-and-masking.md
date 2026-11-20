@@ -1,155 +1,8 @@
 # Effects and group masking
 
-## Current checkpoint (2026-11-20)
-
-The core effects architecture is implemented. This checkpoint records the public
-APIs, their limits and remaining validation work.
-
-| Area | Implemented |
-| --- | --- |
-| Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional SDL GPU, OpenGL and native Direct3D effect providers |
-| Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
-| Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
-| Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
-| Shader authoring | Versioned packages, typed parameters, BlitzMax generation/embedding tools |
-| Custom sampling | Coordinates, combined grading/distortion, displacement and bounded atlas sampling |
-| Secondary maps | One extra texture, independent transforms, shared placement across sprites |
-| Reveals | Weighted channel masks, inversion, glowing dissolve and soft threshold masks |
-
-The [gallery](effects-gallery.md) provides two pages covering these effect families.
-The [shader package guide](shader-packages.md) documents the current ABI contracts;
-[HDR output](hdr-output.md) distinguishes float rendering, SDR presentation and
-actual HDR display output.
-
-### Effect parity
-
-| Feature | SDL GPU | OpenGL | Native D3D9 | Native D3D11 |
-| --- | --- | --- | --- | --- |
-| Saturation, colourize, blur, outlines | Yes | Yes | Yes | Yes |
-| Bloom, tone mapping and linear output | Yes | Yes | Yes | Yes |
-| Retained buffers, layer chains, soft/inner shadows | Yes | Yes | Yes | Yes |
-| Colour and coordinate packages (ABI 1/2) | Yes | Yes | Yes | Yes |
-| Displacement, dissolve and texture masks (ABI 3/4) | Yes | Yes | Yes | Yes |
-| Transformed/shared maps and soft thresholds | Yes | Yes | Yes | Yes |
-| Float composition | Device-dependent | Device-dependent | Device-dependent | Device-dependent |
-| Complete effects gallery | Both pages | Both pages | Both pages | Both pages |
-| HDR window presentation | Capability-dependent | SDR | SDR | SDR |
-
-Import the matching optional effects provider. All use the same public effect,
-parameter and buffer APIs. OpenGL uses generated GLSL 1.20, D3D9 uses ps_3_0,
-and native D3D11 uses ps_4_0 assets. This is functional parity for the implemented
-effects; it does not assert matching performance or native display capabilities.
-The rendering changes remain within Max2D.
-
-The earlier OpenGL completion sweep passed 98 selected checks across macOS, Windows and Ubuntu,
-including 27 OpenGL suites per platform. The complete gallery and linear HDR
-scene were visually inspected on macOS. See [validation details](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
-
-### Native Direct3D effects
-
-`Max2D.D3D11Effects` and `Max2D.D3D9Effects` support the seven built-in effects,
-shared buffers/layer/bloom/shadow pipelines, and custom shader-package ABI 1–4.
-Both support RGBA16F/RGBA32F composition where the device advertises the requested
-format and flags. D3D9 requires pixel shader 3.0 for effects and float storage;
-ordinary RGBA8 drawing retains its shader 2.0 requirement. Both providers embed
-compiled shaders; their build tools are BlitzMax programs.
-
-Native D3D9 and D3D11 use separate generated assets from SDL GPU's Direct3D
-contract. Native HDR window presentation remains unimplemented, matching the
-OpenGL provider's SDR presentation limitation. Float composition and tone mapping
-remain available. See the [D3D11](d3d11.md#optional-image-effects) and
-[D3D9](d3d9.md#optional-image-effects) guides.
-
-The earlier built-in native Direct3D checkpoint passed **34 Windows checks**: 18 D3D11
-(including real device replacement) and 16 D3D9 (including presentation resets
-and close/reopen), plus five affected OpenGL suites on macOS. D3D9 pipeline
-references used RGBA8 and accounted for bounded legacy filtering precision;
-D3D11 retains the float/HDR references. Direct blur and outline pixel checks
-retain their original tolerances. Optional-provider checks pass on both backends.
-The two native shadow GUI examples also compile. VM desktop capture returned a
-black image, so this checkpoint does not claim visual desktop inspection.
-
-### Native parity completion — 2026-11-20
-
-The remaining OpenGL effect parity work is complete for both native providers:
-ABI 1–4 packages, generated native assets, and D3D9 float textures/targets with
-unclamped readback. D3D9 now carries float tint and corrects pixel-centre
-interpolation; its shared pipelines use the same float references as OpenGL and
-D3D11. Cached byte and float targets survive planned presentation-mode resets.
-
-The completion sweep passed **89 selected checks**:
-
-| Platform/backend | Checks |
-| --- | ---: |
-| Windows native D3D9 | 34 |
-| Windows native D3D11 | 29 |
-| macOS OpenGL | 9 |
-| macOS SDL GPU / Metal | 8 |
-| macOS software rejection paths | 8 |
-| Reproducible BlitzMax package generation | 1 |
-
-Coverage includes all package ABIs, typed parameters and asset validation,
-same-name cache isolation, warmed batches, atlas/edge/filter behaviour, coverage
-maps, source/map aliasing, mipmap restoration, feedback rejection, HDR/negative
-values, float clears and letterbox bars, bloom/shadow pipelines, planned resets,
-transient D3D9 loss, and real D3D11 device replacement.
-
-Both native GUI galleries rendered and captured all eighteen selections at a
-fixed animation time. Framebuffer captures were inspected, including HDR bloom
-and mapped masks. This avoids the earlier black VM desktop-capture limitation.
-Windows validation used x64 executables on the Parallels Windows 11 ARM64 VM;
-physical Windows GPUs remain untested. Native window presentation remains SDR.
-
-### Deliberate limits and remaining work
-
-- Shader packages support colour, coordinates and one secondary texture through
-  ABI 1–4. Arbitrary resource layouts, additional maps and shader reflection are
-  not implemented. Source/map sampling in coordinate packages uses mip level zero.
-- Effects expose their passes and resource ownership. Retained buffers are
-  available; a general memory-budgeted scratch pool and automatic effect graph
-  are not implemented. Padding and result invalidation remain explicit.
-- Custom shader packages support ABI 1–4 through the optional SDL GPU, OpenGL,
-  D3D9 and D3D11 providers. Each needs its matching asset. SDL_Renderer reports
-  packages unsupported.
-  Fixed-function layer operations remain available where their exact blends work.
-- Metal and Windows/Ubuntu Vulkan have regression coverage. SDL GPU Direct3D bytecode
-  compiles, but that backend’s Direct3D runtime validation remains outstanding.
-- Physical HDR output has been demonstrated on macOS. The VMs test unsupported
-  HDR requests and SDR fallback, not physical Windows/Linux HDR output. HDR10/PQ
-  and automatic colour management are not implemented.
-- Submission/resource counters and CPU benchmark captures exist. Comprehensive
-  GPU timestamps, pass accounting and isolated performance captures remain work
-  to do; existing CPU timings do not establish GPU speedups.
-
-### Checkpoint regression sweep
-
-The accumulated effects suite passed **125 checks** on 2026-11-20, using release
-builds. The [per-profile test record](effects-checkpoint-results.json) lists every
-selected test. This is a bounded effects/integration sweep, not the complete
-repository suite.
-
-| Platform/profile | Passed checks |
-| --- | ---: |
-| macOS package generation | 1 |
-| macOS Metal | 28 |
-| macOS software SDL | 26 |
-| macOS OpenGL | 14 |
-| Windows VM Vulkan | 28 |
-| Ubuntu VM Vulkan | 28 |
-
-Coverage includes package generation, colour/coordinate/two-texture shaders,
-map transforms and shared mapping, threshold masks, cached helpers, buffers,
-linear colour, HDR requests, blending, layer composition, integration, drawing
-state and native context lifetime. Software/OpenGL passes include explicit
-unsupported-shader handling; they do not imply those backends implement shaders.
-This sweep predates the optional OpenGL provider described below; its validation
-is recorded separately. VM HDR passes cover rejection and SDR fallback. Direct3D execution, physical VM
-HDR output and GPU performance are outside this sweep.
-
-The expanded gallery was built as a macOS GUI app and visually checked on Metal
-for page navigation, colour matrices, combined grading/distortion, displacement,
-dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
+Start with [Applying effects](effects-quickstart.md) for a complete, asset-free
+example and the lifecycle of direct draws, chains and cached helpers. This guide
+explains the individual operations, their bounds and their costs.
 
 ## Choosing an API
 
@@ -171,6 +24,7 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 
 SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL built-in and shader-package effects require `Max2D.GLEffects`. The descriptions and buffer owners live in
 `Max2D.Effects`; package schemas and factories live in `Max2D.ShaderEffects`.
+Native Direct3D uses `Max2D.D3D9Effects` or `Max2D.D3D11Effects`.
 Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
 
@@ -230,15 +84,6 @@ pixels and performs no readback. It modifies the layer in place: repeated calls
 multiply coverage again. Redraw or retain the unmasked source when toggling modes.
 The layer example uses Space to switch normal/inverse masking.
 
-`inverse_layer_masks` passes on macOS Metal/OpenGL and Windows/Ubuntu Vulkan.
-It checks the alpha-product formula across eight source and mask alpha values,
-ordinary and render-image masks, ignored handles/transforms/tint/viewport, source
-mask preservation, feedback rejection, both native sprite paths and two context
-lifetimes. Warmed operations use one submission without texture creation, upload
-or readback. Software SDL passes explicit unsupported-blend rejection. Existing
-normal mask/opacity tests also pass on Metal, OpenGL and software SDL. The GUI
-example was visually checked in normal and inverse modes.
-
 For nested groups, composite an inner render image into an outer one, then
 apply the outer mask. This exposes target switches and memory cost to the caller.
 The example [layer_effects.bmx](../examples/layer_effects.bmx) shows both a
@@ -250,7 +95,7 @@ For a camera-moving shape, draw that shape into a coverage image under the same
 camera, then mask a group layer. `MASKBLEND` only thresholds the source alpha of
 individual draws; it does not clip a group.
 
-## Native SDL GPU image effects
+## Direct image effects
 
 Import `Max2D.SDL3GPUEffects` alongside `Max2D.SDL3GPUMax2D` to register the
 optional built-in image-effect shader provider. The effect description lives in
@@ -305,13 +150,6 @@ and effect must be non-null even for an empty batch. A provider can override
 implementation draws each copy separately. Image handles, scale, rotation,
 camera, tint, viewport and blend follow normal `DrawImage` semantics.
 
-The extended regression passed on Metal and both Vulkan VMs: 100 warmed copies
-produce one submission, 600 vertices, no texture creation, pixel upload or
-readback. Capacity-plus-one copies produce two submissions in both sprite paths.
-It also checks pixel output, parameter snapshots, ordinary draws surrounding the
-batch, and empty/malformed inputs. The GUI example now displays 100 miniatures
-and their submission count beneath the three colour treatments.
-
 The native context caches one shader per package key and pipelines by target
 format, blend mode and triangle/compact submission path. A support query warms
 the exact current combination. Both sprite paths are implemented. Closing the
@@ -326,12 +164,12 @@ The [built-in shader package](../sdl3gpueffects.mod/shaders/README.md) contains
 equivalent Metal, SPIR-V and shader-model 5.1 DXBC implementations. Only the
 optional module links those assets. Backends without a registered provider,
 including SDL_Renderer, report this shader effect unsupported. Native Direct3D
-providers use their separately compiled assets. OpenGL supplies saturation and colourize
+providers use their separately compiled assets. OpenGL supplies the same built-in effects and shader packages
 through the optional `Max2D.GLEffects` provider described below. The public API does not silently fall back to a CPU conversion.
 The saturation provider described here uses a fixed built-in shader. Custom
 colour, coordinate and two-texture shaders use the versioned package API below.
 
-## Basic OpenGL image effects
+## OpenGL image effects
 
 Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize, outlines,
 layer blur, bright-pass extraction, tone mapping and linear output through the existing effect API:
@@ -347,8 +185,7 @@ Local silhouette:TMax2DColorizeEffect=CreateColorizeEffect(80,160,240)
 ' DrawImageEffectBatch(image,silhouette,positions)
 ```
 
-The implementation remains within Max2D. It uses the existing OpenGL 2.1 / GLSL
-1.20 backend and leaves BRL.GLGraphics and Pub.GLEW unchanged. Effect source is
+It uses the OpenGL 2.1 / GLSL 1.20 backend. Effect source is
 kept as readable multiline strings in the optional BlitzMax module. Without its
 import, these descriptions continue to report unsupported on OpenGL.
 
@@ -402,106 +239,6 @@ dissolve, texture masks, transformed/shared maps and soft thresholds. The galler
 offers both pages on OpenGL. [The OpenGL comparison](../examples/gl_effects.bmx)
 focuses on the built-in effects.
 Left/Right adjusts saturation and Space changes the silhouette colour.
-
-### OpenGL provider validation (2026-11-20)
-
-Twelve release regressions pass on each of macOS, Windows and Ubuntu OpenGL:
-`gl_effects`, `gl_effects_optional`, `image_effects`, `colorize_effects`,
-`custom_blending`, `layer_effects`, `float_targets`, `coverage_atlas`,
-`integration`, `gl_targets`, `gl_mipmaps` and `drawing_state`. The saturation and
-colourize regressions also pass on macOS SDL GPU and software SDL (explicit
-rejection), for 40 selected checks across the profiles, excluding reruns.
-
-Checks cover two graphics lifetimes, parameter changes, 100-sprite batching and
-capacity overflow, failure cleanup, feedback rejection, custom blends, ordinary
-draws surrounding effects, transformed atlas views, render-image orientation,
-coverage textures and alpha-test thresholds. HDR/negative-value checks ran on
-all three OpenGL platforms without skipping float targets. This initial sweep
-predated blur support; at that point mixed chains rejected blur before writes.
-The existing target/mipmap/integration checks exercise the shared ordinary path.
-These are correctness and submission-count checks, not GPU timing measurements.
-
-The macOS GUI demo was visually checked with saturation and silhouette-colour
-changes; its 100-sprite batch reports one submission. Shader programs use GLSL
-1.20, but this does not establish coverage of every OpenGL 2.1 driver.
-
-### OpenGL blur validation (2026-11-20)
-
-Nine selected regressions pass on each of macOS, Windows and Ubuntu OpenGL: `gl_effects`,
-`gl_effects_optional`, `image_effects`, `colorize_effects`, `blur_effects`,
-`scaled_blur`, `layer_effect_chain`, `effect_buffers` and `gl_mipmaps`.
-The five shared blur/chain/buffer regressions also pass on macOS SDL GPU and
-software SDL (including explicit unsupported-effect paths): 37 selected checks
-across the profiles, excluding reruns. Float checks ran on all three OpenGL
-platforms without skipping.
-
-The checks cover fractional and zero radii, transparent boundary taps,
-premultiplied colour, two-pass output, colourize/blur chains, retained resources,
-caller-state restoration and two graphics lifetimes. Scaled blur is compared
-against an independent CPU reference at full, half and quarter resolution,
-including odd dimensions and taps exactly on the texture boundary.
-
-The OpenGL-specific test also verifies minified blur reads mip zero, restores the
-texture mip range and lets the next ordinary draw use mipmaps. Floating-point
-blur is compared with premultiplied kernel calculations for HDR and negative RGB.
-These checks establish pixel correctness and retained-resource costs, not speed.
-
-All four updated examples build as macOS OpenGL GUI apps. The scaled-blur demo
-was visually checked in both equal-radius and wider-radius modes.
-
-### OpenGL bloom and output validation (2026-11-20)
-
-Nine release regressions pass on macOS, Windows and Ubuntu OpenGL:
-`bloom_pipeline`, `linear_colour`, `gl_effects`, `gl_effects_optional`,
-`effect_buffers`, `outline_effects`, `bloom_effects`, `hdr_bloom` and `scaled_blur`.
-The four bloom/linear-output regressions also pass on macOS SDL GPU and software
-SDL (explicit unsupported paths), for 35 selected checks excluding reruns.
-Floating-point tests ran on all three OpenGL platforms without skipping.
-
-Bright-pass tests compare threshold extraction with CPU luminance calculations,
-including tint, opacity, straight/premultiplied sources, batching and ordinary
-draws after effects. HDR tests use both RGBA16F and RGBA32F layers, exposures
-0/0.5/1/4, gamma 1/2.2, negative RGB and values up to 1000. They check retained
-highlight extraction, scaled blur, additive composition and mapped display
-against reference values. The warmed full HDR path uses nine submissions with
-no texture creation, upload or readback.
-
-Linear-output tests compare the sRGB curve and linear gain against a 256-step
-CPU reference, check alpha and unpremultiplication, and verify filtering occurs
-in linear light before output conversion. Reusable bloom tests cover retained
-buffers, glow intensity, cached-result validity and state restoration. The
-optional-import check covers all seven built-in descriptions. The window-state
-regression sets an explicit 64×64 virtual scene because Windows can enlarge the
-requested client width to its minimum size (130 pixels on the tested VM).
-
-Both bloom examples build as OpenGL GUI apps. The HDR-bloom comparison was
-visually checked on macOS, including threshold, exposure and bloom toggling.
-The window presents tone-mapped SDR; the float-layer checks establish HDR
-rendering correctness, not HDR display output or GPU performance.
-
-### OpenGL cached shadows and gallery validation (2026-11-20)
-
-`shadow_pipeline`, `inner_shadow`, `bloom_pipeline`, `inverse_layer_masks` and
-`effect_buffers` pass on macOS, Windows and Ubuntu OpenGL. The two shadow tests
-also pass on macOS SDL GPU and software SDL (explicit unsupported paths), for
-19 selected checks excluding reruns. They require the OpenGL capabilities and
-run float reference checks rather than silently accepting unsupported effects.
-
-Soft-shadow alpha is compared with an independent blur kernel. Inner-shadow
-alpha is compared with a shifted kernel including fractional offsets, partial
-coverage and a hole. Tests cover source preservation, state restoration,
-invalid-parameter cache preservation, layout invalidation and two context
-lifetimes. Warmed soft-shadow updates use three draws at full resolution or six
-with two reduction levels; inner shadows use five or eight. These updates create
-no textures, upload no pixels and perform no readbacks. Cached-result retrieval
-performs no rendering. Window sampling uses an explicit logical resolution.
-
-The gallery and both focused shadow examples build as OpenGL GUI apps. The
-SDL GPU gallery also builds with its two pages. The OpenGL gallery was visually
-checked on macOS for soft shadows, independent/group inner shadows, radius
-changes and bloom. Its keys select only the nine supported layer views; Tab does
-not enter shader-package views. All work uses the existing shadow helpers and
-OpenGL effects without additional backend changes.
 
 ## Two-pass layer blur
 
@@ -562,7 +299,7 @@ pixel upload or readback is performed by a warmed draw. Cache the result and
 rebuild only when source pixels or radius change, as shown in the
 [interactive blur example](../examples/blur_effects.bmx). Wider blur is available through the retained reduction levels described below.
 For explicit ownership of reusable scratch images, use `TMax2DEffectBuffers`.
-Automatic scratch pooling remains future work.
+Scratch storage is explicitly owned by the caller or TMax2DEffectBuffers.
 
 ## Chaining whole-layer effects
 
@@ -649,89 +386,18 @@ coordinates so independently transformed sprites can share one map. The latter
 captures the source transform per call; distinct placements require separate
 effect draws. Neither helper adds a render target or redraws the map.
 
-Arbitrary texture layouts and normal/light-map data contracts would be future
-extensions. Separate legacy Direct3D implementations remain future work; SDL_Renderer has no general custom shader hook.
+Packages support one secondary texture and fixed ABI 1–4 resource layouts.
+Arbitrary layouts and automatic normal/light-map interpretation are not provided.
+SDL_Renderer has no general custom shader hook.
 
-## Cost and validation boundaries
+## Performance considerations
 
 The default draw path needs zero effect lookups, passes, copies or allocations
 when no effect is selected. A rectangular clip changes scissor state and can
 split a batch; this is cheaper than a layer. Each alpha-mask or opacity call
 adds one target draw and can cause a target switch. Reuse caller-owned layers
-and masks; future scratch pooling should key by width, height, format, flags
-and context, with a bounded memory budget. Avoid GPU readbacks and CPU/GPU
+and masks, or use `TMax2DEffectBuffers` to retain a known layout. Avoid GPU readbacks and CPU/GPU
 fences in normal effect use. Readback is appropriate only in tests or capture.
-
-The current `layer_effects` regression establishes a small no-effect baseline:
-100 same-state rectangles submit as one batch. The alpha mask and opacity
-operations each submit one additional batch and perform no readback on macOS
-SDL GPU, OpenGL and the default SDL renderer. The warmed opacity operation
-creates no texture and uploads no pixels. These counters do not measure render
-passes, target switches or GPU time. For broader performance work, compare
-representative scenes with no effect, a rectangular clip and a masked layer
-using the existing `benchmarks/renderer.bmx` and GPU comparison harness.
-Native GPU profiling should additionally record render passes, uniform uploads,
-temporary bytes and CPU/GPU frame time at several group sizes. The regression
-also checks compositing pixels and state restoration where the backend supports
-the exact operation.
-
-## Initial shader validation (2026-11-17)
-
-`image_effects` passed on macOS Metal and on Windows 11 and Ubuntu 25.10 ARM64
-under Parallels, both using Vulkan. It checks pixel output for ordinary and
-premultiplied inputs, identity/grayscale, parameter snapshots, custom blending,
-triangle and compact paths, context recreation, feedback rejection and recovery
-from an invalid frame. The warmed draw uses one submission and no texture
-creation, pixel upload or readback. The unsupported-provider path passed with
-SDL software and macOS OpenGL. The existing Metal `custom_blending`,
-`layer_effects` and `sdl_gpu_lifetime` regressions also passed.
-
-The DXBC asset was compiled with D3DCompile on Windows, but Direct3D 12 could not
-create graphics in this VM. Direct3D runtime validation remains outstanding;
-the Windows Vulkan pass does not validate DXBC. The macOS GUI example was also
-opened and inspected: original, grayscale and saturated soft-masked groups
-rendered correctly, and keyboard parameter changes updated the image.
-
-The [initial benchmark capture](effects-macos-smoke.csv) is a single Metal smoke
-run with both VMs running, 30 warm-up and 120 measured frames per case. At both
-128 and 512 pixels, cached ordinary and shader draws each submitted one batch;
-rebuilding, masking and drawing submitted three. All measured cases had zero
-texture creations, pixel uploads and readbacks. Retained logical layer/mask
-storage was 128 KiB and 2 MiB respectively. CPU whole-frame means were roughly
-19.5–20 ms with p95 around 41 ms, showing presentation pacing despite `Flip(0)`.
-These timings do not establish shader speed or GPU cost; use repeated captures
-and GPU profiling for that comparison.
-
-## Blur validation (2026-11-17)
-
-`blur_effects` passed on macOS Metal and Windows/Ubuntu Vulkan under Parallels,
-with both triangle and compact sprite paths and two context lifetimes. Pixel
-checks cover the exact kernel, both axes, zero radius, fractional spacing and
-preserved red colour around transparent pixels. Straight-image inputs and invalid
-radii are rejected. Software SDL and OpenGL report the shader unsupported. The
-existing saturation/batching regression still passes on Metal. DXBC compilation
-passed without warnings; Direct3D runtime validation remains outstanding.
-
-The macOS GUI example was opened and visually checked, including live radius
-changes. The [blur benchmark capture](blur-macos-smoke.csv) records a single
-30-warm-up/120-measured-frame smoke run per case. Rebuilding both blur passes and
-drawing the output takes three submissions; drawing the cached result takes one.
-Both have zero measured texture creations, pixel uploads or readbacks. The blur
-cases retain four images, totaling 256 KiB at 128 square and 4 MiB at 512 square.
-Two of those images are the blur outputs; the other two are the source layer and
-its retained mask. CPU timings include compositor/presentation effects and do not
-establish GPU execution time or a speedup.
-
-## Chain validation (2026-11-17)
-
-The chain regression checks empty copies and chains of one, two and three effects,
-including odd/even pass ordering, pixel output and one warmed submission per
-effect with no texture creation, upload or readback. It checks non-default image
-handles, transformed/camera drawing state, separate viewports on all three images,
-source preservation, alias rejection and support failure before output writes.
-Both native sprite paths pass on Metal and Windows/Ubuntu Vulkan. Software SDL
-and OpenGL pass the empty-copy and unsupported-effect paths where render images
-are supported. The macOS GUI example was launched and visually inspected.
 
 ## Colourized silhouettes
 
@@ -754,19 +420,6 @@ ordinary image draw. No changes were needed in the base renderer.
 
 At very low alpha, 8-bit premultiplied storage can visibly quantize recovered RGB,
 particularly after several passes. This is a storage precision limit.
-
-### Colourize validation (2026-11-17)
-
-The colourize regression passed on macOS Metal and Windows/Ubuntu Vulkan in
-Parallels, with two context lifetimes and both native sprite paths. Checks cover
-ordinary and premultiplied inputs, alpha preservation, independence from source
-RGB, drawing tint/alpha, parameter changes, batching, custom blend inputs,
-ordinary draws after effects, and the three-pass colourize/blur chain. Software
-SDL and OpenGL report unsupported effects as expected. Existing image-effect
-and chain regressions also passed on macOS native, software and OpenGL profiles.
-DXBC compiled successfully; Direct3D runtime validation remains outstanding.
-The macOS GUI example was opened and inspected, including colour and radius
-changes through its live controls.
 
 ## Wider blur with retained reduction levels
 
@@ -817,28 +470,6 @@ Cached output costs one ordinary image draw. The wider path adds reduction and
 enlargement passes while doing its two nine-tap blur passes on fewer pixels;
 this tradeoff does not guarantee faster frames for small images.
 
-### Scaled-blur validation (2026-11-17)
-
-The independent CPU reference checks all output alpha pixels for even and odd
-rectangular images, at zero, one and two reduction levels. A fine checkerboard
-exercises reduction filtering; transparent coloured pixels exercise premultiplied
-colour preservation. Tests cover both native sprite paths, two context lifetimes,
-non-default handles, saved caller/output views, source preservation, zero-radius
-identity, invalid radius and scratch alias rejection. They pass on macOS Metal
-and Windows/Ubuntu Vulkan. Software SDL and OpenGL pass explicit unsupported
-shader handling and state restoration. The macOS GUI comparison was opened and
-both equal-radius and wider-radius modes were visually checked.
-
-The benchmark smoke captures use 20 warm-up and 60 measured frames per case:
-[macOS](scaled-blur-macos-smoke.csv), [Ubuntu](scaled-blur-linux-smoke.csv),
-and [Windows](scaled-blur-windows-smoke.csv). Full, half and quarter-resolution
-rebuilds plus display cost 3, 5 and 6 submissions respectively; cached display
-costs one. All measured cases have zero texture creation, upload and readback.
-At 256², retained RGBA8 image storage per case is 768, 640 and 608 KiB respectively;
-at 512² it is 3, 2.5 and 2.375 MiB. Captures measure CPU frame time and include
-presentation pacing and VM overhead. They do not establish GPU execution cost
-or a reliable speedup, and the three rebuild cases use different blur radii.
-
 ## Alpha outlines
 
 `CreateOutlineEffect(radius)` returns a reusable `TMax2DOutlineEffect` for the
@@ -872,45 +503,6 @@ draw the cached border behind the original. The
 [interactive example](../examples/outline_effects.bmx) shows the original,
 white outline mask, and coloured composite; arrow keys adjust radius and Space
 changes colour. It rebuilds the two-pass chain only when settings change.
-
-### OpenGL outline validation (2026-11-20)
-
-Six selected release regressions pass on each of macOS, Windows and Ubuntu
-OpenGL: `gl_effects`, `gl_effects_optional`, `outline_effects`, `blur_effects`,
-`colorize_effects` and `layer_effect_chain`. The shared outline test also passes
-on macOS SDL GPU and software SDL (explicit rejection), for 20 selected checks
-across the profiles, excluding reruns.
-
-The OpenGL provider runs the same independent CPU disk-stencil comparisons as
-SDL GPU, for every pixel at radii 0–4. Cases include holes, edge content, partial
-alpha, source-colour independence, parameter changes, batched copies, drawing
-alpha/tint, custom blending, colourize chains and two graphics lifetimes.
-Ordinary images and feedback are rejected. Warmed two-copy batches use one
-submission with no texture creation, upload or readback.
-
-The OpenGL-specific regression also checks mip-range restoration and ordinary
-mipmapped drawing after an outline. The optional-import regression confirms
-outlines remain unavailable without `Max2D.GLEffects`.
-
-The example builds with `-ud max2d_gl -t gui`. Its original, white mask and
-coloured composite were visually checked on macOS, including radius and colour
-changes. This is correctness coverage, not a GPU performance measurement or
-coverage of every legacy OpenGL driver.
-
-### Outline validation (2026-11-17)
-
-The outline regression compares every alpha pixel with an independent CPU disk
-stencil for all five radii. It includes partial alpha, holes, image-edge content,
-and varied source RGB. It checks captured parameter changes, two-copy batching,
-custom blending, drawing tint/alpha, ordinary draws after effects, colourize
-chains, image handles, feedback rejection and render-image-only input. Both
-native sprite paths and two context lifetimes pass on macOS Metal and
-Windows/Ubuntu Vulkan under Parallels. The warmed batch takes one submission
-with zero texture creations, uploads and readbacks. Software SDL and OpenGL
-report the effect unsupported; existing colourize and chain regressions also
-pass on those macOS profiles and Metal. The GUI example was visually inspected,
-including live radius and colour changes. DXBC compiles without warnings;
-Direct3D runtime validation remains outstanding.
 
 ## Brightness extraction and bloom
 
@@ -951,22 +543,6 @@ This example uses 8-bit normalized storage and clips additive channels at white.
 It is a bloom composition without tone mapping or exposure adaptation. Reduced
 blur loses fine detail, and low-alpha RGBA8 storage quantizes recovered colours;
 these limitations also apply to the extracted and blurred highlight layers.
-
-### Bloom validation (2026-11-17)
-
-Extraction pixels match an independent luminance/energy reference for black,
-gray levels, primary colours, opaque and half-transparent inputs, thresholds
-0–2, and ordinary and premultiplied images. Checks cover parameter capture,
-batching, drawing tint/alpha, custom blending and ordinary draws after the effect.
-The complete extraction/reduction/blur path produces a halo beyond the source;
-every additive-composite pixel matches the expected original-plus-glow energy.
-The warmed two-level rebuild uses six submissions with zero texture creation,
-upload or readback. Both native sprite paths and two context lifetimes pass on
-macOS Metal and Windows/Ubuntu Vulkan. Software SDL and OpenGL report the shader
-unsupported; existing image-effect and scaled-blur regressions pass on all three
-macOS profiles. The GUI example was inspected with threshold/radius changes and
-bloom toggled off/on. DXBC compiles without warnings; Direct3D runtime validation
-remains outstanding. These pixel and submission checks are not GPU timing data.
 
 ## HDR bloom and tone mapping
 
@@ -1022,27 +598,6 @@ highlights, glow, composite), two reduction levels and low-resolution scratch;
 RGBA16F takes eight bytes per pixel. There is no per-frame texture allocation,
 upload or readback in the warmed operations. Float readback is used only by tests.
 
-### HDR validation (2026-11-17)
-
-The HDR regression passes on macOS Metal and Windows/Ubuntu Vulkan for both
-RGBA16F and RGBA32F targets, both native sprite paths and two context lifetimes.
-It compares tone-mapped energy and alpha against an independent CPU formula for
-negative channels, black, values up to 1000, partial alpha, four exposures and
-two gamma values. It checks parameter snapshots, batches, custom blending,
-drawing tint/alpha, float tone-map output and ordinary HDR drawing afterwards.
-Bright-pass extraction above one retains HDR colour and the expected alpha.
-
-The full float extraction/blur/composite path retains values above white and
-halo coverage outside the bright source. Every final display pixel matches the
-tone-mapped float composite. A warmed rebuild plus mapped display uses nine
-submissions with zero texture creation, upload or readback. Software SDL and
-OpenGL report the shader unsupported, and the existing bloom regression passes
-on all three macOS profiles. The GUI comparison was inspected with exposure and
-threshold changes and bloom toggled off/on. DXBC compiles without warnings;
-Direct3D runtime validation remains outstanding. This particular regression validates SDR display of HDR content. Actual HDR
-window output was added separately; see [HDR output](hdr-output.md) for the
-implementation, display checks and remaining platform limits.
-
 ## Reusable buffer ownership
 
 `TMax2DEffectBuffers` can own the intermediate render images and blur pyramid
@@ -1066,3 +621,38 @@ For soft texture-driven reveals, use `CreateThresholdMaskEffect(map,low,high)`.
 It adds a smooth transition band after channel selection and filtering, supports
 inversion and shares the same mapping helpers. See
 [soft threshold masks](shader-packages.md#soft-threshold-masks).
+
+## Backend support and limits
+
+| Feature | SDL GPU | OpenGL | Native D3D9 | Native D3D11 |
+| --- | --- | --- | --- | --- |
+| Saturation, colourize, blur, outlines | Yes | Yes | Yes | Yes |
+| Bloom, tone mapping and linear output | Yes | Yes | Yes | Yes |
+| Retained buffers, layer chains, soft/inner shadows | Yes | Yes | Yes | Yes |
+| Colour and coordinate packages (ABI 1/2) | Yes | Yes | Yes | Yes |
+| Displacement, dissolve and texture masks (ABI 3/4) | Yes | Yes | Yes | Yes |
+| Transformed/shared maps and soft thresholds | Yes | Yes | Yes | Yes |
+| Float composition | Device-dependent | Device-dependent | Device-dependent | Device-dependent |
+| Complete effects gallery | Both pages | Both pages | Both pages | Both pages |
+| HDR window presentation | Capability-dependent | SDR | SDR | SDR |
+
+Import the provider matching your framework; all providers import the common
+`Max2D.Effects` and `Max2D.ShaderEffects` APIs. See the
+[provider table](effects-quickstart.md#choose-a-provider).
+
+Support depends on the current target format, blend and device. Query it after
+opening graphics. SDL_Renderer has no shader provider; exact fixed-function
+mask blends may still be available. There is no automatic CPU effect fallback.
+Native D3D9 effects require pixel shader 3.0; D3D11 uses shader model 4.0.
+OpenGL requires the backend's GLSL 1.20 and framebuffer support.
+
+Float layers do not enable HDR display output. OpenGL and native Direct3D present
+SDR windows; extended-linear HDR window output is a separate SDL GPU capability.
+HDR10/PQ and automatic colour management are not provided.
+
+Effects do not expand layer bounds, track source changes, or allocate an automatic
+scratch pool. Prepare and retain storage, add padding, and rebuild cached outputs
+explicitly. Shader packages use fixed resource layouts with at most one extra
+texture. Coordinate and map sampling use mip level zero.
+
+For runnable regression commands and coverage, see [tests](../tests/README.md).

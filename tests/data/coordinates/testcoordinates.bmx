@@ -1,5 +1,9 @@
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import testcoordinates_assets.c alongside your application imports.
+Rem
+bbdoc: Creates the immutable testcoordinates shader package from embedded assets.
+about: Share the package between effect instances created with CreateShaderEffect. Parameter values are initialized by those instances, not by this package factory. Import the matching effects provider and query support after opening graphics.
+End Rem
 Function CreateTestCoordinatesPackage:TMax2DShaderPackage()
 	Return TMax2DShaderPackage.Create("testcoordinates", ["offset"], [MAX2D_PARAMETER_FLOAT4], CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(0), CreateTestCoordinatesPackageSize(0)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(1), CreateTestCoordinatesPackageSize(1)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(2), CreateTestCoordinatesPackageSize(2)), 2, CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(3), CreateTestCoordinatesPackageSize(3)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(4), CreateTestCoordinatesPackageSize(4)), CreateTestCoordinatesPackageData(CreateTestCoordinatesPackageAsset(5), CreateTestCoordinatesPackageSize(5)))
 End Function

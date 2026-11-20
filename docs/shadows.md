@@ -2,8 +2,11 @@
 
 `TMax2DShadow` caches a blurred white silhouette of a render image's alpha.
 Source RGB is ignored, and the result remains transparent around the silhouette.
-Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend, or
-`Max2D.GLEffects` with `Max2D.GLMax2D`. The same cache and buffer API works on both.
+Use the [effects provider](effects-quickstart.md#choose-a-provider) matching
+your framework: SDL GPU, OpenGL, native D3D9 or native D3D11.
+
+The fragment below assumes an open graphics context and an existing source
+layer. For a complete program, see [Applying effects](effects-quickstart.md).
 
 ```blitzmax
 Local shadow:TMax2DShadow = CreateShadow(12)
@@ -78,14 +81,3 @@ alpha or radius changes. Ordinary drawing pays no shadow overhead when unused.
 See `examples/shadow_pipeline.bmx` for live radius, opacity, colour and offset
 controls. `tests/shadow_pipeline.bmx` checks an independent two-dimensional kernel,
 source preservation, tintable output, cached lifetime and submission costs.
-
-## Validation
-
-The regression passes on macOS Metal and Windows/Ubuntu Vulkan, including both
-sprite submission paths and two context lifetimes. It compares floating-point
-alpha against the independent binomial-kernel product, checks white RGB around
-partially transparent coloured input, verifies source preservation and cache
-invalidation, and checks the three/six-draw costs without texture churn. Software
-rendering passes the unsupported-provider rejection and target-restoration check.
-The macOS GUI example was built as an app and visually inspected with live radius
-and offset changes. Direct3D runtime validation remains outstanding.

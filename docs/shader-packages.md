@@ -10,35 +10,10 @@ independent transforms for that image. Existing ABI 1–3 packages remain compat
 these contracts.
 Software SDL reports packages unsupported. OpenGL supports ABI 1–4 packages with desktop GLSL assets. Always query `Max2DSupportsImageEffect` before use.
 
-## Native Direct3D assets
-
-The generator also writes `.d3d11.hlsl` and `.d3d9.hlsl`. On Windows, build the
-BlitzMax `compile_dxbc.bmx` tool and compile these with the matching profile:
-
-```
-compile_dxbc.exe colormatrix/colormatrix.d3d11.hlsl colormatrix/colormatrix.d3d11.dxbc ps_4_0
-compile_dxbc.exe colormatrix/colormatrix.d3d9.hlsl colormatrix/colormatrix.d3d9.bin ps_3_0
-```
-
-Then run the existing embedder. Generated wrappers include all six assets.
-`TMax2DShaderPackage.Create(..., abiVersion, glsl, d3d11, d3d9)` adds two optional
-trailing byte arrays; existing calls remain valid. A package may omit any backend
-asset, in which case that backend reports it unsupported. SDL DXBC uses its own
-binding contract and cannot be substituted for the native D3D11 asset.
-
-D3D11 binds modes at pixel buffer b0, parameters at b1, and source/map at t0/t1.
-D3D9 binds modes at c0, parameter slots at c1–c10, allocation scales at c11/c12,
-and source filtering information at c13. Generated D3D9 shaders receive float tint
-through TEXCOORD1, logical image UV through TEXCOORD0, and screen coordinates
-through TEXCOORD2 for pixel-centre interpolation correction. Keep these wrapper
-contracts intact when customizing generated source. Coordinate/map packages use
-point taps at mip zero and implement requested filtering within the selected view.
-
-Native caches belong to the graphics context and copy package identities. Closing
-or replacing a D3D11 device recreates shaders as needed; D3D9 shader objects survive
-presentation resets. Drawing rejects destination feedback before submitting pixels
-and restores ordinary drawing after success or an exception. No runtime shader
-compiler is loaded by applications.
+The snippets below assume an open graphics context and existing source/map images.
+Start with [Applying effects](effects-quickstart.md) for a complete program.
+Built-in package factories already include their assets; the generation tools are
+needed only when authoring or modifying shader packages.
 
 ## Colour matrix
 
@@ -427,7 +402,7 @@ mode uniforms and a `vec4 p[]` parameter array. Keep shader bodies compatible
 with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1–4
 packages to add OpenGL support; their Metal/SPIR-V/DXBC assets need no changes.
 
-Direct callers may pass desktop GLSL bytes as the optional final argument to
+Direct callers may pass desktop GLSL bytes after the ABI version in
 `TMax2DShaderPackage.Create(..., abiVersion, glsl)`. Existing calls remain valid.
 A GLSL-only ABI 1–4 package is allowed; missing renderer assets report unsupported.
 The shared module owns immutable assets and typed values, while each renderer
@@ -461,7 +436,37 @@ set 3; HLSL uses t0/s0 space2 and b0/b1 space3, shader model 5.1. Metal uses
 `m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3/4 adds image/sampler
 1 in the same resource spaces.
 
-## Validation and cost
+## Native Direct3D assets
+
+The generator also writes `.d3d11.hlsl` and `.d3d9.hlsl`. On Windows, build the
+BlitzMax `compile_dxbc.bmx` tool and compile these with the matching profile:
+
+```
+compile_dxbc.exe colormatrix/colormatrix.d3d11.hlsl colormatrix/colormatrix.d3d11.dxbc ps_4_0
+compile_dxbc.exe colormatrix/colormatrix.d3d9.hlsl colormatrix/colormatrix.d3d9.bin ps_3_0
+```
+
+Then run the existing embedder. Generated wrappers include all six assets.
+`TMax2DShaderPackage.Create(..., abiVersion, glsl, d3d11, d3d9)` adds two optional
+trailing byte arrays; existing calls remain valid. A package may omit any backend
+asset, in which case that backend reports it unsupported. SDL DXBC uses its own
+binding contract and cannot be substituted for the native D3D11 asset.
+
+D3D11 binds modes at pixel buffer b0, parameters at b1, and source/map at t0/t1.
+D3D9 binds modes at c0, parameter slots at c1–c10, allocation scales at c11/c12,
+and source filtering information at c13. Generated D3D9 shaders receive float tint
+through TEXCOORD1, logical image UV through TEXCOORD0, and screen coordinates
+through TEXCOORD2 for pixel-centre interpolation correction. Keep these wrapper
+contracts intact when customizing generated source. Coordinate/map packages use
+point taps at mip zero and implement requested filtering within the selected view.
+
+Native caches belong to the graphics context and copy package identities. Closing
+or replacing a D3D11 device recreates shaders as needed; D3D9 shader objects survive
+presentation resets. Drawing rejects destination feedback before submitting pixels
+and restores ordinary drawing after success or an exception. No runtime shader
+compiler is loaded by applications.
+
+## Validation, resource costs and tool tests
 
 The generator checks manifest fields, schema and basic function-body structure.
 Runtime creation checks version, schema, size and SPIR-V/DXBC container bounds;
@@ -476,16 +481,6 @@ There are no per-draw parameter-array allocations after capacity is sufficient.
 OpenGL copies the parameter slots into retained context storage and uploads them
 when submitting the effect batch. Closing the context releases its shader cache.
 This preserves the ordinary drawing path; it is not a GPU performance claim.
-
-Tests cover typed validation, HDR/alpha matrix arithmetic, tint, ordinary and
-render-image inputs, compact and triangle paths, queued parameter snapshots,
-arena growth, batching, state recovery and context recreation. The separate
-scalar-plus-vector test package exercises the public generator. Direct3D assets
-are compile-checked; VM Vulkan results do not establish Direct3D 12 runtime
-support.
-
-Validation on 2026-11-18: package regressions pass on macOS Metal and on
-Windows/Ubuntu Vulkan; software fallback rejects unsupported package draws.
 
 The build tools and their regression tests are written in BlitzMax. The shader
 compilers (`glslc` and Microsoft's `D3DCompile`) remain external platform tools.
@@ -502,58 +497,6 @@ bmk makeapp -r -t console -o shader_package_generator tests/shader_package_gener
 It checks exact reproduction of the reference packages, including embedded
 assets, and rejects malformed schemas and function bodies. The tools resolve
 relative paths against the directory from which they were launched.
-
-Coordinate tests exercise both axes, atlas bounds, all edge modes, filtered
-repeat seams, HDR and alpha, tint, queued edge snapshots, native compact and
-triangle paths, batching, state recovery, trim rejection and context recreation.
-The generator regression reproduces all ten checked-in packages, including the
-original ABI 3 compatibility fixture.
-
-Validation on 2026-11-19: coordinate regressions pass on macOS Metal and
-Windows/Ubuntu Vulkan with strict numeric comparisons; software rejects the
-unsupported effects. Both Direct3D assets compile without warnings; Direct3D
-12 runtime remains unverified. Existing ABI 1 and generator tests also pass.
-
-Combined effects validation on 2026-11-19: macOS Metal and Windows/Ubuntu
-Vulkan pass strict comparisons against an explicit two-pass reference, covering
-HDR, tinted straight alpha, atlas views, filtering, all edge modes, queued
-parameter snapshots, six-slot uniforms, compact/triangle paths, batching, mask
-thresholds and context recreation. Software rejects unsupported draws. Both new
-Direct3D assets compile; Direct3D runtime remains unverified.
-
-Two-texture validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
-displacement and dissolve checks for atlas views, ordinary/render-image maps,
-nearest/bilinear interpolation, source edge modes, HDR and alpha, queued texture
-changes, arena growth, compact/triangle paths, one-submission batching, missing
-map/feedback rejection, state recovery and context recreation. Existing colour,
-coordinate, combined, built-in image-effect and GPU lifetime regressions pass on
-Metal; software rejects the unsupported effects. Both new Direct3D assets compile;
-Direct3D runtime remains unverified.
-
-Texture-mask validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
-alpha/red/weighted masks, inverted coverage snapshots, HDR and tint, ordinary
-and render-image mask views, R8 coverage, alpha and mask blending, compact and
-triangle paths, batching and context recreation. Software rejects unsupported
-mask draws. The generator reproduces all nine packages. Direct3D shader
-compilation passes; Direct3D runtime remains unverified.
-
-Map-transform validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass
-translation, clockwise rotation, mirroring, scale, transformed transparent/clamp/
-repeat sampling, filtered seams, atlas views, render-image maps, queued transform
-snapshots, invalid-input atomicity, HDR, batching and context recreation. An
-original ABI 3 package matches ABI 4 at identity. Existing displacement/dissolve,
-texture-mask, combined and colour-package tests pass on Metal; software rejects
-unsupported effects. All three updated Direct3D assets compile; Direct3D runtime
-remains unverified.
-
-Shared-map validation on 2026-11-19: Metal and Windows/Ubuntu Vulkan pass strict
-pixel comparisons between one masked layer and independently rotated/mirrored
-sprites, including handles, origin, parent transforms, camera zoom/offset,
-nearest/filtered masks, compact/triangle paths, queued snapshots, HDR and context
-recreation. A singular map placement preserves the previous mapping. Comparison
-geometry keeps edges between pixel centres to avoid ambiguous raster coverage.
-The existing transform regression passes on Metal. No shader ABI or assets change
-in this helper; Direct3D runtime remains unverified.
 
 ## Soft threshold masks
 
@@ -585,96 +528,3 @@ rejects the GPU package explicitly.
 
 See [the interactive comparison](../examples/threshold_masks.bmx): Space pauses,
 I inverts, and Up/Down adjusts the transition width.
-
-Validated on 2026-11-20: threshold regressions pass on macOS Metal and Windows
-and Ubuntu Vulkan, including two graphics lifetimes, both sprite paths, atlas
-and render-image maps, hard-cut equality, smooth coverage, inversion, tint, HDR,
-filtered transformed sampling and complete endpoints. Software rejection and
-package regeneration pass. DXBC is compiled; Direct3D runtime is not verified.
-
-## OpenGL colour-package validation (2026-11-20)
-
-33 selected checks passed for this tranche:
-
-- OpenGL on macOS, Windows and Ubuntu: `shader_packages`, `gl_effects`,
-  `gl_effects_optional` and `bloom_pipeline` (12 checks).
-- macOS: package generator reproduction and eight package suites each on Metal
-  and software SDL (17 checks). These cover colour, coordinates, combined
-  effects, two textures, texture/threshold masks, transforms and shared mapping.
-- Windows/Ubuntu Vulkan: `shader_packages` and `texture_transforms` (4 checks).
-
-OpenGL package assertions cover HDR and alpha arithmetic, tinted textures and
-render images, parameter snapshots, warmed batches, graphics recreation,
-same-name package identities, GLSL-only packages, compiler failures, missing
-assets and unsupported coordinate/map draws leaving the target unchanged.
-The Windows VM returns 0.99999994 for some unit float channels; comparisons use
-the same 0.0001 tolerance as the existing float-render checks.
-
-The macOS GUI colour-matrix example was built with `-t gui -ud max2d_gl`,
-opened and inspected. Contrast/brightness and sepia render correctly; resetting
-the matrix makes its image match the original. The package API and GL provider
-changes are contained in Max2D; BRL OpenGL code is unchanged.
-
-## OpenGL coordinate-package validation (2026-11-20)
-
-23 selected checks passed:
-
-- OpenGL on macOS, Windows and Ubuntu: `coordinate_effects`, `combined_effects`,
-  `shader_packages` and `gl_effects` (12 checks).
-- macOS Metal and software SDL: coordinate, combined and colour-package suites
-  (6 checks), plus package-generator reproduction (1 check).
-- Windows/Ubuntu Vulkan: coordinate and combined suites (4 checks).
-
-The coordinate regression verifies transparent/clamp/repeat boundaries, negative
-wrapping and filtered seams inside atlas views, HDR and fractional alpha, tint,
-batching, invalid frames, trimmed-image rejection and context recreation.
-Added checks cover offset render-image regions on both axes and, on OpenGL,
-coverage textures, minified mip-zero sampling and restoration of filtering and
-mip ranges before ordinary draws. Combined effects retain the full six user
-slots and verify colour/coordinate snapshots, mask discard and alpha clamping.
-
-The BlitzMax generator reproduces all eleven package fixtures, including new
-GLSL 1.20 assets for the four ABI 2 packages. Existing Metal, SPIR-V and DXBC
-assets are unchanged. ABI 3/4 maps remain unsupported on OpenGL.
-
-Both macOS GUI examples were built with `-t gui -ud max2d_gl` and inspected:
-waves/radial ripples with transparent boundaries, and combined distortion with
-warm grading. All renderer changes remain within Max2D.
-
-## OpenGL effect parity validation (2026-11-20)
-
-OpenGL now implements all four package ABIs, including legacy ABI 3 and
-transformed/shared ABI 4 maps. The generator embeds desktop GLSL for all eleven
-fixtures; Metal, SPIR-V and DXBC assets remain unchanged.
-
-98 selected regression checks passed, excluding diagnostic reruns:
-
-- The same 27 OpenGL suites passed on macOS, Windows and Ubuntu (81 checks).
-- Eight package suites passed on macOS Metal and software SDL (16 checks).
-- The BlitzMax generator reproduced all eleven fixtures and passed its invalid
-  manifest checks (1 suite).
-
-The OpenGL sweep covers all eight package suites, `gl_package_textures`,
-`gl_effects`, `gl_effects_optional`, image/blur/colourize/outline effects,
-bloom/HDR-bloom/scaled blur, layer chains, effect buffers, cached soft/inner
-shadows, reusable bloom, inverse masks, linear output, custom blending and
-layer operations. The Windows run used the VM's interactive desktop; Ubuntu
-used its accelerated desktop session.
-
-The additional texture test verifies both texture units' filter/mip restoration,
-base-level map sampling, ordinary mip sampling afterwards, source/map aliasing,
-render-target map orientation, mipmapped coverage, feedback rejection without
-target writes, recovery and context recreation. Coverage RGB remains white;
-its alpha carries the mask, including when mipmapped.
-
-Eight OpenGL GUI examples built: the complete gallery, linear HDR scene,
-image effects, two-texture effects, texture masks, texture transforms, shared
-mapping and threshold masks. The SDL gallery and HDR scene also built.
-The OpenGL gallery was visually checked for displacement, dissolve, ordinary
-and moving masks, shared maps, soft thresholds and switching back to cached
-bloom. The linear HDR scene was inspected with OpenGL SDR tone mapping.
-
-This establishes functional parity for the implemented Max2D effects, with
-all changes confined to Max2D. Native HDR window presentation remains an SDL
-GPU capability; OpenGL uses float layers and SDR presentation. Performance
-parity and physical Windows/Linux HDR output are not claimed.

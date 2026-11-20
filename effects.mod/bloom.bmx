@@ -1,6 +1,6 @@
 Rem
 bbdoc: Reusable bright-pass, scaled-blur and bloom-composition pipeline.
-about: Prepare owns intermediate buffers; Update rebuilds explicitly; Result returns the cached borrowed image. Composition flattens the source over opaque black, then adds bloom, producing an opaque result suitable for final HDR or SDR presentation. Use linear source colours and a floating-point format for HDR. The class does not select a window output mode or tone-map its result.
+about: Prepare owns intermediate buffers; Update rebuilds explicitly; Result returns the cached borrowed image. Composition flattens the source over opaque black, then adds bloom, producing an opaque result suitable for final HDR or SDR presentation. Use linear source colours and a floating-point format for HDR. The class does not select a window output mode or tone-map its result. Borrowed results must not be independently released or retained across changed Prepare, Release or context closure. Source changes are not detected automatically.
 End Rem
 Type TMax2DBloom
 	Private
@@ -158,6 +158,9 @@ End Type
 
 Rem
 bbdoc: Creates a reusable bloom description without allocating graphics resources.
+param: Finite, nonnegative luminance threshold in source colour units; defaults to one.
+param: Finite, nonnegative blur radius in source pixels; defaults to eight.
+param: Finite, nonnegative glow multiplier; defaults to one.
 End Rem
 Function CreateBloom:TMax2DBloom(threshold:Float = 1, radius:Float = 8, intensity:Float = 1)
 	Local bloom:TMax2DBloom = New TMax2DBloom

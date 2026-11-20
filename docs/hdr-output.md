@@ -6,6 +6,8 @@ buffer and the swapchain: HDR uses RGBA16F storage and extended linear sRGB
 output, so brightness values above ordinary white can reach the display.
 
 ```blitzmax
+Framework Max2D.SDL3GPUMax2D
+
 Graphics(900, 440)
 Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
 If context.SupportsHDROutput() Then context.SetHDROutput(True)
@@ -63,24 +65,6 @@ SDR rendering retains its existing pass count and storage. HDR changes the
 window storage to 8 bytes per pixel and uses the existing presentation blit;
 it does not add a tone-mapping pass.
 
-## Validation (2026-11-17)
-
-`tests/hdr_output.bmx` verifies the SDR default, both sprite submission paths,
-unclipped float window values, an image effect targeting the HDR window,
-synchronisation changes, resize, rejection of mode changes while a render image
-is selected, restoration of SDR readback, and two graphics context lifetimes.
-Unsupported systems verify rejection without losing SDR rendering.
-
-- macOS / Metal: HDR format supported; OS reported 16x headroom and white level 1.
-  The live demo selected HDR successfully, and the user confirmed visibly brighter
-  output. Screen captures cannot establish physical HDR luminance.
-- Windows 11 VM / Vulkan: HDR format unsupported, headroom 1; SDR fallback passed.
-- Ubuntu VM / Vulkan: HDR format unsupported, headroom 1; SDR fallback passed.
-
-The VMs do not validate physical Windows/Linux HDR display output. Direct3D 12
-HDR output is also unverified. HDR availability varies with the backend, OS,
-display configuration and virtualisation environment.
-
 ## Preparing artwork and presenting a linear scene
 
 `Max2D.Effects` provides `SRGBPixmapToLinearTextureData(pixmap)` for ordinary
@@ -137,16 +121,14 @@ threshold/exposure. Exposure and mode changes only affect presentation; threshol
 changes rebuild the cached bloom. Each final scene draw is one effect submission,
 with no intermediate output image or additional transfer pass.
 
-### Colour validation (2026-11-18)
 
-`tests/linear_colour.bmx` covers all 256 sRGB codes, the alpha ramp, immutable
-source pixels, HDR white scaling, SDR output encoding, premultiplied render-image
-input, linear filtering, both sprite paths and two context lifetimes. A warmed
-batch uses one submission with no texture creation, upload or readback. The CPU
-conversion also runs with the software backend, which reports the shader as
-unsupported. Metal and Vulkan are the runtime validation targets; DXBC is compiled
-but Direct3D runtime output remains unverified.
+## Display checks
 
-The final colour regression passed on macOS Metal, Windows 11 Vulkan and Ubuntu
-Vulkan; the software profile passed CPU conversion and unsupported-effect handling.
-The live scene was checked in both HDR and SDR, with bloom and exposure controls.
+HDR format support and visible brightness headroom are separate. Check the
+context queries on the user's display; a screenshot cannot establish physical
+HDR luminance. Virtual machines may report only SDR even on an HDR host display.
+Physical Windows/Linux HDR output and SDL GPU Direct3D 12 HDR require further
+hardware coverage; use the explicit SDR presentation path when unavailable.
+
+`tests/hdr_output.bmx` exercises output switching and rejection;
+`tests/linear_colour.bmx` checks sRGB conversion and linear presentation.

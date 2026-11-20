@@ -1,7 +1,6 @@
 # Flux Pinball
 
-A small playable physics table using **Physics.Box2D** and **Max2D**. This first
-version concentrates on the ball and flippers: two independently controlled
+A small playable physics table using **Physics.Box2D** and **Max2D**. The table combines two independently controlled
 flippers, a charged launcher, three bumpers, two slingshots, scoring and three
 balls per game. Light all three bumpers for 500 points and ten seconds of double
 scoring. There is a five-second launch protection period with at most one
@@ -19,8 +18,8 @@ The shutter on the left opens, exposing three targets. Hit all three within
 **25 seconds** for 250 points per target, a **2,000-point completion bonus**,
 and one power cell. The sidebar shows charge, remaining time and earned cells.
 
-Charge and earned cells persist across balls. An active challenge ends on a
-ball drain (including a protected relaunch); a timeout or completion lets the
+Charge and earned cells persist across balls. An active challenge ends when the
+final ball drains (including a protected relaunch); a timeout or completion lets the
 ball leave the bay before closing the shutter. The bottom rail slopes down to
 the left, clear of the lowest target; a matching outlet opens with the shutter
 and stays open until the departing ball has cleared it. Hit the core again to recharge
@@ -44,7 +43,10 @@ All three challenges can overlap. Charge and earned cells persist across balls;
 Frenzy ends when the final ball drains. Multiball cannot release a third ball.
 Both balls score, activate switches, and keep the Forge exit open while inside.
 The charge bars and sidebar show readiness, objectives, timers and completion.
-**Overdrive:** bank one cell from each challenge, then shoot the gold centre
+
+## Overdrive
+
+Bank one cell from each challenge, then shoot the gold centre
 ring. This spends one of each cell and starts 30 seconds of triple bumper and
 slingshot scoring (replacing the normal double-score surge). Hit **each core
 three times** before time expires for **10,000 points**. Gold filaments and three
@@ -203,8 +205,8 @@ restarts it only while Overdrive is active.
 The game still runs if an audio device is unavailable. This demo uses sound
 effects only, with no soundtrack.
 
-The effects pass and both game modes were smoke-tested on macOS with Metal and
-OpenGL, and the mute touch region is covered by the input checks.
+The effects and challenge modes have macOS Metal/OpenGL smoke coverage.
+The mute touch region is covered by the synthetic input checks.
 
 Table labels use visible glyph bounds for centring, including bearings, with
 a dedicated condensed display font and engraved shadow. macOS uses DIN

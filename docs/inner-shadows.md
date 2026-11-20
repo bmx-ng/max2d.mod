@@ -3,8 +3,11 @@
 `TMax2DInnerShadow` creates recessed shading inside a layer's alpha coverage.
 It retains three full-size buffers and a blur pyramid. Source colours are ignored;
 the result is white with transparent areas, ready for ordinary draw-time tinting.
-Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend, or
-`Max2D.GLEffects` with `Max2D.GLMax2D`. The same cache and buffer API works on both.
+Use the [effects provider](effects-quickstart.md#choose-a-provider) matching
+your framework: SDL GPU, OpenGL, native D3D9 or native D3D11.
+
+The fragment below assumes an open graphics context and an existing source
+layer. For a complete program, see [Applying effects](effects-quickstart.md).
 
 ```blitzmax
 Local shadow:TMax2DInnerShadow = CreateInnerShadow(8, 3, 3)
@@ -91,15 +94,3 @@ inner-shadow work when this helper is unused.
 Arrows adjust radius/opacity; O cycles signed offsets, C changes colour and Space
 toggles the shadow. `tests/inner_shadow.bmx` checks an independent alpha convolution
 and shifted sampling reference, including partial alpha, holes and offsets.
-
-## Validation
-
-The regression passes on macOS Metal and Windows/Ubuntu Vulkan with both sprite
-submission paths and two context lifetimes. The independent reference covers
-zero/four-pixel radii, positive/negative/fractional offsets, offsets beyond image
-bounds, opaque/partial alpha and transparent holes. Checks also cover source
-preservation, ignored handles and drawing transforms, cached-result lifetime,
-preflight failure recovery and five/eight-draw costs with no texture churn.
-Software SDL passes unsupported-provider rejection and target restoration. The
-macOS app demo was visually inspected, including offset and colour changes.
-Direct3D runtime validation remains outstanding.

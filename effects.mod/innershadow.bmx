@@ -1,6 +1,6 @@
 Rem
 bbdoc: Reusable inner shadow clipped to a layer's alpha coverage.
-about: Update caches white coverage equal to source alpha times one minus the offset blurred alpha. Draw the source first, then tint Result with ordinary SetColor and SetAlpha. Radius and offset changes require Update; colour and opacity changes do not. The source is not included in the result. Pad source content for blur sampling.
+about: Update caches white coverage equal to source alpha times one minus the offset blurred alpha. Draw the source first, then tint Result with ordinary SetColor and SetAlpha. Radius and offset changes require Update; colour and opacity changes do not. The source is not included in the result. Pad source content for blur sampling. Borrowed results must not be independently released or retained across changed Prepare, Release or context closure. Source changes are not detected automatically.
 End Rem
 Type TMax2DInnerShadow
 	Private
@@ -152,6 +152,9 @@ End Type
 
 Rem
 bbdoc: Creates a reusable inner-shadow description without allocating graphics resources.
+param: Finite, nonnegative blur radius in source pixels; defaults to eight.
+param: Finite horizontal offset in source pixels; defaults to three.
+param: Finite vertical offset in source pixels; defaults to three.
 End Rem
 Function CreateInnerShadow:TMax2DInnerShadow(radius:Float = 8, offsetX:Float = 3, offsetY:Float = 3)
 	Local shadow:TMax2DInnerShadow = New TMax2DInnerShadow

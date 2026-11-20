@@ -12,36 +12,11 @@ choose a backend without rewriting your scene code.
 - [Get started](#get-started)
 - [Choose a backend](#choose-a-backend)
 - [What you can build](#what-you-can-build)
+- [Effects and group masks](#effects-and-group-masks)
 - [Optional modules](#optional-modules)
 - [Moving from BRL.Max2D](#moving-from-brlmax2d)
 - [Capabilities and limitations](#capabilities-and-limitations)
 - [Examples and documentation](#examples-and-documentation)
-
-[Custom shader packages](docs/shader-packages.md) provide typed parameters,
-colour matrices, waves, ripples, displacement, dissolve and transformed/shared
-texture masks on SDL GPU, OpenGL and native Direct3D9/Direct3D11.
-
-Native Direct3D effects are available through `Max2D.D3D11Effects` and
-`Max2D.D3D9Effects`: colour effects, blur, outlines, bloom, reusable shadows and shader-package ABI 1–4.
-Both native backends support float composition when the device supports the format.
-See the [D3D11](docs/d3d11.md#optional-image-effects) and
-[D3D9](docs/d3d9.md#optional-image-effects) guides for requirements and current limits.
-
-The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
-with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
-`examples/hdr_scene.bmx` adds sRGB artwork conversion and linear bloom with
-HDR output or sRGB-encoded SDR tone mapping.
-[Reusable effect buffers](docs/effect-buffers.md) manage retained intermediate
-images and blur pyramids for these operations. [Reusable bloom](docs/bloom.md)
-combines extraction, blur and composition behind an explicit cached-result API.
-[Inverse layer masks](docs/effects-and-masking.md#inverse-masks-and-cutouts) add
-soft cutouts with one ordinary draw and no shader package.
-[Reusable soft shadows](docs/shadows.md) cache alpha silhouettes with draw-time
-colour, opacity and offset. [Inner shadows](docs/inner-shadows.md) add cached
-recessed shading inside shapes and text.
-
-Explore the [effects gallery](docs/effects-gallery.md) for side-by-side examples
-and explicit independent/group shadow comparisons.
 
 ## Get started
 
@@ -164,6 +139,19 @@ See [images and atlases](docs/drawing-guide.md), [atlas packages](docs/atlas-for
 [collisions](docs/collisions.md), [texture data](docs/texture-data.md),
 [mipmaps](docs/mipmaps.md) and [compressed textures](docs/compressed-textures.md).
 
+### Custom blending
+
+Use `SetBlend(SUBTRACTBLEND)` to darken the destination by the source colour
+multiplied by its alpha. Use `CreateBlendMode(...)` for custom colour and alpha
+factors and operations; its return value works with the ordinary `SetBlend`,
+`GetBlend` and drawing-state functions. Check `Max2DSupportsBlend` after opening
+graphics, because available combinations depend on the backend and device.
+
+See [Blending: recipes and backend support](docs/blending.md),
+[the blend gallery](examples/custom_blending.bmx) and
+[blending into a transparent image](examples/blend_render_image.bmx).
+
+
 ### Text and fonts
 
 Use `DrawText` for simple labels, or prepare reusable paragraph layouts with
@@ -192,6 +180,29 @@ link their native libraries. Fonts are supplied by your application.
 See [text layout and interaction](docs/text-layout.md) and
 [font loading and caches](docs/drawing-guide.md#fonts).
 
+### Effects and group masks
+
+Start with [Applying effects](docs/effects-quickstart.md): provider selection,
+a complete runnable example, and guidance on when to draw directly, build a
+layer chain, or cache a result. The API uses ordinary Max2D images, transforms,
+colour, alpha and blending.
+
+- **Direct effects:** saturation, colourize, colour matrices, distortion,
+  displacement, dissolve and texture masks.
+- **Layer effects:** ordered chains, blur, outlines, alpha masks and cutouts.
+- **Cached helpers:** reusable buffers, bloom, soft shadows and inner shadows.
+- **Colour and output:** linear artwork conversion, floating-point composition,
+  tone mapping and optional SDL GPU HDR display output.
+
+Shader providers are available for SDL GPU, OpenGL, native D3D9 and native D3D11.
+Import the provider matching your framework and query its capabilities.
+
+Continue with [effects and masking](docs/effects-and-masking.md),
+[shader packages](docs/shader-packages.md), or [HDR output](docs/hdr-output.md).
+Explore the [two-page gallery](docs/effects-gallery.md) for visual comparisons.
+[Flux Pinball](demos/pinball/README.md) and [Afterlight](demos/afterlight/README.md)
+show effects in playable applications.
+
 ### Tile-based games
 
 Create editable maps in code without an external editor, or load Tiled and LDtk
@@ -213,8 +224,10 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
+| `Max2D.Effects` | Shared effect descriptions, layer operations, buffer owners, bloom and shadows; no shader provider. |
+| `Max2D.SDL3GPUEffects` / `Max2D.GLEffects` | Built-in and packaged effects for SDL GPU / OpenGL. |
 | `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in and packaged image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
-| `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by `SDL3GPUEffects` and `GLEffects`; use a renderer provider to draw. |
+| `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by all four effects providers; use a matching provider to draw. |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |
 | `Max2D.RichText` | Optional inline markup, named styles and registered font variants over the paragraph API. |
@@ -229,6 +242,16 @@ The virtual joystick renders at native window resolution, independently of the
 game's virtual scene, and can use otherwise empty presentation bars. See the
 [virtual joystick guide](docs/virtual-joystick.md) and
 [example](examples/virtual_joystick.bmx).
+
+## MaxGUI canvases
+
+On macOS, Windows and Linux/X11, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
+also import `SDL3.SDL3MaxGUI`. MaxGUI keeps its native controls, input and event
+loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master/docs/maxgui.md)
+and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
+BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
+while native Wayland canvas attachment remains future work.
+
 
 ## Moving from BRL.Max2D
 
@@ -260,7 +283,7 @@ Some choices affect which backend or asset workflow you need:
   selected renderer and the available masking path; see [SDL3 masking](docs/sdl3-maskblend.md).
 - Packed atlases do not support mipmaps or rotated packing.
 - Scalable fonts do not provide automatic fallback, colour glyphs or vertical layout.
-- Attaching graphics to an existing native widget is not supported.
+- Native widget attachment is available for SDL3 MaxGUI canvases; see [MaxGUI canvases](#maxgui-canvases). Other backend/widget combinations are not supported.
 - `Max2D.D3D7Max2D` remains disabled pending hardware validation; D3D9 is the
   supported Direct3D minimum.
 
@@ -288,6 +311,7 @@ Build examples from your SDK directory, for example:
 
 | Example | Explore |
 | --- | --- |
+| [effects_quickstart.bmx](examples/effects_quickstart.bmx) | Direct effects, a retained chain and a cached shadow without assets. |
 | [gl_hello.bmx](examples/gl_hello.bmx) | OpenGL drawing with virtual and native coordinates. |
 | [sdl_gpu_hello.bmx](examples/sdl_gpu_hello.bmx) | The direct SDL GPU backend. |
 | [camera.bmx](examples/camera.bmx) | A moving, rotating view and minimap. |
@@ -312,106 +336,3 @@ measurements in [benchmarks](benchmarks/README.md).
 
 Max2D uses the [zlib/libpng licence](LICENSE). See [NOTICE.md](NOTICE.md) for
 third-party code and example asset credits.
-
-## MaxGUI canvases
-
-On macOS, Windows and Linux/X11, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
-also import `SDL3.SDL3MaxGUI`. MaxGUI keeps its native controls, input and event
-loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master/docs/maxgui.md)
-and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
-BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
-while native Wayland canvas attachment remains future work.
-
-### Custom blending
-
-Use `SetBlend(SUBTRACTBLEND)` to darken the destination by the source colour
-multiplied by its alpha. Use `CreateBlendMode(...)` for custom colour and alpha
-factors and operations; its return value works with the ordinary `SetBlend`,
-`GetBlend` and drawing-state functions. Check `Max2DSupportsBlend` after opening
-graphics, because available combinations depend on the backend and device.
-
-See [Blending: recipes and backend support](docs/blending.md),
-[the blend gallery](examples/custom_blending.bmx) and
-[blending into a transparent image](examples/blend_render_image.bmx).
-
-### Effects and group masks
-
-Import the optional `Max2D.Effects` module to multiply an explicit render-image
-layer by a soft alpha mask or group opacity. Check `Max2DSupportsLayerAlpha()`
-and render-image support before use. Rectangular group clips already use
-`IntersectViewport` inside a drawing-state scope and need no render image.
-See [effects and masking](docs/effects-and-masking.md) and the
-[runnable example](examples/layer_effects.bmx).
-
-For native SDL GPU colour effects, import `Max2D.SDL3GPUEffects` and use
-`CreateSaturationEffect` with `DrawImageEffect`. The shader preserves alpha and
-accepts a cached masked layer. Each call submits one image, without an intermediate
-surface. `DrawImageEffectBatch` batches repeated copies from a reusable x,y
-positions array. See the [interactive saturation example](examples/image_effects.bmx).
-
-`CreateBlurEffect` supplies a small single-axis blur for premultiplied render
-images. Use horizontal and vertical passes with retained scratch/output images;
-see the [two-pass blur example](examples/blur_effects.bmx) and the radius, padding
-and storage details in [effects and masking](docs/effects-and-masking.md).
-
-`ApplyLayerEffects` chains these effects across an explicit destination and one
-reusable scratch image. It restores drawing state and each image's viewport;
-see the [combined blur and colour example](examples/layer_effect_chain.bmx).
-
-`CreateColorizeEffect` replaces source RGB while preserving alpha. Combine it
-with blur for cached silhouettes, soft shadows and coloured glows; see the
-[shadow/glow example](examples/colorize_effects.bmx).
-
-`CreateScaledBlur` adds wider approximate blurs using retained half-size levels.
-Its `Apply` method downsamples, blurs and enlarges while preserving drawing state.
-See the [resolution comparison](examples/scaled_blur.bmx) and
-[storage, quality and pass costs](docs/effects-and-masking.md#wider-blur-with-retained-reduction-levels).
-
-`CreateOutlineEffect` builds a separate outer-border mask from a render layer's
-alpha. Tint it directly or chain it with `CreateColorizeEffect`; see the
-[interactive outline example](examples/outline_effects.bmx).
-
-`CreateBrightPassEffect` extracts highlights above a luminance threshold. Feed
-that layer into `CreateScaledBlur` and add the cached glow over the original
-with `LIGHTBLEND`; see the [interactive bloom example](examples/bloom_effects.bmx).
-
-`CreateToneMapEffect` maps floating-point HDR layers to display range with exposure,
-per-channel Reinhard mapping and configurable gamma. The
-[HDR bloom example](examples/hdr_bloom.bmx) compares clipped input, tone mapping,
-and bloom accumulated before tone mapping.
-
-The [colour-matrix example](examples/color_matrix.bmx) shows contrast, brightness
-and sepia packages; add `-ud max2d_gl` to use OpenGL.
-
-The [combined distortion example](examples/graded_distortion.bmx) demonstrates
-waves and colour grading in one draw (also with `-ud max2d_gl`); see [shader packages](docs/shader-packages.md).
-
-The [two-texture example](examples/two_texture_effects.bmx) shares a procedural
-map between displacement and a dissolve with an optional HDR edge glow.
-
-The [soft-mask example](examples/texture_masks.bmx) demonstrates reusable normal
-and inverted texture masks, including a preview of the moving mask.
-
-The [map-transform example](examples/texture_transforms.bmx) demonstrates
-independent map scrolling, scale, rotation and a mouse-controlled soft mask.
-
-The [shared-map comparison](examples/shared_texture_mapping.bmx) keeps one mask
-aligned across independently rotating sprites.
-
-The [threshold-mask comparison](examples/threshold_masks.bmx) demonstrates hard
-and soft texture-driven reveals with adjustable transition width and inversion.
-
-For the current implementation status, deliberate limits and validation gaps,
-see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026-11-20).
-The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
-composition and custom shader/map effects. Build it with `-ud max2d_gl` for the
-complete OpenGL gallery.
-
-OpenGL has an optional `Max2D.GLEffects` provider for saturation, colourize,
-outlines, blur, bloom extraction, tone mapping, linear output and ABI 1–4 shader
-packages. It supports
-batches, layer chains, retained buffers, reusable bloom and cached soft/inner shadows. Build the blur,
-scaled-blur, colourize, outline, layer-chain, bloom and HDR-bloom examples with
-`-ud max2d_gl`. Float HDR rendering is supported; HDR window presentation remains
-a separate SDL GPU feature. See the [OpenGL comparison](examples/gl_effects.bmx)
-and [support details](docs/effects-and-masking.md#basic-opengl-image-effects).

@@ -216,4 +216,3 @@ original/contrast/sepia comparison. `examples/coordinate_effects.bmx` and
 for generation and support checks. The complete effects gallery and all focused
 shader/map examples accept the same build flag. The linear HDR scene also offers
 an OpenGL SDR presentation path. Actual HDR window presentation is SDL GPU-only.
-This implementation is confined to Max2D.

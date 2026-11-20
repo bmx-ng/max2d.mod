@@ -35,6 +35,16 @@ Type TMax2DShaderPackage
 	Rem
 	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
 	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. The optional glsl argument supplies desktop GLSL 1.20 for ABI 1–4; d3d11 and d3d9 supply native ps_4_0 DXBC and ps_3_0 bytecode. SDL DXBC uses a separate binding contract. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
+	param: Display name for diagnostics; not a native cache key.
+	param: Unique, case-sensitive parameter identifiers in slot order.
+	param: Matching MAX2D_PARAMETER_FLOAT or MAX2D_PARAMETER_FLOAT4 entries.
+	param: Metal source bytes, or Null when omitted.
+	param: Compiled Vulkan SPIR-V bytes, or Null when omitted.
+	param: SDL GPU Direct3D bytecode, or Null when omitted; not the native D3D11 binding contract.
+	param: Fixed wrapper ABI version 1, 2, 3 or 4; defaults to one.
+	param: Desktop GLSL 1.20 source bytes, or Null when omitted.
+	param: Native Direct3D11 ps_4_0 bytecode, or Null when omitted.
+	param: Native Direct3D9 ps_3_0 bytecode, or Null when omitted.
 	End Rem
 	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1, glsl:Byte[] = Null, d3d11:Byte[] = Null, d3d9:Byte[] = Null)
 		If name = "" Or parameterNames.Length < 1 Or parameterNames.Length > 8 Or parameterNames.Length <> parameterTypes.Length Then Throw "Max2D package: invalid name or schema size"
@@ -80,6 +90,9 @@ Type TMax2DShaderPackage
 	End Method
 	Rem
 	bbdoc: Resolves a named parameter of the requested type to its float-array offset.
+	param: Case-sensitive parameter identifier.
+	param: MAX2D_PARAMETER_FLOAT or MAX2D_PARAMETER_FLOAT4.
+	about: Returns four times the slot index, measured in floats, not bytes. Unknown names and mismatched types throw. Intended for parameter binding; applications normally use SetFloat or SetFloat4.
 	End Rem
 	Method ParameterOffset:Int(name:String, kind:Int)
 		For Local i:Int = 0 Until names.Length
@@ -107,7 +120,7 @@ End Type
 
 Rem
 bbdoc: Reusable typed parameters and an optional second texture for packaged image effects.
-about: Values start at zero. Updates affect subsequent draws; queued draws retain their snapshots. Named setters allocate no parameter arrays. Shader package assets are immutable and shared by instances.
+about: Generic CreateShaderEffect values start at zero, with identity texture placement for ABI 4; convenience factories set their documented defaults. Updates affect subsequent draws; queued draws retain their snapshots. Named setters allocate no parameter arrays. Shader package assets are immutable and shared by instances.
 End Rem
 Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Private
@@ -123,6 +136,8 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Public
 	Rem
 	bbdoc: Creates zero-initialized parameters for an immutable package.
+	param: Initialized immutable package to share; null or uninitialized packages throw.
+	about: ABI 4 starts with identity texture placement. A second texture must be bound before drawing ABI 3/4 packages. Use CreateShaderEffect for the equivalent module-level factory.
 	End Rem
 	Function Create:TMax2DShaderEffect(package:TMax2DShaderPackage)
 		If Not package Or package.ParameterCount() = 0 Then Throw "Max2D package: package is null or uninitialized"
@@ -196,7 +211,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets coordinate sampling to transparent (default), clamp, or repeat at image boundaries.
-	about: ABI 2–4 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero.
+	about: ABI 2–4 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero. Invalid modes throw without changing the previous setting.
 	End Rem
 	Method SetEdgeMode(mode:Int)
 		If Not package Or package.ABIVersion()<2 Then Throw "Max2D package: edge modes require a coordinate package"
@@ -217,6 +232,8 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets second-image boundary sampling to transparent, clamp or repeat.
+	param: MAX2D_EDGE_TRANSPARENT (default), MAX2D_EDGE_CLAMP or MAX2D_EDGE_REPEAT.
+	about: Requires ABI 3 or 4. Applies independently of the source edge mode and after map placement. Sampling uses mip level zero. Invalid modes throw without changing the previous mode.
 	End Rem
 	Method SetTextureEdgeMode(mode:Int)
 		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3 or 4"
@@ -266,6 +283,9 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets a finite scalar parameter by its declared name.
+	param: Case-sensitive name declared as MAX2D_PARAMETER_FLOAT.
+	param: Finite scalar value; interpretation and useful range depend on the package.
+	about: Unknown names, type mismatches and non-finite values throw without changing parameters. Updates affect subsequent draws only.
 	End Rem
 	Method SetFloat(name:String, value:Float)
 		Local i:Int = Slot(name, MAX2D_PARAMETER_FLOAT)
@@ -274,6 +294,12 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Sets a finite four-component parameter atomically by its declared name.
+	param: Case-sensitive name declared as MAX2D_PARAMETER_FLOAT4.
+	param: First finite component.
+	param: Second finite component.
+	param: Third finite component.
+	param: Fourth finite component.
+	about: Unknown names, type mismatches and non-finite components throw without changing any component. Updates affect subsequent draws only. Package-specific ranges are not enforced by this generic setter.
 	End Rem
 	Method SetFloat4(name:String, x:Float, y:Float, z:Float, w:Float)
 		Local i:Int = Slot(name, MAX2D_PARAMETER_FLOAT4)
@@ -284,6 +310,8 @@ End Type
 
 Rem
 bbdoc: Creates zero-initialized typed parameters for an immutable shader package.
+param: Initialized immutable package to share; null or uninitialized packages throw.
+about: Creates no graphics resources. ABI 4 initializes identity texture placement. Bind a second texture before drawing ABI 3/4 packages. Query Max2DSupportsImageEffect after Graphics with the intended target and blend.
 End Rem
 Function CreateShaderEffect:TMax2DShaderEffect(package:TMax2DShaderPackage)
 	Return TMax2DShaderEffect.Create(package)
@@ -309,14 +337,31 @@ Rem
 bbdoc: Renderer adapter for immutable packages and captured shader parameters.
 End Rem
 Type TMax2DShaderPackageBackend Abstract
+	Rem
+	bbdoc: Registry linkage managed by RegisterShaderPackageBackend; applications must not modify it.
+	End Rem
 	Field nextBackend:TMax2DShaderPackageBackend
+	Rem
+	bbdoc: Reports whether this adapter handles the supplied graphics context.
+	End Rem
 	Method Handles:Int(context:TMax2DContext) Abstract
+	Rem
+	bbdoc: Returns a context-owned native shader for an opaque immutable package, or Null when unavailable.
+	End Rem
 	Method Shader:Byte Ptr(context:TMax2DContext, package:Byte Ptr) Abstract
+	Rem
+	bbdoc: Selects a native shader, captured parameter slots and an optional secondary frame for the following batch.
+	End Rem
 	Method SelectShader(context:TMax2DContext, shader:Byte Ptr, values:Float Ptr, second:TImageFrame) Abstract
+	Rem
+	bbdoc: Restores ordinary drawing after packaged submission, including error recovery.
+	End Rem
 	Method ClearShader(context:TMax2DContext) Abstract
 End Type
 Rem
 bbdoc: Registers an optional renderer's package adapter.
+param: Non-null adapter instance retained for the application lifetime.
+about: For provider initialization on the rendering thread. Register each instance once. Application effects should use the factories and DrawImageEffect rather than calling the adapter directly.
 End Rem
 Function RegisterShaderPackageBackend(backend:TMax2DShaderPackageBackend)
 	backend.nextBackend=packageBackends
@@ -346,6 +391,8 @@ Public
 Rem
 bbdoc: Creates a reusable animated wave or radial ripple coordinate effect.
 about: Parameters time, strength, frequency and ripple are scalars. Time and frequency use radians; strength is a fraction of image size. Set ripple above 0.5 for radial ripples, otherwise waves. Edge sampling defaults to transparent. Use SetEdgeMode to select clamp or repeat. Coordinates are image-local; aspect ratio is not corrected automatically.
+param: Finite displacement strength as a fraction of image size; defaults to 0.03.
+param: Finite angular frequency in radians per normalized coordinate; defaults to 20.
 End Rem
 Function CreateDistortionEffect:TMax2DShaderEffect(strength:Float=0.03, frequency:Float=20)
 	If Not defaultDistortionPackage Then defaultDistortionPackage=CreateDistortionPackage()
@@ -361,6 +408,8 @@ Public
 Rem
 bbdoc: Creates a reusable wave/ripple and colour-grade effect executed in one draw.
 about: Uses time, strength, frequency and ripple as CreateDistortionEffect. The grade float4 contains saturation, exposure multiplier, contrast around 0.5 and brightness offset. gradeTint multiplies RGBA after grading. Defaults preserve colour and alpha. Colour processing follows drawing tint; no implicit colour-space conversion is performed. RGB remains unclamped, and final alpha is clamped to 0–1. All six parameter slots share one snapshot with coordinate edge settings.
+param: Finite displacement strength as a fraction of image size; defaults to 0.03.
+param: Finite angular frequency in radians per normalized coordinate; defaults to 20.
 End Rem
 Function CreateGradedDistortionEffect:TMax2DShaderEffect(strength:Float=0.03, frequency:Float=20)
 	If Not defaultGradedDistortionPackage Then defaultGradedDistortionPackage=CreateGradedDistortionPackage()
@@ -378,7 +427,10 @@ Global defaultDissolvePackage:TMax2DShaderPackage
 Public
 Rem
 bbdoc: Creates texture-driven displacement using the map's straight red and green channels.
-about: Map values 0.5 leave coordinates unchanged; 0 and 1 offset by minus and plus strength, measured as fractions of source width and height. The map uses image-local UVs and is not tinted. Source and map bounds have separate edge modes.
+about: Map values 0.5 leave coordinates unchanged; 0 and 1 offset by minus and plus strength, measured as fractions of source width and height. The map uses image-local UVs and is not tinted. Source and map bounds have separate edge modes. Change strength with SetFloat4("amount", strengthX, strengthY, 0, 0). The factory binds frame zero; SetTexture can change the map or frame. Supports independent map transforms and shared texture mapping.
+param: Untrimmed displacement map; binds frame zero. Null leaves drawing disabled until SetTexture.
+param: Finite horizontal displacement strength as a fraction of source width.
+param: Finite vertical displacement strength as a fraction of source height.
 End Rem
 Function CreateDisplacementEffect:TMax2DShaderEffect(map:TImage, strengthX:Float=0.03, strengthY:Float=0.03)
 	If Not defaultDisplacementPackage Then defaultDisplacementPackage=CreateDisplacementPackage()
@@ -391,6 +443,7 @@ End Function
 Rem
 bbdoc: Creates a texture-driven dissolve with an optional HDR edge glow.
 about: Set progress from 0 (fully visible) to 1 (invisible). Intermediate values retain pixels whose map red channel is at least progress. width controls the soft glow band in map-value units; edge is RGB colour and intensity in its fourth component. Glow preserves source alpha. Defaults are progress 0, width 0.1 and edge (4,1,0.1,1). Map alpha does not affect the threshold.
+param: Untrimmed map whose red channel controls visibility; binds frame zero. Null requires a later SetTexture.
 End Rem
 Function CreateDissolveEffect:TMax2DShaderEffect(map:TImage)
 	If Not defaultDissolvePackage Then defaultDissolvePackage=CreateDissolvePackage()
@@ -407,6 +460,8 @@ Public
 Rem
 bbdoc: Creates a reusable mask that multiplies source alpha by a second image's coverage.
 about: Defaults to the mask alpha channel, including R8 coverage images. Set channels to RGBA weights with SetFloat4; the weighted sum is clamped to 0–1 before inversion. Set invert above 0.5 to invert coverage. Source straight RGB is unchanged, preserving HDR; drawing tint and alpha still apply. Map filtering, atlas bounds and render-image alpha interpretation follow the two-texture ABI.
+param: Untrimmed coverage map; binds frame zero. Null requires a later SetTexture.
+param: True inverts the weighted mask coverage.
 End Rem
 Function CreateTextureMaskEffect:TMax2DShaderEffect(mask:TImage, inverted:Int=False)
 	If Not defaultTextureMaskPackage Then defaultTextureMaskPackage=CreateTextureMaskPackage()
@@ -423,6 +478,10 @@ Public
 Rem
 bbdoc: Creates a texture threshold mask with a smooth transition between low and high.
 about: Defaults to map alpha. Set channels with SetFloat4 to select RGBA weights; their sum is clamped to 0–1 before thresholding. Set range with SetFloat4("range",low,high,0,0). Values at or below low are hidden and values at or above high are visible when high exceeds low. Otherwise a hard cut retains values at least low. Inversion is applied after thresholding. Source straight RGB, including HDR, is preserved; drawing tint and alpha still apply. Supports independent map transforms and shared texture mapping.
+param: Untrimmed threshold map; binds frame zero. Null requires a later SetTexture.
+param: Finite lower threshold; defaults to 0.4.
+param: Finite upper threshold; defaults to 0.6. Values at or below low select a hard cut.
+param: True inverts the thresholded coverage.
 End Rem
 Function CreateThresholdMaskEffect:TMax2DShaderEffect(map:TImage, low:Float=0.4, high:Float=0.6, inverted:Int=False)
 	If Not defaultThresholdMaskPackage Then defaultThresholdMaskPackage=CreateThresholdMaskPackage()

@@ -2,9 +2,9 @@
 
 Build `examples/effects_gallery.bmx` as a GUI app. The default build uses native
 SDL GPU with `Max2D.SDL3GPUEffects` and offers both pages. Add `-ud max2d_gl` to
-build with OpenGL and `Max2D.GLEffects`. Both builds offer all eighteen views
-on both pages.
-Both builds require inverse-alpha blending and RGBA16F render images.
+build with OpenGL and `Max2D.GLEffects`. On Windows, use `-ud max2d_d3d9` or `-ud max2d_d3d11` for native Direct3D.
+All four builds offer eighteen views across both pages and require inverse-alpha
+blending and RGBA16F render images.
 
 The gallery compares source artwork with one selected effect. Keys 0–8 select
 views. Tab switches between pages in both builds. For example:
@@ -95,61 +95,6 @@ performance conclusions; cached/rebuilt images do not establish equal visual
 output across different effect types. The bloom benchmark uses normalized source
 colours and a 0.5 extraction threshold in float storage; it measures pipeline cost,
 not physical HDR-display brightness.
-
-## Initial Metal capture
-
-The [raw capture](cached-effects-macos.csv) contains two repetitions, 100 measured
-frames after 30 warm-up frames, for all seven cases at both sizes: 28 cases total.
-This was a live macOS desktop with the development demos and Parallels VMs open,
-not an isolated GPU performance run. All visibility checks passed.
-
-| Case | Draws/frame | 128² logical bytes | 512² logical bytes |
-| --- | ---: | ---: | ---: |
-| source | 1 | 131,072 | 2,097,152 |
-| cached shadow | 2 | 442,368 | 7,077,888 |
-| rebuild shadow | 8 | 442,368 | 7,077,888 |
-| cached inner | 2 | 573,440 | 9,175,040 |
-| rebuild inner | 10 | 573,440 | 9,175,040 |
-| cached bloom | 1 | 573,440 | 9,175,040 |
-| rebuild bloom | 10 | 573,440 | 9,175,040 |
-
-Every measured case had zero texture creation, uploads and readbacks. CPU
-draw/flush means ranged from about 0.04–0.15 ms. Whole-frame means clustered at
-8.32–8.41 ms despite `Flip(0)`, consistent with presentation pacing. These figures
-validate retained storage and expected submission work; they do not establish GPU
-cost or a frame-rate speedup. GPU timestamps and isolated captures are still needed
-for those conclusions.
-
-The gallery was built as a macOS GUI app and visually checked for independent
-and combined inner shadows, cached blur, inverse masks and bloom presentation.
-Both bloom panels use the same opaque black source background and tone mapping.
-This capture and gallery inspection were on Metal; no new Vulkan or Direct3D
-performance claim is made by this tranche.
-
-## Expanded gallery checkpoint (2026-11-20)
-
-The second page adds nine shader/map views. The GUI was rebuilt and visually
-checked on macOS Metal, including navigation back to cached bloom. The broader
-[effects checkpoint](effects-and-masking.md#checkpoint-regression-sweep) records
-125 passing checks across the macOS profiles and both Vulkan VMs. These are
-correctness checks; the benchmark figures above remain the earlier CPU capture.
-
-## OpenGL validation (2026-11-20)
-
-The OpenGL gallery and focused soft/inner-shadow examples build as GUI apps.
-Soft shadows, independent/group inner shadows, radius changes and bloom were
-visually checked on macOS. Shadow, inner-shadow, bloom, inverse-mask and retained
-buffer regressions pass on macOS, Windows and Ubuntu OpenGL. See the
-[validation details](effects-and-masking.md#opengl-cached-shadows-and-gallery-validation-2026-11-20).
-
-## Complete OpenGL gallery validation (2026-11-20)
-
-Both pages now run through `Max2D.GLEffects`. The macOS GUI build was inspected
-for displacement, glowing dissolve, ordinary/moving masks, shared-map tiles,
-soft thresholds and returning to cached bloom. Eight focused OpenGL examples
-and both the SDL gallery and linear HDR scene also built. The effect parity
-sweep passed 98 selected checks across macOS, Windows and Ubuntu; see
-[package validation](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
 
 ## Native Direct3D and framebuffer captures
 

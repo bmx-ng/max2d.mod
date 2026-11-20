@@ -75,6 +75,10 @@ return c;
 Const BMX_WRAPPER:String = """
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import @PREFIX@@NAME@_assets.c alongside your application imports.
+Rem
+bbdoc: Creates the immutable @NAME@ shader package from embedded assets.
+about: Share the package between effect instances created with CreateShaderEffect. Parameter values are initialized by those instances, not by this package factory. Import the matching effects provider and query support after opening graphics.
+End Rem
 Function @FACTORY@:TMax2DShaderPackage()
 	Return TMax2DShaderPackage.Create("@NAME@", [@NAMES@], [@KINDS@], @ARGUMENTS@@ABI_ARGUMENT@)
 End Function

@@ -1,6 +1,6 @@
 Rem
 bbdoc: Reusable soft shadow built from a layer's alpha coverage.
-about: Update caches a blurred white silhouette in premultiplied storage. Draw Result with ordinary SetColor, SetAlpha and DrawImage to choose shadow colour, opacity and offset without rebuilding. The source is not included in the result. Pad source content to retain the halo.
+about: Update caches a blurred white silhouette in premultiplied storage. Draw Result with ordinary SetColor, SetAlpha and DrawImage to choose shadow colour, opacity and offset without rebuilding. The source is not included in the result. Pad source content to retain the halo. Borrowed results must not be independently released or retained across changed Prepare, Release or context closure. Source changes are not detected automatically.
 End Rem
 Type TMax2DShadow
 	Private
@@ -108,6 +108,7 @@ End Type
 
 Rem
 bbdoc: Creates a reusable shadow description without allocating graphics resources.
+param: Finite, nonnegative blur radius in source pixels; defaults to eight.
 End Rem
 Function CreateShadow:TMax2DShadow(radius:Float = 8)
 	Local shadow:TMax2DShadow = New TMax2DShadow

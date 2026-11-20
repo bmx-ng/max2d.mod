@@ -83,6 +83,9 @@ End Type
 
 Rem
 bbdoc: Creates a linear-scene output effect; defaults to tone-mapped sRGB with unit exposure.
+param: True for extended linear HDR values, False for tone-mapped sRGB; does not change the window mode.
+param: Finite, nonnegative exposure multiplier; defaults to one.
+param: Finite, positive HDR reference white multiplier; defaults to one and is ignored for SDR.
 End Rem
 Function CreateLinearOutputEffect:TMax2DLinearOutputEffect(hdr:Int = False, exposure:Float = 1, whiteLevel:Float = 1)
 	Local effect:TMax2DLinearOutputEffect = New TMax2DLinearOutputEffect

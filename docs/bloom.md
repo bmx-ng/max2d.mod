@@ -1,11 +1,15 @@
 # Reusable bloom
 
 `TMax2DBloom` owns bright-pass extraction, scaled blur, glow gain and composition.
-It builds on `TMax2DEffectBuffers` and uses either optional effect provider: `Max2D.SDL3GPUEffects` or
-`Max2D.GLEffects`. OpenGL supports float bloom and SDR tone-mapped presentation;
-HDR window presentation remains separate.
+It builds on `TMax2DEffectBuffers` and works with all four shader providers.
+See [provider selection](effects-quickstart.md#choose-a-provider).
+HDR window presentation remains a separate SDL GPU capability.
+
+The fragment below assumes an open graphics context and an existing source
+layer. For a complete program, see [Applying effects](effects-quickstart.md).
 
 ```blitzmax
+Local outputEffect:TMax2DLinearOutputEffect = CreateLinearOutputEffect()
 Local bloom:TMax2DBloom = CreateBloom(1.5, 12, 1)
 bloom.Prepare(640, 360, 2, PF_RGBA16F)
 
@@ -13,6 +17,9 @@ bloom.Prepare(640, 360, 2, PF_RGBA16F)
 Local result:TRenderImage = bloom.Update(scene)
 
 ' Reuse on subsequent frames without rebuilding:
+SetBlend(SOLIDBLEND)
+SetColor(255, 255, 255)
+SetAlpha(1)
 DrawImageEffect(bloom.Result(), outputEffect, 0, 0)
 ```
 
@@ -87,17 +94,3 @@ and HDR/SDR changes need only a new presentation draw.
 
 `examples/hdr_scene.bmx` uses this API. H changes HDR/SDR, Space toggles bloom,
 I cycles intensity, left/right changes threshold and up/down changes exposure.
-
-## Validation
-
-`tests/bloom_pipeline.bmx` checks opaque composition from a partially transparent
-HDR source, halos outside source coverage, zero and amplified intensity, cached
-result behaviour, invalid radius recovery, resize invalidation, context lifetime,
-both sprite submission paths and nine-draw steady-state cost. Software rendering
-verifies rejection of unsupported shaders and restoration of the original target.
-
-Validated on macOS Metal and Windows/Ubuntu Vulkan, with software rejection also
-passing. The wider Metal run passed all 13 effects suites. An additional Metal
-window readback check verifies pixels drawn before and after repeated updates,
-including restoration of the window target, origin and tint. The GUI demo was
-also checked with intensity changes and HDR/SDR switching.

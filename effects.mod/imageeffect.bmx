@@ -1,6 +1,6 @@
 Rem
-bbdoc: Reusable, context-independent description of an image colour effect.
-about: Pass an effect to DrawImageEffect. Native shader resources are cached by the current graphics context and released when that context closes.
+bbdoc: Reusable description of an image sampling or colour effect.
+about: Pass an effect explicitly to DrawImageEffect; no ambient effect is selected. Descriptions can be created before Graphics and reused across contexts, but render images bound by shader effects still belong to their creating context. Native shader resources are cached by the current graphics context and released when that context closes. Drawing-state scopes do not roll back edits to description objects.
 End Rem
 Type TMax2DImageEffect Abstract
 End Type
@@ -345,7 +345,7 @@ End Function
 Rem
 bbdoc: Checks an effect against the active backend, target, blend and submission path.
 param: Effect description to check.
-about: Returns False if no provider is imported. A successful query may compile and cache a shader and pipeline; warm it before timing. Query again after changing context, target format, blend mode or compact-sprite mode.
+about: Call after Graphics. Returns False if no provider is imported. This checks the effect and drawing state, not a source image, secondary texture binding or buffer layout; drawing still validates those inputs. A successful query may compile and cache a shader and pipeline; warm it before timing. Query again after changing context, target format, blend mode or compact-sprite mode.
 End Rem
 Function Max2DSupportsImageEffect:Int(effect:TMax2DImageEffect)
 	If Not effect Then Return False
@@ -380,7 +380,7 @@ param: Source image; sampling the current render target is forbidden.
 param: Reusable effect description.
 param: Reusable array containing x,y pairs in drawing order; no array copy is made.
 param: Zero-based image frame shared by all copies.
-about: Uses the normal image handle and current drawing state. The native SDL GPU and OpenGL providers capture parameters once and batch copies up to the existing sprite-buffer capacity. It ends the preceding batch and flushes before returning, leaving no ambient effect. Empty positions are a no-op; an odd length throws before drawing. Allocate and update the positions array outside the draw call to avoid per-frame allocation. Providers without batch acceleration may submit each copy separately.
+about: Uses the normal image handle and current drawing state. The SDL GPU, OpenGL, native D3D9 and native D3D11 providers capture parameters once and batch copies up to the existing sprite-buffer capacity. It ends the preceding batch and flushes before returning, leaving no ambient effect. Empty positions are a no-op; an odd length throws before drawing. Allocate and update the positions array outside the draw call to avoid per-frame allocation. Providers without batch acceleration may submit each copy separately.
 End Rem
 Function DrawImageEffectBatch(image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int = 0)
 	If Not image Or Not effect Then Throw "Max2D Effects: image and effect are required"

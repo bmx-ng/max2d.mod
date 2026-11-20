@@ -94,6 +94,7 @@ End Type
 
 Rem
 bbdoc: Creates a reusable scaled-blur description without allocating images.
+param: Finite, nonnegative radius in full-resolution source pixels; defaults to eight.
 End Rem
 Function CreateScaledBlur:TMax2DScaledBlur(radius:Float = 8)
 	Local blur:TMax2DScaledBlur = New TMax2DScaledBlur
