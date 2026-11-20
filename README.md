@@ -275,6 +275,11 @@ describe tested configurations and platform-specific limits.
 
 ## Examples and documentation
 
+For a complete playable project, try [Afterlight](demos/afterlight/README.md),
+a three-room greenhouse puzzle combining tilemaps, touch controls, text,
+masked layers, cached bloom and shadows. More complete applications live in
+[demos](demos/README.md).
+
 Build examples from your SDK directory, for example:
 
 ```sh
