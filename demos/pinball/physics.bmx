@@ -66,16 +66,16 @@ Type TPinTable
   MakeFlipper(0,3.4,17,20)
   MakeFlipper(1,8.4,17,160)
   Local gateDef:b2BodyDef=New b2BodyDef
-  gateDef.SetPosition(New b2Vec2.Create(11.25,4))
+  gateDef.SetPosition(New b2Vec2.Create(11.25,3.7)); gateDef.SetAngle(Float(ATan2(-0.6,1.5)))
   Local gateShape:b2PolygonDef=New b2PolygonDef
-  gateShape.SetAsBox(0.75,0.1); gateShape.SetFilterCategoryBits(2); gateShape.SetFilterMaskBits(0)
+  gateShape.SetAsBox(Float(Sqr(1.5^2+0.6^2)/2),0.1); gateShape.SetFilterCategoryBits(2); gateShape.SetFilterMaskBits(0)
   gateShape.SetRestitution(0.55); gateShape.SetFriction(0.08)
   gate=world.CreateBody(gateDef).CreateShape(gateShape)
   MakeForge()
   Spawn()
  End Method
  Method MakeForge()
-  Rail(0.7,7,2,7); Rail(0.7,10.6,2,10.6)
+  Rail(0.7,6.5,2,7); Rail(0.7,10.2,2,10.6)
   Local def:b2BodyDef=New b2BodyDef
   def.SetPosition(New b2Vec2.Create(2,8.8))
   Local shape:b2PolygonDef=New b2PolygonDef
@@ -273,7 +273,7 @@ Type TPinTable
   If speed>32 Then ball.SetLinearVelocity(New b2Vec2.Create(v.GetX()*32/speed,v.GetY()*32/speed))
   p=ball.GetPosition()
   ' Close only after the whole launched ball has cleared the gate.
-  If Not waiting And Not gateClosed And p.GetY()<3.5 Then SetGate(True)
+  If Not waiting And Not gateClosed And p.GetY()<2.95 Then SetGate(True)
   If Not waiting And Not gameOver Then
    If p.GetY()>20.5 Then
     If saveTime>0 Then

@@ -188,3 +188,28 @@ t.forgeTime=10; t.SetForgeGate(True); t.Spawn()
 Check(t.forgeTime=0 And Not t.forgeOpen And t.forgeCells=1,"Forge drain reset must preserve earned cells")
 t.Free()
 Print "PASS Forge charge, activation, shutter, target bank, safe closure and reset"
+
+' A stationary ball on each former horizontal ledge must roll out unaided.
+For Local ledge:Int=0 Until 2
+ t=New TPinTable; t.waiting=False; t.saveTime=0
+ Local x:Float=1.3,y:Float=6.1
+ If ledge=1 Then y=9.5; t.SetForgeGate(True); t.forgeTime=10
+ t.ball.SetXForm(New b2Vec2.Create(x,y),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0))
+ Local escaped:Int
+ For Local i:Int=0 Until 360
+  t.Tick(False,False)
+  If t.ball.GetPosition().GetX()>2.5 Then escaped=True
+ Next
+ Check(escaped,"Ball stuck on Forge ledge "+ledge)
+ t.Free()
+Next
+t=New TPinTable; t.waiting=False; t.saveTime=0; t.SetGate(True)
+t.ball.SetXForm(New b2Vec2.Create(11.25,3.1),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0))
+Local leftLane:Int
+For Local i:Int=0 Until 360
+ t.Tick(False,False)
+ If t.ball.GetPosition().GetX()<10.2 Then leftLane=True
+Next
+Check(leftLane,"Ball stuck on launch gate")
+t.Free()
+Print "PASS stationary balls roll off Forge ledges and launch gate"

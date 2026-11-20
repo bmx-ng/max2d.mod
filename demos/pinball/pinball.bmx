@@ -202,7 +202,7 @@ Function DrawTable()
  Next
  ' The launch gate folds up against the lane wall until the ball clears it.
  Paint(106,235,196)
- If table.gateClosed Then Line(10.5,4,12,4,5) Else Line(12,2.6,12,4,5)
+ If table.gateClosed Then Line(10.5,4,12,3.4,5) Else Line(12,2.6,12,4,5)
  If staticLight Then Paint(255,255,255,0.6); SetBlend(LIGHTBLEND); DrawImage(staticLight,0,0); SetBlend(ALPHABLEND)
  For Local i:Int=0 Until 3
   Local t:TPinTarget=table.targets[i],x:Float=TX+t.x*SCALE,y:Float=TY+t.y*SCALE
