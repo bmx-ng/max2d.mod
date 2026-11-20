@@ -213,3 +213,28 @@ Next
 Check(leftLane,"Ball stuck on launch gate")
 t.Free()
 Print "PASS stationary balls roll off Forge ledges and launch gate"
+
+' Keep the Forge open throughout: its timeout must not be the escape route.
+For Local seed:Int=0 Until 40
+ t=New TPinTable; t.waiting=False; t.saveTime=0
+ t.SetForgeGate(True); t.forgeTime=100; t.forgeMask=7
+ Local vx:Float=-12+Float(seed Mod 8)*3,vy:Float=-6+Float(seed/8)*3
+ t.ball.SetXForm(New b2Vec2.Create(3,11),0); t.ball.SetLinearVelocity(New b2Vec2.Create(vx,vy))
+ Local returned:Int
+ For Local tick:Int=0 Until 960
+  t.Tick(False,False)
+  If t.ball.GetPosition().GetY()>15.7 Then returned=True; Exit
+ Next
+ Check(returned,"Open Forge orbit did not return to flippers: "+seed)
+ Check(t.forgeOpen And t.forgeTime>90,"Orbit escaped by closing the Forge")
+ t.Free()
+Next
+' A real flipper contact restores the normal sling kick for the next shot.
+t=New TPinTable; t.waiting=False; t.slingChain=7
+t.ball.SetXForm(New b2Vec2.Create(4.7,17),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
+For Local i:Int=0 Until 12
+ t.Tick(True,False)
+Next
+Check(t.slingChain=0,"Flipper contact did not restore slingshots")
+t.Free()
+Print "PASS 40 open-Forge orbit escapes and flipper reset"

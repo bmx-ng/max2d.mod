@@ -79,6 +79,10 @@ again to put it back into play.
 - Only the inward-facing long edge of each slingshot kicks and scores. The back
   and end caps cancel outward rebound while preserving motion along the surface.
 - Rollovers and the jackpot use swept ball segments, so fast shots cannot skip them.
+- Repeated slingshot exchanges progressively reduce powered kicks after the first
+  two hits. Flipper or core contact restores full strength, breaking unattended
+  Forge/slingshot orbits without random impulses. Forge target caps are bevelled
+  into the wall to prevent perched balls.
 - Bumper kicks target a minimum outward speed; a 32-unit/s cap bounds energy spikes.
 - Table geometry supplies both physics and rendering.
 - Interpolated ball position and flipper angle, trails, impact rings and pulses.
@@ -105,7 +109,7 @@ From the repository directory:
 Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
-Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\nand a deterministic two-minute simulation with repeated strokes.
+Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\n40 open-Forge trajectories returning to the flippers within eight seconds,\nand a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
 

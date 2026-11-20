@@ -17,7 +17,13 @@ Type TPinContacts Extends b2ContactListener
   Local target:TPinTarget
   If a.GetBody()=table.ball Then target=TPinTarget(b.GetUserData())
   If b.GetBody()=table.ball Then target=TPinTarget(a.GetUserData())
-  If Not target Then Return
+  If Not target Then
+   Local other:b2Body
+   If a.GetBody()=table.ball Then other=b.GetBody()
+   If b.GetBody()=table.ball Then other=a.GetBody()
+   If other And (other=table.flipper[0] Or other=table.flipper[1]) Then table.slingChain=0
+   Return
+  End If
   Local n:b2Vec2=point.GetNormal()
   target.nx=n.GetX(); target.ny=n.GetY()
   If a.GetBody()=table.ball Then target.nx=-target.nx; target.ny=-target.ny
@@ -45,6 +51,7 @@ Type TPinTable
  Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
  Field forgeGate:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
  Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
+ Field slingChain:Int
  Field maxSpeed:Float
  Method New()
   Local bounds:b2AABB=New b2AABB.Create(New b2Vec2.Create(-20,-20),New b2Vec2.Create(40,50))
@@ -85,7 +92,9 @@ Type TPinTable
    Local t:TPinTarget=targets[5+i]
    t.x=1.15; t.y=7.6+i*1.2
    def=New b2BodyDef; def.SetPosition(New b2Vec2.Create(t.x,t.y))
-   shape=New b2PolygonDef; shape.SetAsBox(0.12,0.35)
+   shape=New b2PolygonDef
+   ' Bevel the caps into the wall so a ball cannot perch behind a target.
+   shape.SetVertices([New b2Vec2.Create(-0.45,-0.48),New b2Vec2.Create(0.12,-0.25),New b2Vec2.Create(0.12,0.25),New b2Vec2.Create(-0.45,0.48)])
    shape.SetFilterCategoryBits(2); shape.SetRestitution(0.6)
    world.CreateBody(def).CreateShape(shape).SetUserData(t)
   Next
@@ -167,6 +176,7 @@ Type TPinTable
  End Method
  Method Spawn()
   SetGate(False)
+  slingChain=0
   forgeTime=0; forgeSwitchInside=False
   SetForgeGate(False)
   jackpotInside=False
@@ -260,7 +270,16 @@ Type TPinTable
      If litMask=7 Then litMask=0; surge=10; surges:+1; score:+500
      Local v:b2Vec2=ball.GetLinearVelocity()
      Local outgoing:Float=v.GetX()*t.nx+v.GetY()*t.ny
-     Local kick:Float=Max(0,15-outgoing)*ball.GetMass()
+     Local kickSpeed:Float=15
+     If t.index=3 Or t.index=4 Then
+      ' Repeated unattended sling exchanges must shed energy instead of
+      ' forming a self-sustaining orbit through an open Forge target.
+      slingChain:+1
+      kickSpeed=Max(0,15-Max(0,slingChain-2)*3)
+     Else
+      slingChain=0
+     End If
+     Local kick:Float=Max(0,kickSpeed-outgoing)*ball.GetMass()
      ball.ApplyImpulse(New b2Vec2.Create(t.nx*kick,t.ny*kick),ball.GetWorldCenter())
     End If
    End If
