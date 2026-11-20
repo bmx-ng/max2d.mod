@@ -13,6 +13,7 @@ Import Max2D.SDL3GPUMax2D
 Import "glue.c"
 Import "package.c"
 Import "packages/texturemask/texturemask_assets.c"
+Import "packages/thresholdmask/thresholdmask_assets.c"
 Import "packages/dissolve/dissolve_assets.c"
 Import "packages/displacement/displacement_assets.c"
 Import "packages/colormatrix/colormatrix_assets.c"
@@ -25,6 +26,7 @@ Include "packages/graded_distortion/graded_distortion.bmx"
 Include "packages/displacement/displacement.bmx"
 Include "packages/dissolve/dissolve.bmx"
 Include "packages/texturemask/texturemask.bmx"
+Include "packages/thresholdmask/thresholdmask.bmx"
 Include "package.bmx"
 
 Private

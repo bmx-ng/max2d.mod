@@ -15,7 +15,7 @@ Try
 	Local root:String=RealPath(AppArgs[1]), scratch:String=RealPath(AppArgs[2])
 	If FileType(scratch) Then Throw "Scratch directory must not already exist"
 	CreateDir(scratch,True)
-	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask",root+"/tests/data/legacytexturemask"]
+	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask",root+"/tests/data/legacytexturemask",root+"/sdl3gpueffects.mod/packages/thresholdmask"]
 		Local manifest:String=directory+"/manifest.json"
 		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
 		Local output:String=scratch+"/"+name

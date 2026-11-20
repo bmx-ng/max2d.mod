@@ -380,3 +380,6 @@ independent map scrolling, scale, rotation and a mouse-controlled soft mask.
 
 The [shared-map comparison](examples/shared_texture_mapping.bmx) keeps one mask
 aligned across independently rotating sprites.
+
+The [threshold-mask comparison](examples/threshold_masks.bmx) demonstrates hard
+and soft texture-driven reveals with adjustable transition width and inversion.

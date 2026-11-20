@@ -1,0 +1,29 @@
+{
+  "abi": 4,
+  "name": "thresholdmask",
+  "factory": "CreateThresholdMaskPackage",
+  "parameters": [
+    {
+      "name": "channels",
+      "type": "float4"
+    },
+    {
+      "name": "range",
+      "type": "float4"
+    },
+    {
+      "name": "invert",
+      "type": "float"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float value=clamp(dot(m,channels),0.0,1.0);\nfloat coverage;\nif(range.y>range.x) coverage=smoothstep(range.x,range.y,value);\nelse coverage=step(range.x,value);\nif(invert>0.5) coverage=1.0-coverage;\nreturn float4(c.rgb,c.a*coverage);",
+    "glsl": "float value=clamp(dot(m,channels),0.0,1.0);\nfloat coverage;\nif(range.y>range.x) coverage=smoothstep(range.x,range.y,value);\nelse coverage=step(range.x,value);\nif(invert>0.5) coverage=1.0-coverage;\nreturn vec4(c.rgb,c.a*coverage);",
+    "hlsl": "float value=clamp(dot(m,channels),0.0,1.0);\nfloat coverage;\nif(range.y>range.x) coverage=smoothstep(range.x,range.y,value);\nelse coverage=step(range.x,value);\nif(invert>0.5) coverage=1.0-coverage;\nreturn float4(c.rgb,c.a*coverage);"
+  }
+}

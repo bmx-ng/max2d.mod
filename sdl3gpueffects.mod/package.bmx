@@ -392,3 +392,20 @@ Function CreateTextureMaskEffect:TMax2DShaderEffect(mask:TImage, inverted:Int=Fa
 	effect.SetFloat("invert",inverted<>0)
 	Return effect
 End Function
+
+Private
+Global defaultThresholdMaskPackage:TMax2DShaderPackage
+Public
+Rem
+bbdoc: Creates a texture threshold mask with a smooth transition between low and high.
+about: Defaults to map alpha. Set channels with SetFloat4 to select RGBA weights; their sum is clamped to 0–1 before thresholding. Set range with SetFloat4("range",low,high,0,0). Values at or below low are hidden and values at or above high are visible when high exceeds low. Otherwise a hard cut retains values at least low. Inversion is applied after thresholding. Source straight RGB, including HDR, is preserved; drawing tint and alpha still apply. Supports independent map transforms and shared texture mapping.
+End Rem
+Function CreateThresholdMaskEffect:TMax2DShaderEffect(map:TImage, low:Float=0.4, high:Float=0.6, inverted:Int=False)
+	If Not defaultThresholdMaskPackage Then defaultThresholdMaskPackage=CreateThresholdMaskPackage()
+	Local effect:TMax2DShaderEffect=CreateShaderEffect(defaultThresholdMaskPackage)
+	effect.SetTexture(map)
+	effect.SetFloat4("channels",0,0,0,1)
+	effect.SetFloat4("range",low,high,0,0)
+	effect.SetFloat("invert",inverted<>0)
+	Return effect
+End Function

@@ -483,3 +483,40 @@ recreation. A singular map placement preserves the previous mapping. Comparison
 geometry keeps edges between pixel centres to avoid ambiguous raster coverage.
 The existing transform regression passes on Metal. No shader ABI or assets change
 in this helper; Direct3D runtime remains unverified.
+
+## Soft threshold masks
+
+`CreateThresholdMaskEffect(map, low=0.4, high=0.6, inverted=False)` turns a
+texture into a smooth reveal. The default uses map alpha, including R8 coverage.
+Use `SetFloat4("channels",1,0,0,0)` for red-channel noise maps. The weighted
+channel sum is clamped to 0–1 after map filtering, then thresholded.
+
+Change thresholds using `SetFloat4("range",low,high,0,0)`. When high exceeds
+low, coverage is zero at/below low, one at/above high, and smoothstep between.
+Equal or reversed bounds produce a hard cut at low, retaining equality.
+`SetFloat("invert",1)` inverts the resulting coverage. Source alpha is multiplied
+by coverage; straight RGB retains HDR values, and drawing tint/alpha still apply.
+All parameters must be finite; thresholds may extend outside 0–1.
+
+For a complete animated disappearance with progress 0–1 and positive feather:
+
+```blitzmax
+Local low:Float=progress*(1+feather)-feather
+mask.SetFloat4("range",low,low+feather,0,0)
+```
+
+This includes fully visible and fully hidden endpoints even for map values 0
+and 1. A hard cut at 1 still retains map value 1; advance its threshold above 1
+for complete disappearance. The effect supports `SetTextureTransform`,
+`SetTextureMapping`, bounded atlas views and render-image maps just like texture
+masks. It uses one draw and no intermediate render targets. Software rendering
+rejects the GPU package explicitly.
+
+See [the interactive comparison](../examples/threshold_masks.bmx): Space pauses,
+I inverts, and Up/Down adjusts the transition width.
+
+Validated on 2026-11-20: threshold regressions pass on macOS Metal and Windows
+and Ubuntu Vulkan, including two graphics lifetimes, both sprite paths, atlas
+and render-image maps, hard-cut equality, smooth coverage, inversion, tint, HDR,
+filtered transformed sampling and complete endpoints. Software rejection and
+package regeneration pass. DXBC is compiled; Direct3D runtime is not verified.
