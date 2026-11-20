@@ -21,7 +21,9 @@ and one power cell. The sidebar shows charge, remaining time and earned cells.
 
 Charge and earned cells persist across balls. An active challenge ends on a
 ball drain (including a protected relaunch); a timeout or completion lets the
-ball leave the bay before closing the shutter. Hit the core again to recharge
+ball leave the bay before closing the shutter. The bottom rail slopes down to
+the left, clear of the lowest target; a matching outlet opens with the shutter
+and stays open until the departing ball has cleared it. Hit the core again to recharge
 and replay. Power cells are tracked for now; the other core challenges and
 Overdrive finale are not implemented yet.
 

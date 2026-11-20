@@ -248,6 +248,8 @@ Function DrawTable()
  Paint(232,157,85)
  Local gateLength:Float=1.8*(1-table.forgeAnimation)
  If gateLength>0.01 Then Line(2,7,2,7+gateLength,7); Line(2,10.6-gateLength,2,10.6,7)
+ Local outletLength:Float=1-table.forgeAnimation
+ If outletLength>0.01 Then Line(0.7,11.4,0.7+0.8*outletLength,11.4-0.4*outletLength,5)
  Local forgeX:Float=TX+3.2*SCALE,forgeY:Float=TY+10.9*SCALE
  If table.forgeCharge=3 Then
   Glow(forgeX,forgeY,1.7,255,165,70,Float(0.7+Sin(clockTime*240)*0.2))

@@ -49,7 +49,7 @@ Type TPinTable
  Field gate:b2Shape,gateClosed:Int
  Field rolloverMask:Int,jackpots:Int,rolloverInside:Int[3],jackpotInside:Int
  Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
- Field forgeGate:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
+ Field forgeGate:b2Shape,forgeOutlet:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
  Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
  Field slingChain:Int
  Field maxSpeed:Float
@@ -82,12 +82,19 @@ Type TPinTable
   Spawn()
  End Method
  Method MakeForge()
-  Rail(0.7,6.5,2,7); Rail(0.7,10.2,2,10.6)
+  Rail(0.7,6.5,2,7); Rail(1.5,11,2,10.6)
   Local def:b2BodyDef=New b2BodyDef
   def.SetPosition(New b2Vec2.Create(2,8.8))
   Local shape:b2PolygonDef=New b2PolygonDef
   shape.SetAsBox(0.1,1.8); shape.SetFilterCategoryBits(2); shape.SetRestitution(0.35)
   forgeGate=world.CreateBody(def).CreateShape(shape)
+  ' Open a lower-left outlet with the shutter, so the reversed bottom slope
+  ' drains the bay rather than collecting the ball against the outer wall.
+  def=New b2BodyDef
+  def.SetPosition(New b2Vec2.Create(1.1,11.2)); def.SetAngle(Float(ATan2(-0.4,0.8)))
+  shape=New b2PolygonDef; shape.SetAsBox(Float(Sqr(0.8^2+0.4^2)/2),0.1)
+  shape.SetFilterCategoryBits(2); shape.SetRestitution(0.35)
+  forgeOutlet=world.CreateBody(def).CreateShape(shape)
   For Local i:Int=0 Until 3
    Local t:TPinTarget=targets[5+i]
    t.x=1.15; t.y=7.6+i*1.2
@@ -106,6 +113,7 @@ Type TPinTable
   filter.maskBits=1
   If open Then filter.maskBits=0
   forgeGate.SetFilterData(filter); world.Refilter(forgeGate)
+  forgeOutlet.SetFilterData(filter); world.Refilter(forgeOutlet)
  End Method
  Method HitForge(index:Int)
   If forgeTime<=0 Or (forgeMask & (1 Shl index)) Then Return
@@ -123,7 +131,7 @@ Type TPinTable
   End If
   forgeSwitchInside=inside
   ' Leave the exit open after success/timeout until the ball is safely outside.
-  If forgeOpen And forgeTime=0 And (p.GetX()>2.5 Or p.GetY()<6.5 Or p.GetY()>11.1) Then SetForgeGate(False)
+  If forgeOpen And forgeTime=0 And (p.GetX()>2.5 Or p.GetY()<6.5 Or p.GetY()>11.9) Then SetForgeGate(False)
   If forgeOpen Then forgeAnimation=Min(1,forgeAnimation+PHYSICS_DT*6) Else forgeAnimation=Max(0,forgeAnimation-PHYSICS_DT*6)
  End Method
  Method Rail(x1:Float,y1:Float,x2:Float,y2:Float,target:Int=-1)

@@ -198,7 +198,7 @@ For Local ledge:Int=0 Until 2
  Local escaped:Int
  For Local i:Int=0 Until 360
   t.Tick(False,False)
-  If t.ball.GetPosition().GetX()>2.5 Then escaped=True
+  If t.ball.GetPosition().GetX()>2.5 Or (ledge=1 And t.ball.GetPosition().GetY()>11.9) Then escaped=True
  Next
  Check(escaped,"Ball stuck on Forge ledge "+ledge)
  t.Free()
@@ -238,3 +238,12 @@ Next
 Check(t.slingChain=0,"Flipper contact did not restore slingshots")
 t.Free()
 Print "PASS 40 open-Forge orbit escapes and flipper reset"
+
+' The lower-left outlet stays open until a departing ball has cleared it.
+t=New TPinTable; t.waiting=False; t.SetForgeGate(True)
+t.ball.SetXForm(New b2Vec2.Create(1.1,11.2),0); t.UpdateForge()
+Check(t.forgeOpen,"Forge outlet closed on departing ball")
+t.ball.SetXForm(New b2Vec2.Create(1.1,12),0); t.UpdateForge()
+Check(Not t.forgeOpen,"Forge outlet did not close after ball cleared")
+t.Free()
+Print "PASS Forge lower-left outlet clearance"
