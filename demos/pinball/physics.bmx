@@ -7,7 +7,8 @@ Type TPinRail
 End Type
 Type TPinTarget
  Field x:Float,y:Float,radius:Float,index:Int
- Field cooldown:Float,flash:Float,pending:Int,nx:Float,ny:Float
+ Field extraCooldown:Float,cooldown:Float,flash:Float,pending:Int,nx:Float,ny:Float
+ Field body:b2Body
  Field passive:Int,passiveNX:Float,passiveNY:Float
 End Type
 Type TPinContacts Extends b2ContactListener
@@ -15,18 +16,24 @@ Type TPinContacts Extends b2ContactListener
  Method Add(point:b2ContactPoint) Override
   Local a:b2Shape=point.GetShape1(),b:b2Shape=point.GetShape2()
   Local target:TPinTarget
-  If a.GetBody()=table.ball Then target=TPinTarget(b.GetUserData())
-  If b.GetBody()=table.ball Then target=TPinTarget(a.GetUserData())
+  If table.IsBall(a.GetBody()) Then target=TPinTarget(b.GetUserData())
+  If table.IsBall(b.GetBody()) Then target=TPinTarget(a.GetUserData())
   If Not target Then
    Local other:b2Body
-   If a.GetBody()=table.ball Then other=b.GetBody()
-   If b.GetBody()=table.ball Then other=a.GetBody()
+   If table.IsBall(a.GetBody()) Then other=b.GetBody()
+   If table.IsBall(b.GetBody()) Then other=a.GetBody()
    If other And (other=table.flipper[0] Or other=table.flipper[1]) Then table.slingChain=0
    Return
   End If
+  ' Each contact keeps its own ball and normal, including simultaneous hits.
+  Local source:TPinTarget=target
+  target=New TPinTarget; target.index=source.index
+  If table.IsBall(a.GetBody()) Then target.body=a.GetBody() Else target.body=b.GetBody()
+  table.events=table.events[..table.events.Length+1]; table.events[table.events.Length-1]=target
   Local n:b2Vec2=point.GetNormal()
+
   target.nx=n.GetX(); target.ny=n.GetY()
-  If a.GetBody()=table.ball Then target.nx=-target.nx; target.ny=-target.ny
+  If table.IsBall(a.GetBody()) Then target.nx=-target.nx; target.ny=-target.ny
   If target.index=3 Or target.index=4 Then
    Local faceX:Float=0.8661856
    If target.index=4 Then faceX=-faceX
@@ -53,6 +60,85 @@ Type TPinTable
  Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
  Field slingChain:Int
  Field maxSpeed:Float
+ Field extraBall:b2Body,extraPreviousX:Float,extraPreviousY:Float
+ Field events:TPinTarget[]=New TPinTarget[0]
+ Field frenzyCharge:Int,frenzyHits:Int,frenzyCells:Int,frenzyInside:Int
+ Field frenzyTime:Float,frenzyFlash:Float
+ Field multiCharge:Int,multiHits:Int,multiCells:Int,multiInside:Int,multiActive:Int,multiPending:Int
+ Field multiFlash:Float
+ Field extraRolloverInside:Int[3],extraJackpotInside:Int,extraForgeInside:Int,extraFrenzyInside:Int,extraMultiInside:Int
+ Method IsBall:Int(body:b2Body)
+  Return body=ball Or (extraBall And body=extraBall)
+ End Method
+ Method HitCore(index:Int)
+  If index=0 And forgeTime=0 And forgeCharge<3 Then forgeCharge:+1
+  If index=2 And frenzyTime=0 And frenzyCharge<3 Then frenzyCharge:+1
+  If index=1 And Not multiActive And multiCharge<3 Then multiCharge:+1
+  If frenzyTime>0 Then
+   score:+200; frenzyHits:+1
+   If frenzyHits=10 Then frenzyCells:+1; score:+2000; frenzyTime=0; frenzyFlash=3
+  End If
+  If multiActive And multiHits<8 Then
+   multiHits:+1
+   If multiHits=8 Then multiCells:+1; score:+2000; multiFlash=3
+  End If
+ End Method
+ Method UpdateModes(advance:Int=True)
+  If advance Then
+   frenzyTime=Max(0,frenzyTime-PHYSICS_DT)
+   frenzyFlash=Max(0,frenzyFlash-PHYSICS_DT); multiFlash=Max(0,multiFlash-PHYSICS_DT)
+  End If
+  If waiting Or gameOver Then Return
+  Local p:b2Vec2=ball.GetPosition()
+  Local inside:Int=(p.GetX()-5.6)^2+(p.GetY()-11)^2<0.8^2
+  If frenzyCharge=3 And frenzyTime=0 And Not frenzyInside And Crossed(5.6,11,0.8) Then
+   frenzyCharge=0; frenzyHits=0; frenzyTime=25
+  End If
+  frenzyInside=inside
+  inside=(p.GetX()-8.1)^2+(p.GetY()-10.9)^2<0.65^2
+  If multiCharge=3 And Not multiActive And Not multiInside And Crossed(8.1,10.9,0.65) Then
+   multiCharge=0; multiHits=0; multiActive=True; multiPending=True
+  End If
+  multiInside=inside
+ End Method
+ Method MakeBall:b2Body(x:Float,y:Float)
+  Local def:b2BodyDef=New b2BodyDef
+  def.SetPosition(New b2Vec2.Create(x,y)); def.SetIsBullet(True); def.SetLinearDamping(0.025)
+  Local body:b2Body=world.CreateBody(def),shape:b2CircleDef=New b2CircleDef
+  shape.SetRadius(BALL_RADIUS); shape.SetDensity(1); shape.SetFriction(0.12); shape.SetRestitution(0.4)
+  body.CreateShape(shape); body.SetMassFromShapes()
+  Return body
+ End Method
+ Method ReleaseExtraBall()
+  multiPending=False
+  For Local target:TPinTarget=EachIn targets
+   target.extraCooldown=0
+  Next
+  extraBall=MakeBall(8.8,2.1); extraBall.SetLinearVelocity(New b2Vec2.Create(-3,4))
+  extraPreviousX=8.8; extraPreviousY=2.1
+  extraRolloverInside=New Int[3]; extraJackpotInside=False; extraForgeInside=False
+  extraFrenzyInside=False; extraMultiInside=False
+ End Method
+ Method UpdateExtraObjectives()
+  ' Reuse swept switches with independent entry state for each live ball.
+  Local primary:b2Body=ball,px:Float=previousX,py:Float=previousY
+  Local ri:Int[]=rolloverInside,ji:Int=jackpotInside,fi:Int=forgeSwitchInside
+  Local fr:Int=frenzyInside,mi:Int=multiInside
+  ball=extraBall; previousX=extraPreviousX; previousY=extraPreviousY
+  rolloverInside=extraRolloverInside; jackpotInside=extraJackpotInside; forgeSwitchInside=extraForgeInside
+  frenzyInside=extraFrenzyInside; multiInside=extraMultiInside
+  UpdateObjectives(False); UpdateForge(False); UpdateModes(False)
+  extraJackpotInside=jackpotInside; extraForgeInside=forgeSwitchInside
+  extraFrenzyInside=frenzyInside; extraMultiInside=multiInside
+  ball=primary; previousX=px; previousY=py
+  rolloverInside=ri; jackpotInside=ji; forgeSwitchInside=fi; frenzyInside=fr; multiInside=mi
+ End Method
+ Method LimitBall(body:b2Body)
+  Local v:b2Vec2=body.GetLinearVelocity(),speed:Float=Sqr(v.GetX()^2+v.GetY()^2)
+  maxSpeed=Max(maxSpeed,speed)
+  If speed>32 Then body.SetLinearVelocity(New b2Vec2.Create(v.GetX()*32/speed,v.GetY()*32/speed))
+ End Method
+
  Method New()
   Local bounds:b2AABB=New b2AABB.Create(New b2Vec2.Create(-20,-20),New b2Vec2.Create(40,50))
   world=New b2World.Create(bounds,New b2Vec2.Create(0,12),False)
@@ -122,8 +208,8 @@ Type TPinTable
    forgeTime=0; forgeCells:+1; forgeFlash=3; score:+2000
   End If
  End Method
- Method UpdateForge()
-  forgeTime=Max(0,forgeTime-PHYSICS_DT); forgeFlash=Max(0,forgeFlash-PHYSICS_DT)
+ Method UpdateForge(advance:Int=True)
+  If advance Then forgeTime=Max(0,forgeTime-PHYSICS_DT); forgeFlash=Max(0,forgeFlash-PHYSICS_DT)
   Local p:b2Vec2=ball.GetPosition()
   Local inside:Int=(p.GetX()-3.2)^2+(p.GetY()-10.9)^2<0.65^2
   If forgeCharge=3 And Not waiting And Not gameOver And Not forgeSwitchInside And Crossed(3.2,10.9,0.65) Then
@@ -131,7 +217,17 @@ Type TPinTable
   End If
   forgeSwitchInside=inside
   ' Leave the exit open after success/timeout until the ball is safely outside.
-  If forgeOpen And forgeTime=0 And (p.GetX()>2.5 Or p.GetY()<6.5 Or p.GetY()>11.9) Then SetForgeGate(False)
+  ' Only close after every ball has cleared the bay; evaluate on the primary pass.
+  If advance And forgeOpen And forgeTime=0 Then
+   Local clear:Int=p.GetX()>2.5 Or p.GetY()<6.5 Or p.GetY()>11.9
+   If extraBall Then
+    Local ep:b2Vec2=extraBall.GetPosition()
+    clear=clear And (ep.GetX()>2.5 Or ep.GetY()<6.5 Or ep.GetY()>11.9)
+   End If
+   If clear Then SetForgeGate(False)
+  End If
+
+  If Not advance Then Return
   If forgeOpen Then forgeAnimation=Min(1,forgeAnimation+PHYSICS_DT*6) Else forgeAnimation=Max(0,forgeAnimation-PHYSICS_DT*6)
  End Method
  Method Rail(x1:Float,y1:Float,x2:Float,y2:Float,target:Int=-1)
@@ -183,6 +279,10 @@ Type TPinTable
   gate.SetFilterData(filter); world.Refilter(gate)
  End Method
  Method Spawn()
+  If extraBall Then world.DestroyBody(extraBall); extraBall=Null
+  multiActive=False; multiPending=False; frenzyTime=0
+  frenzyInside=False; multiInside=False
+
   SetGate(False)
   slingChain=0
   forgeTime=0; forgeSwitchInside=False
@@ -192,12 +292,7 @@ Type TPinTable
    rolloverInside[i]=False
   Next
   If ball Then world.DestroyBody(ball)
-  Local def:b2BodyDef=New b2BodyDef
-  def.SetPosition(New b2Vec2.Create(11.25,18.5)); def.SetIsBullet(True); def.SetLinearDamping(0.025)
-  ball=world.CreateBody(def)
-  Local shape:b2CircleDef=New b2CircleDef
-  shape.SetRadius(BALL_RADIUS); shape.SetDensity(1); shape.SetFriction(0.12); shape.SetRestitution(0.4)
-  ball.CreateShape(shape); ball.SetMassFromShapes()
+  ball=MakeBall(11.25,18.5)
   previousX=11.25; previousY=18.5; waiting=True; charge=0; drainDelay=0
  End Method
  Method Launch()
@@ -213,11 +308,11 @@ Type TPinTable
   Local ox:Float=previousX+fraction*dx-x,oy:Float=previousY+fraction*dy-y
   Return ox*ox+oy*oy<radius*radius
  End Method
- Method UpdateObjectives()
-  jackpotTime=Max(0,jackpotTime-PHYSICS_DT); jackpotFlash=Max(0,jackpotFlash-PHYSICS_DT)
+ Method UpdateObjectives(advance:Int=True)
+  If advance Then jackpotTime=Max(0,jackpotTime-PHYSICS_DT); jackpotFlash=Max(0,jackpotFlash-PHYSICS_DT)
   Local p:b2Vec2=ball.GetPosition()
   For Local i:Int=0 Until 3
-   rolloverFlash[i]=Max(0,rolloverFlash[i]-PHYSICS_DT)
+   If advance Then rolloverFlash[i]=Max(0,rolloverFlash[i]-PHYSICS_DT)
    Local x:Float=3.4+i*2.2,inside:Int=(p.GetX()-x)^2+(p.GetY()-2.5)^2<0.55^2
    If Not waiting And Not gameOver And Not rolloverInside[i] And Crossed(x,2.5,0.55) Then
     If Not (rolloverMask & (1 Shl i)) And jackpotTime=0 Then
@@ -249,34 +344,44 @@ Type TPinTable
   Local p:b2Vec2=ball.GetPosition()
   previousX=p.GetX(); previousY=p.GetY()
   For Local t:TPinTarget=EachIn targets
+   t.extraCooldown=Max(0,t.extraCooldown-PHYSICS_DT)
    t.cooldown=Max(0,t.cooldown-PHYSICS_DT); t.flash=Max(0,t.flash-PHYSICS_DT)
   Next
+  If extraBall Then
+   Local ep:b2Vec2=extraBall.GetPosition()
+   extraPreviousX=ep.GetX(); extraPreviousY=ep.GetY()
+  End If
   world.DoStep(PHYSICS_DT,10,6)
+
   ' Callbacks only queue events. Apply gameplay impulses after the world unlocks.
-  For Local t:TPinTarget=EachIn targets
+  For Local t:TPinTarget=EachIn events
+   Local source:TPinTarget=targets[t.index],hitBall:b2Body=t.body
    If t.passive Then
     t.passive=False
     ' Box2D mixes restitution using the larger value, including the ball's.
     ' Remove that rebound on the unpowered back/caps; retain tangential motion.
-    Local v:b2Vec2=ball.GetLinearVelocity(),outward:Float=v.GetX()*t.passiveNX+v.GetY()*t.passiveNY
-    If outward>0 Then ball.SetLinearVelocity(New b2Vec2.Create(v.GetX()-outward*t.passiveNX,v.GetY()-outward*t.passiveNY))
+    Local v:b2Vec2=hitBall.GetLinearVelocity(),outward:Float=v.GetX()*t.passiveNX+v.GetY()*t.passiveNY
+    If outward>0 Then hitBall.SetLinearVelocity(New b2Vec2.Create(v.GetX()-outward*t.passiveNX,v.GetY()-outward*t.passiveNY))
    End If
    If t.pending Then
     t.pending=False
-    If t.cooldown<=0 And Not waiting And Not gameOver Then
-     t.cooldown=0.12; t.flash=0.45; hits:+1
+    Local cooldown:Float=source.cooldown
+    If hitBall=extraBall Then cooldown=source.extraCooldown
+    If cooldown<=0 And Not waiting And Not gameOver Then
+     If hitBall=extraBall Then source.extraCooldown=0.12 Else source.cooldown=0.12
+     source.flash=0.45; hits:+1
      If t.index>=5 Then
       HitForge(t.index-5)
       Continue
      End If
-     If t.index=0 And forgeTime=0 And forgeCharge<3 Then forgeCharge:+1
+     If t.index<3 Then HitCore(t.index)
      Local award:Int=100
      If t.index>=3 Then award=50
      If surge>0 Then award:*2
      score:+award
      If t.index<3 Then litMask=litMask | (1 Shl t.index)
      If litMask=7 Then litMask=0; surge=10; surges:+1; score:+500
-     Local v:b2Vec2=ball.GetLinearVelocity()
+     Local v:b2Vec2=hitBall.GetLinearVelocity()
      Local outgoing:Float=v.GetX()*t.nx+v.GetY()*t.ny
      Local kickSpeed:Float=15
      If t.index=3 Or t.index=4 Then
@@ -287,17 +392,34 @@ Type TPinTable
      Else
       slingChain=0
      End If
-     Local kick:Float=Max(0,kickSpeed-outgoing)*ball.GetMass()
-     ball.ApplyImpulse(New b2Vec2.Create(t.nx*kick,t.ny*kick),ball.GetWorldCenter())
+     Local kick:Float=Max(0,kickSpeed-outgoing)*hitBall.GetMass()
+     hitBall.ApplyImpulse(New b2Vec2.Create(t.nx*kick,t.ny*kick),hitBall.GetWorldCenter())
     End If
    End If
   Next
+  events=New TPinTarget[0]
   UpdateObjectives()
   UpdateForge()
+  UpdateModes()
+  If extraBall Then UpdateExtraObjectives()
+  If multiPending Then ReleaseExtraBall()
+  LimitBall(ball)
+  If extraBall Then LimitBall(extraBall)
+  ' Losing one multiball leaves the survivor in play without spending a life.
+  If extraBall Then
+   If extraBall.GetPosition().GetY()>20.5 Then
+    world.DestroyBody(extraBall); extraBall=Null; multiActive=False
+   Else If ball.GetPosition().GetY()>20.5 Then
+    world.DestroyBody(ball); ball=extraBall; extraBall=Null; multiActive=False
+    For Local target:TPinTarget=EachIn targets
+     target.cooldown=target.extraCooldown
+    Next
+    previousX=extraPreviousX; previousY=extraPreviousY
+    rolloverInside=extraRolloverInside; jackpotInside=extraJackpotInside; forgeSwitchInside=extraForgeInside
+    frenzyInside=extraFrenzyInside; multiInside=extraMultiInside
+   End If
+  End If
   Local v:b2Vec2=ball.GetLinearVelocity(),speed:Float=Sqr(v.GetX()^2+v.GetY()^2)
-  maxSpeed=Max(maxSpeed,speed)
-  ' Bound pathological energy spikes while retaining ordinary flipper shots.
-  If speed>32 Then ball.SetLinearVelocity(New b2Vec2.Create(v.GetX()*32/speed,v.GetY()*32/speed))
   p=ball.GetPosition()
   ' Close only after the whole launched ball has cleared the gate.
   If Not waiting And Not gateClosed And p.GetY()<2.95 Then SetGate(True)
@@ -307,9 +429,9 @@ Type TPinTable
      Spawn(); Launch(); saveTime=0
     Else
      balls:-1
-     If balls=0 Then gameOver=True Else Spawn()
+     If balls=0 Then gameOver=True; frenzyTime=0; forgeTime=0; multiActive=False Else Spawn()
     End If
-   Else If p.GetX()>10.8 And p.GetY()>18 And speed<1 Then
+   Else If Not extraBall And p.GetX()>10.8 And p.GetY()>18 And speed<1 Then
     ' A weak launch may return to the shooter lane without losing a ball.
     waiting=True
    End If

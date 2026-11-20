@@ -247,3 +247,73 @@ t.ball.SetXForm(New b2Vec2.Create(1.1,12),0); t.UpdateForge()
 Check(Not t.forgeOpen,"Forge outlet did not close after ball cleared")
 t.Free()
 Print "PASS Forge lower-left outlet clearance"
+
+' Charge both new modes through actual core contacts, then use activation shots.
+t=New TPinTable; t.waiting=False; t.saveTime=0
+For Local core:Int=1 To 2
+ For Local hit:Int=0 Until 3
+  Local target:TPinTarget=t.targets[core]
+  target.cooldown=0
+  t.ball.SetXForm(New b2Vec2.Create(target.x+1,target.y),0)
+  t.ball.SetLinearVelocity(New b2Vec2.Create(-10,0))
+  For Local tick:Int=0 Until 5
+   t.Tick(False,False)
+  Next
+ Next
+Next
+Check(t.frenzyCharge=3 And t.multiCharge=3,"New core charge from contacts")
+t.previousX=5.6; t.previousY=9.5
+t.ball.SetXForm(New b2Vec2.Create(5.6,12.5),0); t.UpdateModes()
+Check(t.frenzyTime=25 And t.frenzyCharge=0,"Swept frenzy activation")
+Local rewardStart:Int=t.score
+For Local i:Int=0 Until 10
+ t.HitCore(i Mod 3)
+Next
+Check(t.frenzyCells=1 And t.frenzyTime=0 And t.score=rewardStart+4000,"Frenzy completion reward")
+t.HitCore(0); Check(t.frenzyCells=1,"Frenzy repeated completion")
+t.frenzyTime=PHYSICS_DT; t.UpdateModes(); t.UpdateModes(); Check(t.frenzyTime=0,"Frenzy timeout")
+t.previousX=8.1; t.previousY=9.5
+t.ball.SetXForm(New b2Vec2.Create(8.1,12),0); t.UpdateModes()
+Check(t.multiPending And t.multiActive And t.multiCharge=0,"Swept multiball activation")
+t.Tick(False,False)
+Check(t.extraBall<>Null And Not t.multiPending,"Second ball release")
+rewardStart=t.score
+For Local i:Int=0 Until 10
+ t.HitCore(i Mod 3)
+Next
+Check(t.multiCells=1 And t.multiHits=8 And t.score=rewardStart+2000,"Multiball reward exactly once")
+' Both bodies hitting the same core in one step must receive separate impulses.
+t.targets[0].cooldown=0; t.targets[0].extraCooldown=0
+Local startHits:Int=t.hits
+t.ball.SetXForm(New b2Vec2.Create(2.38,5),0); t.ball.SetLinearVelocity(New b2Vec2.Create(10,0))
+t.extraBall.SetXForm(New b2Vec2.Create(4.22,5),0); t.extraBall.SetLinearVelocity(New b2Vec2.Create(-10,0))
+t.Tick(False,False)
+Check(t.hits=startHits+2,"Simultaneous core contacts lost a ball")
+Check(t.ball.GetLinearVelocity().GetX()<0 And t.extraBall.GetLinearVelocity().GetX()>0,"Multiball impulses used wrong body")
+' Either ball can collect existing switches; the Forge cannot close on either.
+t.extraPreviousX=3.4; t.extraPreviousY=1.5
+t.extraBall.SetXForm(New b2Vec2.Create(3.4,3.5),0); t.UpdateExtraObjectives()
+Check(t.rolloverMask & 1,"Second ball missed rollover")
+t.extraPreviousX=8.1; t.extraPreviousY=9.5; t.multiCharge=3
+t.extraBall.SetXForm(New b2Vec2.Create(8.1,12),0); t.UpdateExtraObjectives()
+Check(Not t.multiPending,"Active multiball spawned a third ball")
+t.SetForgeGate(True); t.forgeTime=0
+t.ball.SetXForm(New b2Vec2.Create(6,12),0); t.extraBall.SetXForm(New b2Vec2.Create(1.7,9.4),0)
+t.UpdateForge(); Check(t.forgeOpen,"Forge closed on second ball")
+' Primary drain promotes the survivor; subsequent drain spends exactly one life.
+Local survivor:b2Body=t.extraBall
+t.ball.SetXForm(New b2Vec2.Create(6,22),0); t.Tick(False,False)
+Check(t.ball=survivor And Not t.extraBall And t.balls=3 And Not t.waiting And Not t.multiActive,"Primary drain did not preserve survivor")
+t.ball.SetXForm(New b2Vec2.Create(6,22),0); t.Tick(False,False)
+Check(t.balls=2 And t.waiting And t.frenzyCells=1 And t.multiCells=1,"Final drain/reset lost lives or cells")
+t.Free()
+' The alternate drain order and simultaneous drains must behave identically.
+For Local both:Int=0 To 1
+ t=New TPinTable; t.waiting=False; t.saveTime=0; t.multiActive=True; t.ReleaseExtraBall()
+ t.ball.SetXForm(New b2Vec2.Create(6,12+10*both),0)
+ t.extraBall.SetXForm(New b2Vec2.Create(6,22),0); t.Tick(False,False)
+ Check(Not t.extraBall And Not t.multiActive And t.balls=3-both,"Extra/simultaneous drain life accounting")
+ Check(t.waiting=both,"Extra/simultaneous drain waiting state")
+ t.Free()
+Next
+Print "PASS Frenzy and Multiball charge, activation, rewards, contacts, switches and drains"

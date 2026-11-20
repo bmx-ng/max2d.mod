@@ -24,8 +24,29 @@ ball drain (including a protected relaunch); a timeout or completion lets the
 ball leave the bay before closing the shutter. The bottom rail slopes down to
 the left, clear of the lowest target; a matching outlet opens with the shutter
 and stays open until the departing ball has cleared it. Hit the core again to recharge
-and replay. Power cells are tracked for now; the other core challenges and
-Overdrive finale are not implemented yet.
+and replay.
+
+## Reactor Frenzy and Multiball
+
+Hit the **centre core three times**, then shoot the centre jackpot ring to start
+**Reactor Frenzy**. Make **ten core hits in 25 seconds**: each adds 200 points on
+top of normal scoring, and the tenth awards **2,000 points and a power cell**.
+The centre ring can collect an armed jackpot and activate Frenzy on the same shot.
+
+Hit the **right core three times**, then shoot the blue **MULTI** ring to release
+a second ball from the upper playfield. Make **eight core hits while both balls
+survive** for **2,000 points and a power cell**. Both balls remain in play after
+completion; the reward is awarded once per activation. Losing either ball ends
+the challenge and leaves the survivor in play without spending a life. Only the
+last ball draining uses the ordinary ball-loss/launch-protection rules.
+
+All three challenges can overlap. Charge and earned cells persist across balls;
+Frenzy ends when the final ball drains. Multiball cannot release a third ball.
+Both balls score, activate switches, and keep the Forge exit open while inside.
+The charge bars and sidebar show readiness, objectives, timers and completion.
+Power cells are tracked towards a future Overdrive finale; that finale is not
+implemented yet.
+
 
 ## Build
 
@@ -93,7 +114,7 @@ again to put it back into play.
   virtual controls with rectangular action buttons.
 
 This is an arcade physics prototype. It does not model airborne balls, elevated
-ramps, real-machine rubber calibration, sound, multiball or a saved high score.
+ramps, real-machine rubber calibration, sound or a saved high score.
 Those can follow once the table feel has been tried and tuned. The geometric
 artwork is drawn directly in BlitzMax; there are no external assets.
 
@@ -113,6 +134,8 @@ rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
 Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,
 40 open-Forge trajectories returning to the flippers within eight seconds,
+Frenzy/Multiball charging, activation, completion and expiry, simultaneous contacts,
+second-ball switches, Forge clearance, all drain orders, persistent rewards,
 and a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
@@ -126,6 +149,7 @@ A console build can automate a twelve-second rendered session:
 
 This uses a simple scripted player, writes three screenshots and exits with a
 physics/score summary. It is a smoke test, not a test of human play quality.
+Add `--test-modes` to exercise Frenzy activation and two-ball rendering.
 Use the console build for arguments on macOS: this SDK's GUI appstub discards
 command-line arguments. `--test` runs without screenshots.
 

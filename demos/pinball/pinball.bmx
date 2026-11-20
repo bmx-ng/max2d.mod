@@ -28,9 +28,10 @@ Global paused:Int,leftDown:Int,rightDown:Int,launchDown:Int
 Global trailX:Float[36],trailY:Float[36],trailCount:Int,trailHead:Int
 Global accumulator:Double,renderAlpha:Float,clockTime:Float
 Global lastW:Int,lastH:Int
-Local testMode:Int,captureDir:String,testSteps:Int,previousLaunch:Int,frames:Int
+Local testModes:Int,sawTogether:Int,sawMultiball:Int,sawFrenzy:Int,testMode:Int,captureDir:String,testSteps:Int,previousLaunch:Int,frames:Int
 For Local a:Int=1 Until AppArgs.Length
  If AppArgs[a]="--test" Then testMode=True
+ If AppArgs[a]="--test-modes" Then testMode=True; testModes=True
  If AppArgs[a]="--capture-dir" And a+1<AppArgs.Length Then captureDir=AppArgs[a+1]; testMode=True
 Next
 AppTitle="Flux Pinball | Max2D + Box2D"
@@ -87,7 +88,17 @@ While Not AppTerminate()
  If testMode Then
   dt=1.0/60; paused=False
   If table.waiting And Not table.gameOver Then table.charge=0.7; table.Launch()
+  If testModes And (frames=0 Or frames=30) Then
+   Local x:Float=5.6
+   If frames=0 Then table.multiCharge=3; x=8.1 Else table.frenzyCharge=3
+   table.ball.SetXForm(New b2Vec2.Create(x,9.9),0)
+   table.ball.SetLinearVelocity(New b2Vec2.Create(0,9)); trailCount=0
+  End If
+  If table.extraBall And table.frenzyTime>0 Then sawTogether=True
+  If table.extraBall Then sawMultiball=True
+  If table.frenzyTime>0 Then sawFrenzy=True
   Local ballPos:b2Vec2=table.ball.GetPosition()
+
   leftDown=ballPos.GetY()>15 And ballPos.GetX()<6 And (testSteps Mod 100)<35
   rightDown=ballPos.GetY()>15 And ballPos.GetX()>=6 And (testSteps Mod 100)<35
  End If
@@ -96,7 +107,9 @@ While Not AppTerminate()
   If (previousLaunch Or launchPressed) And Not launchDown Then table.Launch()
   accumulator:+dt
   While accumulator>=PHYSICS_DT
+   Local oldBall:b2Body=table.ball
    table.Tick(leftDown,rightDown); accumulator:-PHYSICS_DT; testSteps:+1
+   If oldBall<>table.ball Then trailCount=0
    Local p:b2Vec2=table.ball.GetPosition()
    If Not table.waiting And Not table.gameOver Then
     trailX[trailHead]=p.GetX(); trailY[trailHead]=p.GetY(); trailHead=(trailHead+1) Mod 36; trailCount=Min(36,trailCount+1)
@@ -120,6 +133,7 @@ While Not AppTerminate()
   If frames=720 Then Exit
  End If
 Wend
+If testModes And (Not sawMultiball Or Not sawFrenzy Or Not sawTogether) Then Throw "Mode rendering smoke test did not activate both modes"
 If testMode Then Print "PASS: Flux runtime, "+testSteps+" physics steps, "+table.hits+" hits, score "+table.score+", peak speed "+table.maxSpeed
 controls.Free()
 If bloom Then bloom.Release()
@@ -215,7 +229,19 @@ Function DrawTable()
   If lit Or t.flash>0 Then Paint(214,255,213) Else Paint(76,160,169)
   DrawOval(x-9,y-9,18,18)
   Paint(118,239,217,0.8); Ring(x,y,14)
+  If i>0 Then
+   Local charge:Int=table.frenzyCharge
+   If i=1 Then charge=table.multiCharge
+   For Local segment:Int=0 Until 3
+    If segment<charge Then Paint(168,172,255) Else Paint(67,79,91)
+    DrawRect(x-22+segment*16,y+34,12,5)
+   Next
+  End If
+  If table.frenzyTime>0 Then
+   Paint(174,143,255,0.65); Ring(x,y,31+Float(Sin(clockTime*300))*3,2)
+  End If
   If t.flash>0 Then
+
    Paint(133,255,226,t.flash*2); Ring(x,y,28+(0.45-t.flash)*100)
   End If
  Next
@@ -234,9 +260,25 @@ Function DrawTable()
   Text("1000",jackpotX-19,jackpotY-10,0.75,255,235,179)
  Else
   Paint(51,74,93); Ring(jackpotX,jackpotY,27)
-  Text("JACKPOT",jackpotX-30,jackpotY-7,0.5,89,118,140)
+  If table.frenzyCharge=3 Then
+   Glow(jackpotX,jackpotY,2.2,179,129,255,0.8)
+   Text("FRENZY",jackpotX-27,jackpotY-7,0.55,213,180,255)
+  Else
+   Text("JACKPOT",jackpotX-30,jackpotY-7,0.5,89,118,140)
+  End If
+
  End If
+ Local multiX:Float=TX+8.1*SCALE,multiY:Float=TY+10.9*SCALE
+ If table.multiCharge=3 Or table.multiActive Then
+  Glow(multiX,multiY,2.0,104,165,255,0.7)
+  Paint(143,192,255)
+ Else
+  Paint(62,84,111)
+ End If
+ Ring(multiX,multiY,22,2)
+ Text("MULTI",multiX-22,multiY-7,0.55,158,190,235)
  ' Forge target bay and retracting shutter.
+
  For Local i:Int=0 Until 3
   Local t:TPinTarget=table.targets[5+i],lit:Int=table.forgeMask & (1 Shl i)
   If table.forgeTime>0 And Not lit Then Glow(TX+t.x*SCALE,TY+t.y*SCALE,1.2,255,148,62,0.6)
@@ -302,6 +344,16 @@ Function DrawTable()
   Paint(223,241,249); DrawOval(x-7,y-7,13,13)
   Paint(255,255,255); DrawOval(x-5,y-5,5,5)
  End If
+ If table.extraBall Then
+  Local p:b2Vec2=table.extraBall.GetPosition()
+  Local x:Float=TX+(table.extraPreviousX+(p.GetX()-table.extraPreviousX)*renderAlpha)*SCALE
+  Local y:Float=TY+(table.extraPreviousY+(p.GetY()-table.extraPreviousY)*renderAlpha)*SCALE
+  Glow(x,y,1.7,160,153,255,0.9)
+  Paint(0,0,0,0.6); DrawOval(x-4,y-3,15,15)
+  Paint(137,146,207); DrawOval(x-8,y-8,16,16)
+  Paint(235,231,255); DrawOval(x-7,y-7,13,13)
+  Paint(255,255,255); DrawOval(x-5,y-5,5,5)
+ End If
  Paint(233,94,128,0.5); Line(4.5,20.2,7.2,20.2,2)
  Text("D R A I N",236,735,0.55,160,94,126)
  If table.surge>0 Then
@@ -329,13 +381,25 @@ Function DrawInterface()
   DrawOval(648+i*27,307,12,12)
  Next
  Paint(35,58,77); DrawRect(570,352,350,1)
- If table.surge>0 Then
+ If table.frenzyTime>0 Or table.multiActive Then
+  Text("CORE CHALLENGES ACTIVE",570,379,0.9,192,180,255)
+  If table.frenzyTime>0 Then
+   Text("Frenzy: 10 core hits in 25s / +200 per hit",570,420,0.73)
+  Else
+   Text("Complete a challenge: +2000 and a cell",570,420,0.73)
+  End If
+  If table.multiActive Then
+   Text("Multiball: 8 core hits while both survive",570,448,0.73)
+  Else
+   Text("Complete a challenge: +2000 and a cell",570,448,0.73)
+  End If
+ Else If table.surge>0 Then
   Text("REACTOR SURGE",570,379,1.3,248,156,206)
   Text("DOUBLE SCORE / "+Int(Ceil(table.surge))+" seconds",570,419,0.9,198,204,232)
  Else
-  Text("LIGHT ALL THREE CORES",570,379,0.96,129,221,214)
-  Text("Complete the set for a 500-point bonus",570,420,0.8)
-  Text("and ten seconds of double scoring.",570,448,0.8)
+  Text("CHARGE THE THREE CORES",570,379,0.9,129,221,214)
+  Text("Three hits charge a core. Shoot its ring.",570,420,0.75)
+  Text("Complete challenges to earn power cells.",570,448,0.75)
  End If
  If table.jackpotFlash>0 Then
   Text("JACKPOT! +1000",570,477,0.85,255,220,142)
@@ -353,8 +417,18 @@ Function DrawInterface()
  Else
   Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
  End If
- Text("Arrows / A D / Shift: flippers",570,536,0.82,143,170,190)
- Text("Hold Space, release to launch",570,560,0.82,143,170,190)
+ Local frenzyText:String="FRENZY: centre core "+table.frenzyCharge+"/3 | Cells "+table.frenzyCells
+ If table.frenzyCharge=3 Then frenzyText="FRENZY READY: shoot centre ring"
+ If table.frenzyTime>0 Then frenzyText="FRENZY: "+table.frenzyHits+"/10 hits / "+Int(Ceil(table.frenzyTime))+"s"
+ If table.frenzyFlash>0 Then frenzyText="FRENZY COMPLETE! +2000 / CELL EARNED"
+ Text(frenzyText,570,536,0.7,202,173,255)
+ Local multiText:String="MULTI: right core "+table.multiCharge+"/3 | Cells "+table.multiCells
+ If table.multiCharge=3 Then multiText="MULTI READY: shoot the blue ring"
+ If table.multiActive Then multiText="MULTIBALL: "+table.multiHits+"/8 core hits"
+ If table.multiActive And table.multiHits=8 Then multiText="MULTIBALL: cell earned / keep both alive"
+ If table.multiFlash>0 Then multiText="MULTI COMPLETE! +2000 / CELL EARNED"
+ Text(multiText,570,560,0.7,150,190,255)
+
  Paint(19,39,56); DrawRect(570,590,350,100)
  Paint(55,100,120); DrawRect(570,590,350,2)
  If table.gameOver Then
@@ -368,13 +442,18 @@ Function DrawInterface()
   Paint(40,66,84); DrawRect(592,651,306,8)
   Paint(124,229,214); DrawRect(592,651,306*table.charge,8)
  Else
-  Text("BALL IN PLAY",592,607,1.1,164,229,217)
+  If table.extraBall Then
+   Text("TWO BALLS IN PLAY",592,607,1.0,184,187,255)
+  Else
+   Text("BALL IN PLAY",592,607,1.1,164,229,217)
+  End If
+
   If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Hit the cores. Keep the ball alive.",592,650,0.78)
  End If
  Paint(16,30,45); DrawRect(570,722,350,50)
  If paused Then Text("RESUME",592,737,0.9) Else Text("PAUSE",592,737,0.9)
  Text("P / Esc",820,739,0.7,109,153,177)
- Text("MAX2D + BOX2D / PHYSICS TABLE 01",570,792,0.6,86,121,148)
+ Text("A/D or arrows: flip | Hold Space: launch",570,792,0.65,116,151,175)
 End Function
 
 ?osx
