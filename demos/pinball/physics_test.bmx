@@ -326,3 +326,25 @@ For Local both:Int=0 To 1
  t.Free()
 Next
 Print "PASS Frenzy and Multiball charge, activation, rewards, contacts, switches and drains"
+
+' Impacts near either end retain the actual world-space contact, not the centre.
+For Local side:Int=0 Until 2
+ For Local endPoint:Int=0 Until 2
+  t=New TPinTable; t.waiting=False; t.saveTime=0
+  Local along:Float=0.25+endPoint*0.5
+  Local x:Float=2+1.5*along,y:Float=12.8+2.6*along,nx:Float=0.8661856,ny:Float=-0.4997225
+  If side=1 Then x=9.6-1.5*along; nx=-nx
+  t.ball.SetXForm(New b2Vec2.Create(x+nx*0.55,y+ny*0.55),0)
+  t.ball.SetLinearVelocity(New b2Vec2.Create(-nx*6,-ny*6))
+  For Local tick:Int=0 Until 12
+   t.Tick(False,False)
+   If t.hits>0 Then Exit
+  Next
+  Local target:TPinTarget=t.targets[3+side]
+  Check(target.flash>0,"Off-centre sling impact not detected")
+  Check(Abs(target.impactX-(x+nx*0.1))<0.12 And Abs(target.impactY-(y+ny*0.1))<0.12,"Sling effect origin does not match contact point")
+  Check(Abs(target.impactY-target.y)>0.45,"Sling effect still uses target centre")
+  t.Free()
+ Next
+Next
+Print "PASS both ends of both slingshots retain actual impact positions"

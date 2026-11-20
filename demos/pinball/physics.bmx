@@ -8,6 +8,7 @@ Type TPinRail
 End Type
 Type TPinTarget
  Field x:Float,y:Float,radius:Float,index:Int
+ Field impactX:Float,impactY:Float
  Field extraCooldown:Float,cooldown:Float,flash:Float,pending:Int,nx:Float,ny:Float
  Field body:b2Body
  Field passive:Int,passiveNX:Float,passiveNY:Float
@@ -31,6 +32,8 @@ Type TPinContacts Extends b2ContactListener
   target=New TPinTarget; target.index=source.index
   If table.IsBall(a.GetBody()) Then target.body=a.GetBody() Else target.body=b.GetBody()
   table.events=table.events[..table.events.Length+1]; table.events[table.events.Length-1]=target
+  Local position:b2Vec2=point.GetPosition()
+  target.impactX=position.GetX(); target.impactY=position.GetY()
   Local n:b2Vec2=point.GetNormal()
 
   target.nx=n.GetX(); target.ny=n.GetY()
@@ -372,6 +375,7 @@ Type TPinTable
     If hitBall=extraBall Then cooldown=source.extraCooldown
     If cooldown<=0 And Not waiting And Not gameOver Then
      If hitBall=extraBall Then source.extraCooldown=0.12 Else source.cooldown=0.12
+     source.impactX=t.impactX; source.impactY=t.impactY
      source.flash=0.45; hits:+1
      If t.index>=5 Then
       HitForge(t.index-5)

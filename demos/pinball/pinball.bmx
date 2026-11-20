@@ -328,7 +328,7 @@ Function DrawTable()
  End If
  For Local i:Int=3 Until 5
   Local t:TPinTarget=table.targets[i]
-  If t.flash>0 Then Glow(TX+t.x*SCALE,TY+t.y*SCALE,3,245,68,146,t.flash)
+  If t.flash>0 Then Glow(TX+t.impactX*SCALE,TY+t.impactY*SCALE,3,245,68,146,t.flash)
  Next
  For Local i:Int=0 Until 2
   Local p:b2Vec2=table.flipper[i].GetPosition(),angle:Float=table.previousAngle[i]+(table.flipper[i].GetAngle()-table.previousAngle[i])*renderAlpha

@@ -144,7 +144,7 @@ Type TPinVisuals
     If i=0 Or i>=5 Then r=255; g=175; b=75
     If i=2 Then r=192; g=142; b=255
     If i=3 Or i=4 Then r=255; g=94; b=173; soundIndex=1
-    Burst(TX+target.x*SCALE,TY+target.y*SCALE,r,g,b)
+    Burst(TX+target.impactX*SCALE,TY+target.impactY*SCALE,r,g,b)
     audio.Play(soundIndex,target.x,Float(0.9+i*0.055))
    End If
    oldFlash[i]=target.flash
