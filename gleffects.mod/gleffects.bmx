@@ -1,7 +1,7 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for saturation, colourize and layer blur effects.
+bbdoc: Optional OpenGL 2.1 provider for saturation, colourize, layer blur and outline effects.
 about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Other shader effects remain unsupported.
 End Rem
 Module Max2D.GLEffects
@@ -16,6 +16,7 @@ Private
 Global saturationKey:Byte
 Global colorizeKey:Byte
 Global blurKey:Byte
+Global outlineKey:Byte
 
 Const fragmentHeader:String = """
 #version 120
@@ -82,9 +83,39 @@ void main() {
 }
 """
 
+Const outlineFragment:String = """
+#version 120
+uniform sampler2D image;
+uniform int sourceTarget, premultiply, mask;
+uniform vec4 parameters;
+varying vec4 tint;
+varying vec2 texcoord;
+float sampleAlpha(vec2 uv) {
+	// Keep exact edge taps inside despite interpolator rounding.
+	if(any(lessThan(uv,vec2(-0.000001))) || any(greaterThan(uv,vec2(1.000001)))) return 0.0;
+	if(sourceTarget!=0) uv.y=1.0-uv.y;
+	return texture2D(image,uv).a;
+}
+void main() {
+	float centre=sampleAlpha(texcoord);
+	float expanded=centre;
+	for(int y=-4;y<=4;++y) {
+		for(int x=-4;x<=4;++x) {
+			int distance=x*x+y*y;
+			if(distance>0 && float(distance)<=parameters.z*parameters.z)
+				expanded=max(expanded,sampleAlpha(texcoord+vec2(float(x),float(y))*parameters.xy));
+		}
+	}
+	vec4 c=vec4(tint.rgb,max(expanded-centre,0.0)*tint.a);
+	if(mask!=0 && c.a<0.5) discard;
+	if(premultiply!=0) c.rgb*=c.a;
+	gl_FragColor=c;
+}
+"""
+
 Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	Method Handles:Int(context:TMax2DContext,effect:TMax2DImageEffect) Override
-		Return TGLMax2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null)
+		Return TGLMax2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics,effect:TMax2DImageEffect) Override
@@ -107,13 +138,15 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 		Local key:Byte Ptr=Varptr saturationKey
 		If TMax2DColorizeEffect(effect) Then key=Varptr colorizeKey
 		If TMax2DBlurEffect(effect) Then key=Varptr blurKey
+		If TMax2DOutlineEffect(effect) Then key=Varptr outlineKey
 		Local shader:Byte Ptr=m2d_gl_find_image_effect(context.native,key)
 		If shader Then Return shader
 		Local body:String=saturationBody
 		If TMax2DColorizeEffect(effect) Then body=colorizeBody
 		Local code:String=fragmentHeader+body+fragmentFooter
-		Local baseLevelOnly:Int=TMax2DBlurEffect(effect)<>Null
-		If baseLevelOnly Then code=blurFragment
+		Local baseLevelOnly:Int=TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null
+		If TMax2DBlurEffect(effect) Then code=blurFragment
+		If TMax2DOutlineEffect(effect) Then code=outlineFragment
 		Local source:Byte Ptr=code.ToUTF8String()
 		Try
 			Return m2d_gl_create_image_effect(context.native,key,source,baseLevelOnly)
@@ -123,6 +156,7 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	End Method
 
 	Method DrawMany(canvas:TMax2DGraphics,image:TImage,effect:TMax2DImageEffect,positions:Float[],x:Float,y:Float,frame:Int)
+		If TMax2DOutlineEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: outline requires a render-image source"
 		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TGLMax2DContext=TGLMax2DContext(canvas.context)
 		Local shader:Byte Ptr=GetShader(context,effect)
@@ -131,6 +165,8 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect=TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gl_select_image_effect(context.native,shader,saturation.GetAmount(),0,0,0)
+		Else If TMax2DOutlineEffect(effect) Then
+			m2d_gl_select_image_effect(context.native,shader,1.0/image.width,1.0/image.height,TMax2DOutlineEffect(effect).GetRadius(),0)
 		Else If TMax2DBlurEffect(effect) Then
 			Local blur:TMax2DBlurEffect=TMax2DBlurEffect(effect)
 			Local dx:Float,dy:Float

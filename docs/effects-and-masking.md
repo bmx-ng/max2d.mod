@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize/blur |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize/blur/outline |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -31,7 +31,7 @@ actual HDR display output.
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
 - Custom shader packages use native SDL GPU. OpenGL has an optional saturation/
-  colourize/blur provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
+  colourize/blur/outline provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
   the package API; capability queries report unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
@@ -90,7 +90,7 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 | Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
 | Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
-SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation, colourize and
+SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation, colourize, outlines and
 blur require `Max2D.GLEffects`. The descriptions and buffer owners live in
 `Max2D.Effects`. Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
@@ -253,7 +253,7 @@ colour, coordinate and two-texture shaders use the versioned package API below.
 
 ## Basic OpenGL image effects
 
-Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize and
+Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize, outlines and
 layer blur through the existing effect API:
 
 ```blitzmax
@@ -297,11 +297,17 @@ interpolator rounding. Floating-point layers retain HDR and negative RGB values.
 Blur always samples mip level zero; the previous texture mip range is restored
 before returning, so subsequent ordinary draws resume normal mip selection.
 
-Layer chains can combine saturation, colourize and blur. The existing retained
+Outlines use a circular alpha stencil with integer radius 0–4, returning the
+maximum neighbouring alpha minus the centre alpha. Source RGB is ignored; drawing
+tint colours the result. They require a render image, sample mip zero with
+transparent outside taps, and restore the mip range just as blur does.
+
+Layer chains can combine saturation, colourize, outlines and blur. The existing retained
 effect buffers and scaled-blur helper work without another OpenGL-specific API.
-The blur, colourize, layer-chain and scaled-blur examples accept `-ud max2d_gl`.
+The blur, colourize, outline, layer-chain and scaled-blur examples accept
+`-ud max2d_gl`.
 Chains containing unsupported effects reject during preflight before writing.
-Outlines, bloom extraction, tone mapping, custom shader packages and secondary maps
+Bloom extraction, tone mapping, custom shader packages and secondary maps
 remain future OpenGL work. The full effects gallery still requires SDL GPU;
 [the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
 Left/Right adjusts saturation and Space changes the silhouette colour.
@@ -692,7 +698,7 @@ or a reliable speedup, and the three rebuild cases use different blur radii.
 ## Alpha outlines
 
 `CreateOutlineEffect(radius)` returns a reusable `TMax2DOutlineEffect` for the
-optional native SDL GPU provider. Radius is an integer from zero to four source
+optional native SDL GPU or OpenGL provider. Radius is an integer from zero to four source
 pixels; `SetRadius` validates changes and `GetRadius` returns the current value.
 It works with `DrawImageEffect`, `DrawImageEffectBatch` and `ApplyLayerEffects`.
 Sources must be render images; ordinary images and atlas entries should first
@@ -722,6 +728,30 @@ draw the cached border behind the original. The
 [interactive example](../examples/outline_effects.bmx) shows the original,
 white outline mask, and coloured composite; arrow keys adjust radius and Space
 changes colour. It rebuilds the two-pass chain only when settings change.
+
+### OpenGL outline validation (2026-11-20)
+
+Six selected release regressions pass on each of macOS, Windows and Ubuntu
+OpenGL: `gl_effects`, `gl_effects_optional`, `outline_effects`, `blur_effects`,
+`colorize_effects` and `layer_effect_chain`. The shared outline test also passes
+on macOS SDL GPU and software SDL (explicit rejection), for 20 selected checks
+across the profiles, excluding reruns.
+
+The OpenGL provider runs the same independent CPU disk-stencil comparisons as
+SDL GPU, for every pixel at radii 0–4. Cases include holes, edge content, partial
+alpha, source-colour independence, parameter changes, batched copies, drawing
+alpha/tint, custom blending, colourize chains and two graphics lifetimes.
+Ordinary images and feedback are rejected. Warmed two-copy batches use one
+submission with no texture creation, upload or readback.
+
+The OpenGL-specific regression also checks mip-range restoration and ordinary
+mipmapped drawing after an outline. The optional-import regression confirms
+outlines remain unavailable without `Max2D.GLEffects`.
+
+The example builds with `-ud max2d_gl -t gui`. Its original, white mask and
+coloured composite were visually checked on macOS, including radius and colour
+changes. This is correctness coverage, not a GPU performance measurement or
+coverage of every legacy OpenGL driver.
 
 ### Outline validation (2026-11-17)
 

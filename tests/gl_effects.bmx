@@ -18,7 +18,7 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(96,96)
 		Check(Max2DSupportsImageEffect(saturation) And Max2DSupportsImageEffect(colour),"GL providers required")
-		Check(Not Max2DSupportsImageEffect(CreateOutlineEffect()),"Outline remains unsupported")
+		Check(Not Max2DSupportsImageEffect(CreateBrightPassEffect()),"Bright pass remains unsupported")
 		Local pixels:TPixmap=CreatePixmap(4,4,PF_RGBA8888)
 		For Local y:Int=0 Until 4
 			For Local x:Int=0 Until 4
@@ -84,6 +84,15 @@ Try
 		Local mipPixels:TPixmap=ReadRenderImage(result)
 		Check((mipPixels.ReadPixel(0,0)&255)>250,"Minified blur reads base level")
 		Check((mipPixels.ReadPixel(1,0)&255)<6,"Ordinary drawing resumes mip sampling")
+		SetScale(1.0/32,1.0/32)
+		DrawImageEffect(mipSource,CreateOutlineEffect(4),2,0)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,Varptr baseLevel)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,Varptr maxLevel)
+		Check(baseLevel=0 And maxLevel>0,"Outline restores mip range")
+		DrawImage(mipSource,3,0); SetScale(1,1)
+		mipPixels=ReadRenderImage(result)
+		Check(((mipPixels.ReadPixel(2,0) Shr 24)&255)=0,"Opaque interior has no outline")
+		Check((mipPixels.ReadPixel(3,0)&255)<6,"Ordinary mip sampling after outline")
 		If Max2DSupportsRenderImage(4,4,0,PF_RGBA32F) Then
 			Local values:Float[]=[Float(4),0.5,-0.25,0.5, 0.25,2,0.5,0.25, 0.1,0.2,3,1, 1,1,1,0.75]
 			Local bytes:Byte[]=New Byte[64]; MemCopy(bytes,values,64)

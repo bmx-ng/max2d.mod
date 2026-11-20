@@ -389,8 +389,8 @@ see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026
 The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
 composition and custom shader/map effects.
 
-OpenGL now has an optional `Max2D.GLEffects` provider for saturation, colourize and
+OpenGL now has an optional `Max2D.GLEffects` provider for saturation, colourize, outlines and
 premultiplied layer blur, including repeated-sprite batches, layer chains and
-retained scaled-blur buffers. Build the blur, scaled-blur, colourize and layer-chain
+retained scaled-blur buffers. Build the blur, scaled-blur, colourize, outline and layer-chain
 examples with `-ud max2d_gl` to use it. See the [OpenGL comparison](examples/gl_effects.bmx)
 and [support details](docs/effects-and-masking.md#basic-opengl-image-effects).

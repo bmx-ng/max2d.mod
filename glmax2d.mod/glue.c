@@ -330,7 +330,7 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
     glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)0);
     glVertexAttribPointer(1,4,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(2*sizeof(float)));
     glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(6*sizeof(float)));
-    /* GLSL 1.20 has no core fragment textureLod. Restrict blur sampling to
+    /* GLSL 1.20 has no core fragment textureLod. Restrict neighbourhood-effect sampling to
        level zero and restore the texture's existing mip range after the draw. */
     GLint base_level=0,max_level=0;
     if(p->base_level_only && f) {
