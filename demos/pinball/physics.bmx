@@ -51,6 +51,9 @@ Type TPinTable
  Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
  Field forgeGate:b2Shape,forgeOutlet:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
  Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
+ Field letterMask:Int,wordsCompleted:Int,laneLeftHeld:Int,laneRightHeld:Int
+ Field wordFlash:Float,laneFlash:Float[4]
+ Field laneX:Float[]=[2.2,3.7,7.9,9.3]
  Field slingChain:Int
  Field maxSpeed:Float
  Method New()
@@ -233,7 +236,41 @@ Type TPinTable
   End If
   jackpotInside=inside
  End Method
+ Method SetLaneControls(left:Int,right:Int,enabled:Int=True)
+  Local shift:Int
+  If enabled Then
+   If left And Not laneLeftHeld Then shift:-1
+   If right And Not laneRightHeld Then shift:+1
+   If shift<0 Then letterMask=(letterMask Shr 1) | ((letterMask & 1) Shl 3)
+   If shift>0 Then letterMask=((letterMask Shl 1) & 15) | (letterMask Shr 3)
+  End If
+  laneLeftHeld=left; laneRightHeld=right
+ End Method
+ Method UpdateLetterLanes()
+  wordFlash=Max(0,wordFlash-PHYSICS_DT)
+  For Local i:Int=0 Until 4
+   laneFlash[i]=Max(0,laneFlash[i]-PHYSICS_DT)
+  Next
+  If waiting Or gameOver Then Return
+  Local p:b2Vec2=ball.GetPosition()
+  ' Only downward crossings score. Interpolate across the switch line so
+  ' fast balls cannot skip it, and lingering over a letter cannot repeat it.
+  If previousY>=14.3 Or p.GetY()<14.3 Then Return
+  Local x:Float=previousX+(p.GetX()-previousX)*(14.3-previousY)/(p.GetY()-previousY)
+  For Local i:Int=0 Until 4
+   Local halfWidth:Float=0.45
+   If i=0 Or i=3 Then halfWidth=0.3
+   If Abs(x-laneX[i])<=halfWidth Then
+    letterMask:|1 Shl i; laneFlash[i]=0.5
+    If letterMask=15 Then
+     score:+1000; wordsCompleted:+1; letterMask=0; wordFlash=2
+    End If
+    Exit
+   End If
+  Next
+ End Method
  Method Tick(left:Int,right:Int)
+  SetLaneControls(left,right,Not gameOver)
   elapsed:+PHYSICS_DT; surge=Max(0,surge-PHYSICS_DT); saveTime=Max(0,saveTime-PHYSICS_DT)
   For Local i:Int=0 Until 2
    previousAngle[i]=flipper[i].GetAngle()
@@ -293,6 +330,7 @@ Type TPinTable
    End If
   Next
   UpdateObjectives()
+  UpdateLetterLanes()
   UpdateForge()
   Local v:b2Vec2=ball.GetLinearVelocity(),speed:Float=Sqr(v.GetX()^2+v.GetY()^2)
   maxSpeed=Max(maxSpeed,speed)

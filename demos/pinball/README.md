@@ -11,6 +11,21 @@ Roll over the three numbered top lights (150 points each) to arm the centre
 jackpot for 15 seconds. Pass through its glowing ring to collect 1,000 points,
 then build the next set. An expired jackpot requires another set of lights.
 
+## FLUX letter lanes
+
+Four painted rollover lanes flank the slingshots: **F L U X**, from left to
+right. All feed back toward the flippers through the existing table guides.
+A downward passage lights that lane; upward travel does not count.
+
+Each fresh left/right flipper press rotates the lit pattern in that direction,
+including wrapping around the ends. Holds shift only once; simultaneous presses
+cancel each other. Keyboard, mouse and touch flippers share this behaviour.
+Time a shift before the ball reaches a lane to collect a missing light.
+
+Light all four for **1,000 points**, then build another word. Letter progress
+and the completed-word count persist across balls and reset with a new game.
+The lane lights flash on completion and the sidebar shows the collected pattern.
+
 ## Forge challenge
 
 Hit the **left core three times** to fill its three orange charge segments.
@@ -111,7 +126,7 @@ From the repository directory:
 Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
-Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\n40 open-Forge trajectories returning to the flippers within eight seconds,\nand a deterministic two-minute simulation with repeated strokes.
+Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\n40 open-Forge trajectories returning to the flippers within eight seconds,\nFLUX lane crossings, word rewards, control edges and progress persistence,\nand a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
 

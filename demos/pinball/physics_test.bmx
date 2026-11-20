@@ -247,3 +247,37 @@ t.ball.SetXForm(New b2Vec2.Create(1.1,12),0); t.UpdateForge()
 Check(Not t.forgeOpen,"Forge outlet did not close after ball cleared")
 t.Free()
 Print "PASS Forge lower-left outlet clearance"
+
+' Real downward passages through all four safe lanes complete a word once.
+t=New TPinTable; t.waiting=False
+For Local lane:Int=0 Until 4
+ t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],14),0)
+ t.ball.SetLinearVelocity(New b2Vec2.Create(0,6))
+ For Local i:Int=0 Until 8
+  t.Tick(False,False)
+ Next
+ If lane<3 Then Check(t.letterMask=(1 Shl (lane+1))-1,"Letter lane did not light: "+lane)
+Next
+Check(t.wordsCompleted=1 And t.letterMask=0 And t.score=1000,"FLUX word reward/reset")
+' Upward crossings and stationary balls cannot score.
+t.previousX=t.laneX[0]; t.previousY=14.6; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],14),0)
+t.UpdateLetterLanes(); Check(t.letterMask=0,"Upward lane crossing scored")
+t.previousY=14.3; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],14.3),0)
+t.UpdateLetterLanes(); Check(t.letterMask=0,"Stationary lane scored")
+' Swept crossings still light a lane even when both samples are far away.
+t.previousY=13.5; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],15),0)
+t.UpdateLetterLanes(); Check(t.letterMask=1,"Fast lane crossing missed")
+t.UpdateLetterLanes(); Check(t.letterMask=1 And t.score=1000,"Lit lane repeated bonus")
+' Left/right rotate the illuminated pattern; holds and disabled input do not.
+t.SetLaneControls(True,False); Check(t.letterMask=8,"Left lane wrap")
+t.SetLaneControls(True,False); Check(t.letterMask=8,"Held flipper shifted twice")
+t.SetLaneControls(False,False); t.SetLaneControls(False,True)
+Check(t.letterMask=1,"Right lane wrap")
+t.SetLaneControls(False,False); t.SetLaneControls(True,True)
+Check(t.letterMask=1,"Simultaneous flippers must cancel lane shift")
+t.SetLaneControls(False,False); t.SetLaneControls(True,False,False)
+Check(t.letterMask=1,"Paused input shifted letters")
+t.SetLaneControls(True,False); Check(t.letterMask=1,"Resume fabricated a fresh press")
+t.Spawn(); Check(t.letterMask=1 And t.wordsCompleted=1,"Letter progress lost across balls")
+t.Free()
+Print "PASS FLUX lanes, swept/downward detection, bonus, edge controls and persistence"

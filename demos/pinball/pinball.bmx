@@ -91,6 +91,8 @@ While Not AppTerminate()
   leftDown=ballPos.GetY()>15 And ballPos.GetX()<6 And (testSteps Mod 100)<35
   rightDown=ballPos.GetY()>15 And ballPos.GetX()>=6 And (testSteps Mod 100)<35
  End If
+ ' Sample edges every rendered frame, including frames with no physics step.
+ table.SetLaneControls(leftDown,rightDown,Not paused And Not table.gameOver)
  If Not paused And Not table.gameOver Then
   If table.waiting And launchDown Then table.charge=Min(1,table.charge+dt*0.8)
   If (previousLaunch Or launchPressed) And Not launchDown Then table.Launch()
@@ -191,8 +193,6 @@ Function DrawTable()
  Next
  Paint(27,49,65); Ring(TX+5.6*SCALE,TY+7*SCALE,125)
  Paint(23,39,58); Ring(TX+5.6*SCALE,TY+7*SCALE,143)
- Text("F L U X",203,490,1.45,41,72,88)
- Text("ENERGY REACTOR",198,530,0.6,49,82,97)
  For Local rail:TPinRail=EachIn table.rails
   Paint(2,5,14,0.8); Line(rail.x1+0.09,rail.y1+0.16,rail.x2+0.09,rail.y2+0.16,11)
   If rail.active Then Paint(119,48,92) Else Paint(35,83,104)
@@ -289,6 +289,21 @@ Function DrawTable()
   If i=1 Then anchor=8.4
   Paint(232,242,246); DrawOval(TX+anchor*SCALE-5,TY+17*SCALE-5,10,10)
  Next
+ ' Painted rollover lanes sit either side of each slingshot; all feed inwards.
+ Local letters:String="FLUX"
+ For Local i:Int=0 Until 4
+  Local x:Float=table.laneX[i],lit:Int=table.letterMask & (1 Shl i)
+  Paint(46,72,92,0.65)
+  Line(x-0.25,13.7,x-0.25,14.7,1); Line(x+0.25,13.7,x+0.25,14.7,1)
+  If lit Or table.wordFlash>0 Then
+   Glow(TX+x*SCALE,TY+14.15*SCALE,1.2,146,178,255,0.65+table.laneFlash[i])
+   Text(letters[i..i+1],TX+x*SCALE-6,TY+14.15*SCALE-10,0.85,219,228,255)
+  Else
+   Text(letters[i..i+1],TX+x*SCALE-6,TY+14.15*SCALE-10,0.85,103,127,160)
+  End If
+  Paint(125,155,199)
+  Line(x-0.13,14.55,x,14.7,1); Line(x,14.7,x+0.13,14.55,1)
+ Next
  For Local n:Int=0 Until trailCount
   Local idx:Int=(trailHead-1-n+36) Mod 36,fade:Float=1-Float(n)/36
   Paint(94,211,238,fade*fade*0.22); DrawOval(TX+trailX[idx]*SCALE-4*fade,TY+trailY[idx]*SCALE-4*fade,8*fade,8*fade)
@@ -354,7 +369,7 @@ Function DrawInterface()
   Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
  End If
  Text("Arrows / A D / Shift: flippers",570,536,0.82,143,170,190)
- Text("Hold Space, release to launch",570,560,0.82,143,170,190)
+ Text("Space: launch / Flippers shift lane lights",570,560,0.72,143,170,190)
  Paint(19,39,56); DrawRect(570,590,350,100)
  Paint(55,100,120); DrawRect(570,590,350,2)
  If table.gameOver Then
@@ -368,8 +383,16 @@ Function DrawInterface()
   Paint(40,66,84); DrawRect(592,651,306,8)
   Paint(124,229,214); DrawRect(592,651,306*table.charge,8)
  Else
-  Text("BALL IN PLAY",592,607,1.1,164,229,217)
-  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Hit the cores. Keep the ball alive.",592,650,0.78)
+   If table.wordFlash>0 Then
+   Text("FLUX COMPLETE! +1000",592,607,0.95,207,218,255)
+  Else
+   Local word:String=""
+   For Local i:Int=0 Until 4
+    If table.letterMask & (1 Shl i) Then word:+"FLUX"[i..i+1]+" " Else word:+"- "
+   Next
+   Text("LANES: "+word,592,607,1.0,184,205,247)
+  End If
+  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Complete FLUX for 1000 / Words "+table.wordsCompleted,592,650,0.73)
  End If
  Paint(16,30,45); DrawRect(570,722,350,50)
  If paused Then Text("RESUME",592,737,0.9) Else Text("PAUSE",592,737,0.9)
