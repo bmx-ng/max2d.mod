@@ -13,6 +13,9 @@ Import BRL.StandardIO
 Import BRL.FileSystem
 Import BRL.PNGLoader
 Import Pub.StdC
+?osx
+Import "macos_input.m"
+?
 Include "physics.bmx"
 Include "input.bmx"
 
@@ -31,11 +34,8 @@ For Local a:Int=1 Until AppArgs.Length
  If AppArgs[a]="--capture-dir" And a+1<AppArgs.Length Then captureDir=AppArgs[a+1]; testMode=True
 Next
 AppTitle="Flux Pinball | Max2D + Box2D"
-?osx And Not max2d_gl
-' Set before SDL creates its Cocoa application/window. This is process-local.
-Local hintName:Byte Ptr="SDL_MAC_PRESS_AND_HOLD".ToCString(),hintValue:Byte Ptr="0".ToCString()
-PinballSDLSetHint(hintName,hintValue)
-MemFree(hintName); MemFree(hintValue)
+?osx
+If Not FluxDisablePressAndHold() Then Throw "Could not disable macOS accent menu"
 ?
 Graphics WIDTH,HEIGHT,0
 SetVirtualResolution(WIDTH,HEIGHT,VIRTUAL_LETTERBOX)
@@ -332,8 +332,8 @@ Function DrawInterface()
  Text("MAX2D + BOX2D / PHYSICS TABLE 01",570,792,0.6,86,121,148)
 End Function
 
-?osx And Not max2d_gl
+?osx
 Extern "C"
- Function PinballSDLSetHint:Byte(name:Byte Ptr,value:Byte Ptr)="SDL_SetHint"
+ Function FluxDisablePressAndHold:Int()="flux_disable_press_and_hold"
 End Extern
 ?

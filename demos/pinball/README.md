@@ -44,8 +44,10 @@ Both flippers support simultaneous touches. Each captures its finger until
 release, including if it slides outside the initial hit area. Launcher and pause
 panels have rectangular touch regions matching their artwork. App suspension
 cancels touches and pauses. Controls account for native output scale and
-letterboxing. The macOS SDL build disables the accent popup for held keys using
-a process-local SDL hint before creating the window. Physical touchscreen hardware has not yet been tested.
+letterboxing. On macOS, a small Cocoa bridge disables the held-key accent popup
+using a process-only user-default override. SDL's hint alone cannot do this here:
+BlitzMax creates NSApp first, bypassing SDL's default-registration path. No
+persistent user preference or application plist is changed. Physical touchscreen hardware has not yet been tested.
 
 The table starts with a ball in the shooter lane. A quick tap launches at minimum
 power; holding charges a stronger shot. A one-way gate closes after the ball
