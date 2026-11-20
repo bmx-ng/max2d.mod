@@ -21,7 +21,7 @@ Type TPinContacts Extends b2ContactListener
   Local n:b2Vec2=point.GetNormal()
   target.nx=n.GetX(); target.ny=n.GetY()
   If a.GetBody()=table.ball Then target.nx=-target.nx; target.ny=-target.ny
-  If target.index>=3 Then
+  If target.index=3 Or target.index=4 Then
    Local faceX:Float=0.8661856
    If target.index=4 Then faceX=-faceX
    ' Only the long face pointing into the playfield is powered rubber.
@@ -36,13 +36,15 @@ Type TPinContacts Extends b2ContactListener
 End Type
 Type TPinTable
  Field world:b2World,ball:b2Body,flipper:b2Body[2],joint:b2RevoluteJoint[2]
- Field rails:TPinRail[]=New TPinRail[0],targets:TPinTarget[5],contacts:TPinContacts
+ Field rails:TPinRail[]=New TPinRail[0],targets:TPinTarget[8],contacts:TPinContacts
  Field score:Int,balls:Int=3,waiting:Int=True,gameOver:Int,hits:Int,litMask:Int,surges:Int
  Field elapsed:Float,surge:Float,charge:Float,saveTime:Float,drainDelay:Float
  Field previousX:Float,previousY:Float,previousAngle:Float[2]
  Field gate:b2Shape,gateClosed:Int
  Field rolloverMask:Int,jackpots:Int,rolloverInside:Int[3],jackpotInside:Int
  Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
+ Field forgeGate:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
+ Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
  Field maxSpeed:Float
  Method New()
   Local bounds:b2AABB=New b2AABB.Create(New b2Vec2.Create(-20,-20),New b2Vec2.Create(40,50))
@@ -54,7 +56,7 @@ Type TPinTable
   Rail(12,2.5,12,19.1); Rail(10.5,4,10.5,19.1); Rail(10.5,19.1,12,19.1)
   Rail(0.7,13,3.4,17); Rail(10.5,13,8.4,17)
   Rail(0.7,13,0.7,20); Rail(10.5,13,10.5,20)
-  For Local i:Int=0 Until 5
+  For Local i:Int=0 Until 8
    targets[i]=New TPinTarget; targets[i].index=i
   Next
   Bumper(0,3.3,5.0); Bumper(1,7.9,5.0); Bumper(2,5.6,8.0)
@@ -69,7 +71,51 @@ Type TPinTable
   gateShape.SetAsBox(0.75,0.1); gateShape.SetFilterCategoryBits(2); gateShape.SetFilterMaskBits(0)
   gateShape.SetRestitution(0.55); gateShape.SetFriction(0.08)
   gate=world.CreateBody(gateDef).CreateShape(gateShape)
+  MakeForge()
   Spawn()
+ End Method
+ Method MakeForge()
+  Rail(0.7,7,2,7); Rail(0.7,10.6,2,10.6)
+  Local def:b2BodyDef=New b2BodyDef
+  def.SetPosition(New b2Vec2.Create(2,8.8))
+  Local shape:b2PolygonDef=New b2PolygonDef
+  shape.SetAsBox(0.1,1.8); shape.SetFilterCategoryBits(2); shape.SetRestitution(0.35)
+  forgeGate=world.CreateBody(def).CreateShape(shape)
+  For Local i:Int=0 Until 3
+   Local t:TPinTarget=targets[5+i]
+   t.x=1.15; t.y=7.6+i*1.2
+   def=New b2BodyDef; def.SetPosition(New b2Vec2.Create(t.x,t.y))
+   shape=New b2PolygonDef; shape.SetAsBox(0.12,0.35)
+   shape.SetFilterCategoryBits(2); shape.SetRestitution(0.6)
+   world.CreateBody(def).CreateShape(shape).SetUserData(t)
+  Next
+ End Method
+ Method SetForgeGate(open:Int)
+  If forgeOpen=open Then Return
+  forgeOpen=open
+  Local filter:b2FilterData=forgeGate.GetFilterData()
+  filter.maskBits=1
+  If open Then filter.maskBits=0
+  forgeGate.SetFilterData(filter); world.Refilter(forgeGate)
+ End Method
+ Method HitForge(index:Int)
+  If forgeTime<=0 Or (forgeMask & (1 Shl index)) Then Return
+  forgeMask:|1 Shl index; score:+250
+  If forgeMask=7 Then
+   forgeTime=0; forgeCells:+1; forgeFlash=3; score:+2000
+  End If
+ End Method
+ Method UpdateForge()
+  forgeTime=Max(0,forgeTime-PHYSICS_DT); forgeFlash=Max(0,forgeFlash-PHYSICS_DT)
+  Local p:b2Vec2=ball.GetPosition()
+  Local inside:Int=(p.GetX()-3.2)^2+(p.GetY()-10.9)^2<0.65^2
+  If forgeCharge=3 And Not waiting And Not gameOver And Not forgeSwitchInside And Crossed(3.2,10.9,0.65) Then
+   forgeCharge=0; forgeMask=0; forgeTime=25; SetForgeGate(True)
+  End If
+  forgeSwitchInside=inside
+  ' Leave the exit open after success/timeout until the ball is safely outside.
+  If forgeOpen And forgeTime=0 And (p.GetX()>2.5 Or p.GetY()<6.5 Or p.GetY()>11.1) Then SetForgeGate(False)
+  If forgeOpen Then forgeAnimation=Min(1,forgeAnimation+PHYSICS_DT*6) Else forgeAnimation=Max(0,forgeAnimation-PHYSICS_DT*6)
  End Method
  Method Rail(x1:Float,y1:Float,x2:Float,y2:Float,target:Int=-1)
   Local rail:TPinRail=New TPinRail
@@ -121,6 +167,8 @@ Type TPinTable
  End Method
  Method Spawn()
   SetGate(False)
+  forgeTime=0; forgeSwitchInside=False
+  SetForgeGate(False)
   jackpotInside=False
   For Local i:Int=0 Until 3
    rolloverInside[i]=False
@@ -199,6 +247,11 @@ Type TPinTable
     t.pending=False
     If t.cooldown<=0 And Not waiting And Not gameOver Then
      t.cooldown=0.12; t.flash=0.45; hits:+1
+     If t.index>=5 Then
+      HitForge(t.index-5)
+      Continue
+     End If
+     If t.index=0 And forgeTime=0 And forgeCharge<3 Then forgeCharge:+1
      Local award:Int=100
      If t.index>=3 Then award=50
      If surge>0 Then award:*2
@@ -213,6 +266,7 @@ Type TPinTable
    End If
   Next
   UpdateObjectives()
+  UpdateForge()
   Local v:b2Vec2=ball.GetLinearVelocity(),speed:Float=Sqr(v.GetX()^2+v.GetY()^2)
   maxSpeed=Max(maxSpeed,speed)
   ' Bound pathological energy spikes while retaining ordinary flipper shots.

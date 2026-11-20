@@ -11,6 +11,20 @@ Roll over the three numbered top lights (150 points each) to arm the centre
 jackpot for 15 seconds. Pass through its glowing ring to collect 1,000 points,
 then build the next set. An expired jackpot requires another set of lights.
 
+## Forge challenge
+
+Hit the **left core three times** to fill its three orange charge segments.
+Then shoot the orange **FORGE** ring below it to activate the challenge.
+The shutter on the left opens, exposing three targets. Hit all three within
+**25 seconds** for 250 points per target, a **2,000-point completion bonus**,
+and one power cell. The sidebar shows charge, remaining time and earned cells.
+
+Charge and earned cells persist across balls. An active challenge ends on a
+ball drain (including a protected relaunch); a timeout or completion lets the
+ball leave the bay before closing the shutter. Hit the core again to recharge
+and replay. Power cells are tracked for now; the other core challenges and
+Overdrive finale are not implemented yet.
+
 ## Build
 
 From the Max2D repository directory in the bcc2 SDK:
@@ -91,7 +105,7 @@ From the repository directory:
 Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
-and a deterministic two-minute simulation with repeated strokes.
+Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\nand a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
 

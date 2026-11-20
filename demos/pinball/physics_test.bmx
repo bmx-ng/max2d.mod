@@ -43,7 +43,7 @@ Check(Abs(t.joint[0].GetJointAngle())<3 And Abs(t.joint[1].GetJointAngle())<3,"F
 Print "PASS motor limits and return"
 ' Fast ball must hit a thin rail rather than escape through it.
 t.waiting=False; t.gameOver=False; t.saveTime=0
-t.ball.SetXForm(New b2Vec2.Create(2,10),0); t.ball.SetLinearVelocity(New b2Vec2.Create(-30,0))
+t.ball.SetXForm(New b2Vec2.Create(2,6),0); t.ball.SetLinearVelocity(New b2Vec2.Create(-30,0))
 For Local i:Int=0 Until 30
  t.Tick(False,False)
  Check(t.ball.GetPosition().GetX()>0.7,"Ball tunneled through rail")
@@ -147,3 +147,44 @@ t.previousX=2.5; t.previousY=2.5; t.ball.SetXForm(New b2Vec2.Create(4.3,2.5),0)
 Check(t.Crossed(3.4,2.5,0.55),"Swept rollover missed")
 t.Free()
 Print "PASS rollover bank, jackpot collection, expiry and swept switches"
+
+' Charge with real core collisions; the activation shot is separate.
+t=New TPinTable; t.waiting=False
+For Local shot:Int=0 Until 3
+ t.targets[0].cooldown=0
+ t.ball.SetXForm(New b2Vec2.Create(3.3,3.5),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,10))
+ For Local i:Int=0 Until 20
+  t.Tick(False,False)
+ Next
+Next
+Check(t.forgeCharge=3 And Not t.forgeOpen,"Forge must charge before opening")
+' Closed shutter blocks entry.
+t.ball.SetXForm(New b2Vec2.Create(2.8,8.8),0); t.ball.SetLinearVelocity(New b2Vec2.Create(-10,0))
+For Local i:Int=0 Until 10
+ t.Tick(False,False)
+ Check(t.ball.GetPosition().GetX()>2.2,"Closed Forge shutter allowed entry")
+Next
+t.ball.SetXForm(New b2Vec2.Create(3.2,10.9),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0)); t.Tick(False,False)
+Check(t.forgeOpen And t.forgeTime>24,"Forge activation shot")
+Local forgeStartScore:Int=t.score
+For Local target:Int=0 Until 3
+ t.ball.SetXForm(New b2Vec2.Create(2.8,7.6+target*1.2),0); t.ball.SetLinearVelocity(New b2Vec2.Create(-10,0))
+ For Local i:Int=0 Until 18
+  t.Tick(False,False)
+ Next
+Next
+Check(t.forgeMask=7 And t.forgeCells=1 And t.score=forgeStartScore+2750,"Forge target bank completion")
+t.HitForge(0)
+Check(t.score=forgeStartScore+2750,"Completed Forge awarded twice")
+' Do not close the exit around a ball still in the bay.
+t.forgeTime=0; t.SetForgeGate(True)
+t.ball.SetXForm(New b2Vec2.Create(1.7,9.4),0); t.UpdateForge()
+Check(t.forgeOpen,"Forge trapped ball after completion")
+t.ball.SetXForm(New b2Vec2.Create(3,9.4),0); t.UpdateForge()
+Check(Not t.forgeOpen,"Forge failed to close once clear")
+t.forgeTime=PHYSICS_DT; t.SetForgeGate(True); t.UpdateForge(); t.UpdateForge()
+Check(t.forgeTime=0 And Not t.forgeOpen And t.forgeCells=1,"Forge timeout")
+t.forgeTime=10; t.SetForgeGate(True); t.Spawn()
+Check(t.forgeTime=0 And Not t.forgeOpen And t.forgeCells=1,"Forge drain reset must preserve earned cells")
+t.Free()
+Print "PASS Forge charge, activation, shutter, target bank, safe closure and reset"

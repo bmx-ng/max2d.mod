@@ -236,6 +236,33 @@ Function DrawTable()
   Paint(51,74,93); Ring(jackpotX,jackpotY,27)
   Text("JACKPOT",jackpotX-30,jackpotY-7,0.5,89,118,140)
  End If
+ ' Forge target bay and retracting shutter.
+ For Local i:Int=0 Until 3
+  Local t:TPinTarget=table.targets[5+i],lit:Int=table.forgeMask & (1 Shl i)
+  If table.forgeTime>0 And Not lit Then Glow(TX+t.x*SCALE,TY+t.y*SCALE,1.2,255,148,62,0.6)
+  If lit Then Paint(137,250,190) Else Paint(217,133,71)
+  Line(t.x,t.y-0.35,t.x,t.y+0.35,8)
+ Next
+ Paint(232,157,85)
+ Local gateLength:Float=1.8*(1-table.forgeAnimation)
+ If gateLength>0.01 Then Line(2,7,2,7+gateLength,7); Line(2,10.6-gateLength,2,10.6,7)
+ Local forgeX:Float=TX+3.2*SCALE,forgeY:Float=TY+10.9*SCALE
+ If table.forgeCharge=3 Then
+  Glow(forgeX,forgeY,1.7,255,165,70,Float(0.7+Sin(clockTime*240)*0.2))
+  Paint(255,205,112)
+ Else
+  Paint(91,102,108)
+ End If
+ Ring(forgeX,forgeY,22,2)
+ Text("FORGE",forgeX-23,forgeY-7,0.55,226,181,128)
+ For Local i:Int=0 Until 3
+  If i<table.forgeCharge Then Paint(255,189,88) Else Paint(67,79,91)
+  DrawRect(TX+3.3*SCALE-22+i*16,TY+5*SCALE+32,12,5)
+ Next
+ If table.forgeTime>0 Then
+  Paint(255,195,109,Float(0.5+Sin(clockTime*240)*0.25))
+  Line(3.5,9.2,2.5,8.8,2); Line(2.5,8.8,2.9,8.6,2)
+ End If
  For Local i:Int=3 Until 5
   Local t:TPinTarget=table.targets[i]
   If t.flash>0 Then Glow(TX+t.x*SCALE,TY+t.y*SCALE,3,245,68,146,t.flash)
@@ -308,8 +335,17 @@ Function DrawInterface()
  Else
   Text("Top lights 1 + 2 + 3 arm the jackpot",570,477,0.78,218,191,133)
  End If
- Text("Arrows / A D / Shift: flippers",570,510,0.82,143,170,190)
- Text("Hold Space, release to launch",570,540,0.82,143,170,190)
+ If table.forgeFlash>0 Then
+  Text("FORGE COMPLETE! +2000 / CELL EARNED",570,506,0.7,155,247,192)
+ Else If table.forgeTime>0 Then
+  Text("FORGE: clear 3 left targets / "+Int(Ceil(table.forgeTime))+"s",570,506,0.73,255,194,112)
+ Else If table.forgeCharge=3 Then
+  Text("FORGE READY: shoot the orange ring",570,506,0.73,255,194,112)
+ Else
+  Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
+ End If
+ Text("Arrows / A D / Shift: flippers",570,536,0.82,143,170,190)
+ Text("Hold Space, release to launch",570,560,0.82,143,170,190)
  Paint(19,39,56); DrawRect(570,590,350,100)
  Paint(55,100,120); DrawRect(570,590,350,2)
  If table.gameOver Then
