@@ -5,6 +5,7 @@ Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
+Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
 ?max2d_d3d11
@@ -77,6 +78,8 @@ Try
 	For Local lifetime:Int = 0 Until 2
 		Check(Graphics(96, 96, 0, 0) <> Null, "graphics creation")
 		Local supported:Int = Max2DSupportsImageEffect(CreateBlurEffect())
+?max2d_gl
+		Check(supported,"OpenGL blur required")
 ?max2d_sdlgpu
 		Check(supported, "native blur required")
 		Print "scaled_blur driver=" + SDLGPUMax2DDriverName()

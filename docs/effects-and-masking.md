@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize/blur |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -31,7 +31,7 @@ actual HDR display output.
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
 - Custom shader packages use native SDL GPU. OpenGL has an optional saturation/
-  colourize provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
+  colourize/blur provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
   the package API; capability queries report unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
@@ -90,8 +90,8 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 | Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
 | Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
-SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation and
-colourize require `Max2D.GLEffects`. The descriptions and buffer owners live in
+SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation, colourize and
+blur require `Max2D.GLEffects`. The descriptions and buffer owners live in
 `Max2D.Effects`. Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
 
@@ -253,8 +253,8 @@ colour, coordinate and two-texture shaders use the versioned package API below.
 
 ## Basic OpenGL image effects
 
-Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation and
-colourize through the existing effect API:
+Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize and
+layer blur through the existing effect API:
 
 ```blitzmax
 Framework Max2D.GLMax2D
@@ -270,7 +270,7 @@ Local silhouette:TMax2DColorizeEffect=CreateColorizeEffect(80,160,240)
 The implementation remains within Max2D. It uses the existing OpenGL 2.1 / GLSL
 1.20 backend and leaves BRL.GLGraphics and Pub.GLEW unchanged. Effect source is
 kept as readable multiline strings in the optional BlitzMax module. Without its
-import, the two descriptions continue to report unsupported on OpenGL.
+import, these descriptions continue to report unsupported on OpenGL.
 
 Saturation operates on straight sampled RGB after drawing tint; colourize replaces
 RGB with its chosen colour before tint. Both preserve sampled alpha and apply
@@ -289,9 +289,19 @@ texture upload or readback. Ordinary draws use their original shader; no optiona
 effect shader is compiled unless requested. Closing a context releases its cache,
 and reusable descriptions can be used in a new context.
 
-Layer chains can use these effects. Chains containing unsupported
-blur or other effects reject during preflight before writing their outputs.
-Blur, outlines, bloom, tone mapping, custom shader packages and secondary maps
+Blur uses the same nine-tap binomial kernel as SDL GPU, with radius 0–4 and
+horizontal/vertical passes. It requires a premultiplied render-image source,
+accumulates premultiplied colour and alpha, and treats taps outside the image as
+transparent. A small coordinate tolerance keeps exact boundary taps inside despite
+interpolator rounding. Floating-point layers retain HDR and negative RGB values.
+Blur always samples mip level zero; the previous texture mip range is restored
+before returning, so subsequent ordinary draws resume normal mip selection.
+
+Layer chains can combine saturation, colourize and blur. The existing retained
+effect buffers and scaled-blur helper work without another OpenGL-specific API.
+The blur, colourize, layer-chain and scaled-blur examples accept `-ud max2d_gl`.
+Chains containing unsupported effects reject during preflight before writing.
+Outlines, bloom extraction, tone mapping, custom shader packages and secondary maps
 remain future OpenGL work. The full effects gallery still requires SDL GPU;
 [the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
 Left/Right adjusts saturation and Space changes the silhouette colour.
@@ -309,14 +319,38 @@ Checks cover two graphics lifetimes, parameter changes, 100-sprite batching and
 capacity overflow, failure cleanup, feedback rejection, custom blends, ordinary
 draws surrounding effects, transformed atlas views, render-image orientation,
 coverage textures and alpha-test thresholds. HDR/negative-value checks ran on
-all three OpenGL platforms without skipping float targets. Mixed chains reject
-unsupported blur before writing their destination; colourize-only chains work.
+all three OpenGL platforms without skipping float targets. This initial sweep
+predated blur support; at that point mixed chains rejected blur before writes.
 The existing target/mipmap/integration checks exercise the shared ordinary path.
 These are correctness and submission-count checks, not GPU timing measurements.
 
 The macOS GUI demo was visually checked with saturation and silhouette-colour
 changes; its 100-sprite batch reports one submission. Shader programs use GLSL
 1.20, but this does not establish coverage of every OpenGL 2.1 driver.
+
+### OpenGL blur validation (2026-11-20)
+
+Nine selected regressions pass on each of macOS, Windows and Ubuntu OpenGL: `gl_effects`,
+`gl_effects_optional`, `image_effects`, `colorize_effects`, `blur_effects`,
+`scaled_blur`, `layer_effect_chain`, `effect_buffers` and `gl_mipmaps`.
+The five shared blur/chain/buffer regressions also pass on macOS SDL GPU and
+software SDL (including explicit unsupported-effect paths): 37 selected checks
+across the profiles, excluding reruns. Float checks ran on all three OpenGL
+platforms without skipping.
+
+The checks cover fractional and zero radii, transparent boundary taps,
+premultiplied colour, two-pass output, colourize/blur chains, retained resources,
+caller-state restoration and two graphics lifetimes. Scaled blur is compared
+against an independent CPU reference at full, half and quarter resolution,
+including odd dimensions and taps exactly on the texture boundary.
+
+The OpenGL-specific test also verifies minified blur reads mip zero, restores the
+texture mip range and lets the next ordinary draw use mipmaps. Floating-point
+blur is compared with premultiplied kernel calculations for HDR and negative RGB.
+These checks establish pixel correctness and retained-resource costs, not speed.
+
+All four updated examples build as macOS OpenGL GUI apps. The scaled-blur demo
+was visually checked in both equal-radius and wider-radius modes.
 
 ## Two-pass layer blur
 

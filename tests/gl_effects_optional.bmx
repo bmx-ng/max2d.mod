@@ -4,7 +4,7 @@ Import Max2D.Effects
 Import BRL.StandardIO
 Try
 	Graphics(32,32)
-	If Max2DSupportsImageEffect(CreateSaturationEffect()) Or Max2DSupportsImageEffect(CreateColorizeEffect()) Then Throw "Effects require the optional provider import"
+	If Max2DSupportsImageEffect(CreateSaturationEffect()) Or Max2DSupportsImageEffect(CreateColorizeEffect()) Or Max2DSupportsImageEffect(CreateBlurEffect()) Then Throw "Effects require the optional provider import"
 	Local target:TRenderImage=CreateRenderImage(4,4)
 	SetRenderImage(target); SetBlend(SOLIDBLEND); SetColor(255,0,0)
 	DrawRect(0,0,4,4)

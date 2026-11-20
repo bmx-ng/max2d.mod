@@ -13,6 +13,7 @@ typedef struct M2DGLProgram {
     GLuint program;
     GLint coverage, transform, textured, source_target, source_premult, premultiply, mask, parameters;
     const void *key;
+    int base_level_only;
     struct M2DGLProgram *next;
 } M2DGLProgram;
 typedef struct {
@@ -67,12 +68,12 @@ void *m2d_gl_find_image_effect(M2DGL *c,const void *key) {
     for(M2DGLProgram *p=c->effects;p;p=p->next) if(p->key==key) return p;
     return NULL;
 }
-void *m2d_gl_create_image_effect(M2DGL *c,const void *key,const char *source) {
+void *m2d_gl_create_image_effect(M2DGL *c,const void *key,const char *source,int base_level_only) {
     M2DGLProgram *p=m2d_gl_find_image_effect(c,key);
     if(p) return p;
     p=calloc(1,sizeof(*p));if(!p) {fail("Out of memory");return NULL;}
     if(!program_init(p,source)) {free(p);return NULL;}
-    p->key=key;p->next=c->effects;c->effects=p;
+    p->key=key;p->base_level_only=base_level_only;p->next=c->effects;c->effects=p;
     return p;
 }
 void m2d_gl_select_image_effect(M2DGL *c,M2DGLProgram *p,float x,float y,float z,float w) {
@@ -329,7 +330,20 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
     glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)0);
     glVertexAttribPointer(1,4,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(2*sizeof(float)));
     glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,8*sizeof(float),(void*)(6*sizeof(float)));
+    /* GLSL 1.20 has no core fragment textureLod. Restrict blur sampling to
+       level zero and restore the texture's existing mip range after the draw. */
+    GLint base_level=0,max_level=0;
+    if(p->base_level_only && f) {
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,&base_level);
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,&max_level);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,0);
+    }
     glDrawArrays(GL_TRIANGLES,0,count);
+    if(p->base_level_only && f) {
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,base_level);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,max_level);
+    }
     if(!checked()) return 0;
     if(dest) dest->mip_dirty=dest->mipmapped;
     return 1+generated;

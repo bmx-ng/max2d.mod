@@ -5,6 +5,7 @@ Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
+Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
 ?max2d_d3d11
@@ -43,7 +44,9 @@ Try
 		If Not Max2DSupportsImageEffect(horizontal) Then
 ?max2d_sdlgpu
 			Throw "blur unavailable: " + SDL_GetError()
-?Not max2d_sdlgpu
+?max2d_gl
+			Throw "OpenGL blur unavailable"
+?Not max2d_sdlgpu And Not max2d_gl
 			Print "blur_effects passed: unsupported provider reported"
 			EndGraphics
 			End
@@ -109,6 +112,12 @@ Try
 			Check(stats.submissions = 2 And stats.textureCreations = 0 And stats.textureUpdates = 0 And stats.readbacks = 0, "warmed blur uses two submissions and retained images")
 			Check(GetBlend() = SOLIDBLEND, "blur retains blend state")
 		Next
+		SetRenderImage(source); SetClsColor(255,0,0,1); Cls
+		SetRenderImage(result); DrawImageEffect(source,horizontal,0,0)
+		p=ReadRenderImage(result)
+		CheckPixel(p,0,8,163,"left edge fades to transparent")
+		CheckPixel(p,16,8,163,"right edge fades to transparent")
+		CheckPixel(p,8,8,255,"interior remains opaque")
 		SetRenderImage(Null)
 		EndGraphics
 	Next

@@ -18,7 +18,7 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(96,96)
 		Check(Max2DSupportsImageEffect(saturation) And Max2DSupportsImageEffect(colour),"GL providers required")
-		Check(Not Max2DSupportsImageEffect(CreateBlurEffect()),"Blur is not implemented by the basic provider")
+		Check(Not Max2DSupportsImageEffect(CreateOutlineEffect()),"Outline remains unsupported")
 		Local pixels:TPixmap=CreatePixmap(4,4,PF_RGBA8888)
 		For Local y:Int=0 Until 4
 			For Local x:Int=0 Until 4
@@ -70,6 +70,20 @@ Try
 				Check(Abs(((pixel Shr 16) & 255)-80)<=5 And Abs(((pixel Shr 8) & 255)-160)<=5 And Abs((pixel & 255)-240)<=5,"Colourized coverage")
 			Next
 		Next
+		' Blur samples mip zero, even under minification, then restores the texture range.
+		Local mipSource:TRenderImage=CreateRenderImage(32,32,MIPMAPPEDIMAGE)
+		SetRenderImage(mipSource); SetClsColor(0,0,0,1); Cls
+		SetColor(255,255,255); DrawRect(14,14,4,4)
+		SetRenderImage(result); SetScale(1.0/32,1.0/32)
+		DrawImageEffect(mipSource,CreateBlurEffect(0),0,0)
+		Local baseLevel:Int,maxLevel:Int
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,Varptr baseLevel)
+		glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,Varptr maxLevel)
+		Check(baseLevel=0 And maxLevel>0,"Blur restores mip range")
+		DrawImage(mipSource,1,0); SetScale(1,1)
+		Local mipPixels:TPixmap=ReadRenderImage(result)
+		Check((mipPixels.ReadPixel(0,0)&255)>250,"Minified blur reads base level")
+		Check((mipPixels.ReadPixel(1,0)&255)<6,"Ordinary drawing resumes mip sampling")
 		If Max2DSupportsRenderImage(4,4,0,PF_RGBA32F) Then
 			Local values:Float[]=[Float(4),0.5,-0.25,0.5, 0.25,2,0.5,0.25, 0.1,0.2,3,1, 1,1,1,0.75]
 			Local bytes:Byte[]=New Byte[64]; MemCopy(bytes,values,64)
@@ -92,6 +106,19 @@ Try
 						Near(ReadChannel(data,x+2,y,channel),grey,"Premultiplied HDR saturation and orientation")
 					Next
 					Near(ReadChannel(data,x+2,y,3),values[i+3],"HDR saturation alpha")
+				Next
+			Next
+			DrawImageEffect(hdrLayer,CreateBlurEffect(4),0,0)
+			data=ReadRenderTextureData(target)
+			For Local y:Int=0 Until 2
+				For Local x:Int=0 Until 2
+					Local i:Int=(y*2+x)*4,j:Int=(y*2+1-x)*4
+					Local alpha:Float=(values[i+3]*70+values[j+3]*56)/256
+					Near(ReadChannel(data,x,y,3),alpha,"HDR blur edge alpha")
+					For Local channel:Int=0 Until 3
+						Local expected:Float=(values[i+channel]*values[i+3]*70+values[j+channel]*values[j+3]*56)/(256*alpha)
+						Near(ReadChannel(data,x,y,channel),expected,"HDR blur premultiplied kernel")
+					Next
 				Next
 			Next
 		Else

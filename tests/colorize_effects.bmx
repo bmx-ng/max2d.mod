@@ -112,26 +112,9 @@ Try
 			SetBlend(SOLIDBLEND)
 			effect.SetColor(255, 0, 255)
 			Local chain:TMax2DImageEffect[] = [TMax2DImageEffect(effect), TMax2DImageEffect(CreateBlurEffect(4)), TMax2DImageEffect(CreateBlurEffect(4, False))]
-?max2d_gl
-			' A mixed chain must reject the unsupported blur before writing output.
-			SetRenderImage(output); SetClsColor(0,255,0,1); Cls
-			rejected=False
-			Try
-				ApplyLayerEffects(source,output,chain,scratch)
-			Catch error:Object
-				rejected=True
-			End Try
-			Check(rejected,"OpenGL blur remains unsupported")
-			p=ReadRenderImage(output)
-			Pixel(p,8,8,0,255,0,255)
-			ApplyLayerEffects(source,output,[TMax2DImageEffect(effect)])
-			p=ReadRenderImage(output)
-			Pixel(p,8,8,255,0,255,128)
-?Not max2d_gl
 			ApplyLayerEffects(source, output, chain, scratch)
 			p = ReadRenderImage(output)
 			Pixel(p, 8, 8, 255, 0, 255, 17)
-?
 		Next
 		SetRenderImage(Null)
 		EndGraphics
