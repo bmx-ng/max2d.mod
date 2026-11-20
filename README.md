@@ -18,7 +18,8 @@ choose a backend without rewriting your scene code.
 - [Examples and documentation](#examples-and-documentation)
 
 [Custom shader packages](docs/shader-packages.md) provide typed parameters,
-colour matrices, waves and ripples on SDL GPU and OpenGL.
+colour matrices, waves, ripples, displacement, dissolve and transformed/shared
+texture masks on SDL GPU and OpenGL.
 
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
@@ -392,10 +393,11 @@ For the current implementation status, deliberate limits and validation gaps,
 see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026-11-20).
 The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
 composition and custom shader/map effects. Build it with `-ud max2d_gl` for the
-OpenGL layer/cached-effects page.
+complete OpenGL gallery.
 
 OpenGL has an optional `Max2D.GLEffects` provider for saturation, colourize,
-outlines, blur, bloom extraction, tone mapping and linear output. It supports
+outlines, blur, bloom extraction, tone mapping, linear output and ABI 1–4 shader
+packages. It supports
 batches, layer chains, retained buffers, reusable bloom and cached soft/inner shadows. Build the blur,
 scaled-blur, colourize, outline, layer-chain, bloom and HDR-bloom examples with
 `-ud max2d_gl`. Float HDR rendering is supported; HDR window presentation remains

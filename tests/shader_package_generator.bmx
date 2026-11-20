@@ -21,7 +21,7 @@ Try
 		Local output:String=scratch+"/"+name
 		GeneratePackage(manifest,output)
 		Local extensions:String[]=["metal","frag","hlsl","bmx"]
-		If parsed.GetInteger("abi")<=2 Then extensions=extensions+["glsl"]
+		extensions=extensions+["glsl"]
 		For Local ext:String=EachIn extensions
 			Check(LoadText(output+"/"+name+"."+ext)=LoadText(directory+"/"+name+"."+ext),"Reproducible "+name+"."+ext)
 		Next

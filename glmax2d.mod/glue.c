@@ -16,12 +16,13 @@ typedef struct M2DGLProgram {
     const void *key;
     int base_level_only, nearest_taps, user_slots;
     char *package_key;
-    GLint user_parameters;
+    GLint user_parameters, second_target;
     struct M2DGLProgram *next;
 } M2DGLProgram;
 typedef struct {
     M2DGLProgram base, *effects, *effect;
     float effect_parameters[40];
+    M2DGLFrame *effect_texture;
     GLuint buffer, white;
     int width,height,clip[4];
     float sx,sy,ox,oy;
@@ -59,9 +60,11 @@ static int program_init(M2DGLProgram *p,const char *source) {
     p->source_premult=glGetUniformLocation(p->program,"sourcePremult");
     p->premultiply=glGetUniformLocation(p->program,"premultiply");
     p->mask=glGetUniformLocation(p->program,"mask");
+    p->second_target=glGetUniformLocation(p->program,"secondTarget");
     p->parameters=glGetUniformLocation(p->program,"parameters");
     GLint previous=0;glGetIntegerv(GL_CURRENT_PROGRAM,&previous);
     glUseProgram(p->program);glUniform1i(glGetUniformLocation(p->program,"image"),0);
+    glUniform1i(glGetUniformLocation(p->program,"secondImage"),1);
     glUseProgram(previous);
     if(!checked()) {glDeleteProgram(p->program);p->program=0;return 0;}
     return 1;
@@ -81,7 +84,7 @@ void *m2d_gl_create_image_effect(M2DGL *c,const void *key,const char *source,int
 }
 /* Package cache keys are copied: asset lifetime is independent of contexts. */
 void *m2d_gl_package_shader(M2DGL *c,const M2DPackage *package) {
-    if(package->abi>2 || !package->glsl) {fail("No OpenGL asset for this package ABI");return NULL;}
+    if(!package->glsl) {fail("No OpenGL asset for this package ABI");return NULL;}
     for(M2DGLProgram *p=c->effects;p;p=p->next)
         if(p->package_key && !strcmp(p->package_key,package->key)) return p;
     M2DGLProgram *p=calloc(1,sizeof(*p));
@@ -91,17 +94,23 @@ void *m2d_gl_package_shader(M2DGL *c,const M2DPackage *package) {
     if(!p->package_key) {glDeleteProgram(p->program);free(p);fail("Out of memory");return NULL;}
     strcpy(p->package_key,package->key);
     p->user_slots=package->slots;
-    p->base_level_only=p->nearest_taps=package->abi==2;
+    p->base_level_only=p->nearest_taps=package->abi>=2;
     p->user_parameters=glGetUniformLocation(p->program,"p[0]");
     p->next=c->effects;c->effects=p;
     return p;
 }
-void m2d_gl_select_package_effect(M2DGL *c,M2DGLProgram *p,const float *values) {
+void m2d_gl_select_package_effect(M2DGL *c,M2DGLProgram *p,const float *values,M2DGLFrame *second) {
+    c->effect_texture=second;
     c->effect=p;
     memcpy(c->effect_parameters,values,(size_t)p->user_slots*4*sizeof(float));
+    if(second) {
+        int slot=(p->user_slots-1)*4;
+        c->effect_parameters[slot]=(float)second->coverage;
+        c->effect_parameters[slot+1]=(float)(second->target || (second->mipmapped && !second->coverage));
+    }
 }
 void m2d_gl_select_image_effect(M2DGL *c,M2DGLProgram *p,float x,float y,float z,float w) {
-    c->effect=p;
+    c->effect=p;c->effect_texture=NULL;
     c->effect_parameters[0]=x;c->effect_parameters[1]=y;c->effect_parameters[2]=z;c->effect_parameters[3]=w;
 }
 void m2d_gl_close(M2DGL *c) {
@@ -319,6 +328,8 @@ int m2d_gl_blend(int mode) {
 }
 int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float *v,int count) {
     M2DGLProgram *p=c->effect?c->effect:&c->base;
+    M2DGLFrame *second=c->effect_texture;
+    if(second && second==dest) return fail("Effect texture cannot be the render destination");
     glUseProgram(p->program);
     if(c->effect) {
         if(p->user_slots) glUniform4fv(p->user_parameters,p->user_slots,c->effect_parameters);
@@ -329,7 +340,7 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
     glUniform4f(p->transform,2*c->sx/c->width,-2*c->sy/c->height,2*c->ox/c->width-1,1-2*c->oy/c->height);
 	glUniform1i(p->coverage,f&&f->coverage);
     glUniform1i(p->textured,f!=NULL);glUniform1i(p->source_target,f&&f->target);
-    glUniform1i(p->source_premult,f&&(f->target||f->mipmapped));
+    glUniform1i(p->source_premult,f&&(f->target||(f->mipmapped&&!f->coverage)));
     glUniform1i(p->mask,blend==1);glUniform1i(p->premultiply,blend==3||blend==4||(dest&&blend<=2));
     glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,f?f->texture:c->white);
     int generated=0;
@@ -337,6 +348,16 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
         glGenerateMipmapEXT(GL_TEXTURE_2D);
         if(!checked()) return 0;
         f->mip_dirty=0;generated=1;
+    }
+    if(second) {
+        glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,second->texture);
+        if(second->mip_dirty) {
+            glGenerateMipmapEXT(GL_TEXTURE_2D);
+            if(!checked()) {glActiveTexture(GL_TEXTURE0);return 0;}
+            second->mip_dirty=0;generated++;
+        }
+        glUniform1i(p->second_target,second->target);
+        glActiveTexture(GL_TEXTURE0);
     }
     glBlendEquation(GL_FUNC_ADD);
     if(blend<=2) glDisable(GL_BLEND);
@@ -372,7 +393,28 @@ int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float 
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     }
+    GLint second_base=0,second_max=0,second_min=0,second_mag=0;
+    if(second && second!=f) {
+        glActiveTexture(GL_TEXTURE1);
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,&second_base);
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,&second_max);
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,&second_min);
+        glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,&second_mag);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,0);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glActiveTexture(GL_TEXTURE0);
+    }
     glDrawArrays(GL_TRIANGLES,0,count);
+    if(second && second!=f) {
+        glActiveTexture(GL_TEXTURE1);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,second_base);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,second_max);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,second_min);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,second_mag);
+        glActiveTexture(GL_TEXTURE0);
+    }
     if(p->nearest_taps && f) {
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,min_filter);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,mag_filter);

@@ -1,15 +1,13 @@
 # Custom shader packages
 
 Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU, or
-`Max2D.GLEffects` for ABI 1 colour and ABI 2 coordinate packages on OpenGL. Both import the shared
+`Max2D.GLEffects` for ABI 1–4 packages on OpenGL. Both import the shared
 `Max2D.ShaderEffects` API; existing SDL imports and package factories remain valid.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
 coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
 independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
-Software SDL reports packages unsupported. OpenGL supports ABI 1/2 packages with
-a desktop GLSL asset; ABI 3/4 secondary-map packages remain
-unsupported. Always query `Max2DSupportsImageEffect` before use.
+Software SDL reports packages unsupported. OpenGL supports ABI 1–4 packages with desktop GLSL assets. Always query `Max2DSupportsImageEffect` before use.
 
 ## Colour matrix
 
@@ -390,16 +388,16 @@ SPIR-V, DXBC, BMX wrapper and `_assets.c` together in version control. C arrays
 embed the assets without runtime file access. No build-time shader compiler is
 linked into the application. Metal source is compiled by the system on use.
 
-ABI 1/2 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
+ABI 1–4 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
 `glsl` body, distinct from the Vulkan `.frag` source. The embedder includes it
 as asset 3; OpenGL compiles it on first use. It uses sampler `image`, the Max2D
 mode uniforms and a `vec4 p[]` parameter array. Keep shader bodies compatible
-with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1/2
+with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1–4
 packages to add OpenGL support; their Metal/SPIR-V/DXBC assets need no changes.
 
 Direct callers may pass desktop GLSL bytes as the optional final argument to
 `TMax2DShaderPackage.Create(..., abiVersion, glsl)`. Existing calls remain valid.
-A GLSL-only ABI 1/2 package is allowed; missing renderer assets report unsupported.
+A GLSL-only ABI 1–4 package is allowed; missing renderer assets report unsupported.
 The shared module owns immutable assets and typed values, while each renderer
 registers its own adapter and owns compiled resources per context.
 `examples/color_matrix.bmx`, `examples/coordinate_effects.bmx` and
@@ -413,6 +411,17 @@ Y before sampling. The renderer restores the source texture's minification,
 magnification and mip-range settings after submission. Combined colour bodies
 run after sampling, alpha interpretation and tint, before alpha clamping and
 mask discard. Trimmed images retain the existing explicit rejection.
+
+ABI 3/4 bind `secondImage` to texture unit 1. The map has its own bounds,
+filter/edge controls, render-target orientation and alpha interpretation. ABI 4
+also applies its two affine transform rows before sampling. Source and map may
+share one texture; sampling state is saved/restored once for aliased storage.
+Both textures use mip level zero. A map that is also the active render destination
+is rejected before drawing. Ordinary drawing restores texture unit 0 and has no
+selected effect/map after an effect draw or a rejected submission.
+
+The two-texture, texture-mask, transformed-map, shared-map and threshold-mask
+examples accept `-ud max2d_gl`, as does the complete two-page effects gallery.
 
 SDL GPU versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
@@ -599,3 +608,41 @@ assets are unchanged. ABI 3/4 maps remain unsupported on OpenGL.
 Both macOS GUI examples were built with `-t gui -ud max2d_gl` and inspected:
 waves/radial ripples with transparent boundaries, and combined distortion with
 warm grading. All renderer changes remain within Max2D.
+
+## OpenGL effect parity validation (2026-11-20)
+
+OpenGL now implements all four package ABIs, including legacy ABI 3 and
+transformed/shared ABI 4 maps. The generator embeds desktop GLSL for all eleven
+fixtures; Metal, SPIR-V and DXBC assets remain unchanged.
+
+98 selected regression checks passed, excluding diagnostic reruns:
+
+- The same 27 OpenGL suites passed on macOS, Windows and Ubuntu (81 checks).
+- Eight package suites passed on macOS Metal and software SDL (16 checks).
+- The BlitzMax generator reproduced all eleven fixtures and passed its invalid
+  manifest checks (1 suite).
+
+The OpenGL sweep covers all eight package suites, `gl_package_textures`,
+`gl_effects`, `gl_effects_optional`, image/blur/colourize/outline effects,
+bloom/HDR-bloom/scaled blur, layer chains, effect buffers, cached soft/inner
+shadows, reusable bloom, inverse masks, linear output, custom blending and
+layer operations. The Windows run used the VM's interactive desktop; Ubuntu
+used its accelerated desktop session.
+
+The additional texture test verifies both texture units' filter/mip restoration,
+base-level map sampling, ordinary mip sampling afterwards, source/map aliasing,
+render-target map orientation, mipmapped coverage, feedback rejection without
+target writes, recovery and context recreation. Coverage RGB remains white;
+its alpha carries the mask, including when mipmapped.
+
+Eight OpenGL GUI examples built: the complete gallery, linear HDR scene,
+image effects, two-texture effects, texture masks, texture transforms, shared
+mapping and threshold masks. The SDL gallery and HDR scene also built.
+The OpenGL gallery was visually checked for displacement, dissolve, ordinary
+and moving masks, shared maps, soft thresholds and switching back to cached
+bloom. The linear HDR scene was inspected with OpenGL SDR tone mapping.
+
+This establishes functional parity for the implemented Max2D effects, with
+all changes confined to Max2D. Native HDR window presentation remains an SDL
+GPU capability; OpenGL uses float layers and SDR presentation. Performance
+parity and physical Windows/Linux HDR output are not claimed.

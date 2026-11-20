@@ -2,12 +2,12 @@
 
 Build `examples/effects_gallery.bmx` as a GUI app. The default build uses native
 SDL GPU with `Max2D.SDL3GPUEffects` and offers both pages. Add `-ud max2d_gl` to
-build with OpenGL and `Max2D.GLEffects`; this build offers the nine layer/cached
-effect views on page 1. Shader-package views on page 2 require SDL GPU.
+build with OpenGL and `Max2D.GLEffects`. Both builds offer all eighteen views
+on both pages.
 Both builds require inverse-alpha blending and RGBA16F render images.
 
 The gallery compares source artwork with one selected effect. Keys 0–8 select
-views. In the SDL GPU build, Tab switches between pages. For example:
+views. Tab switches between pages in both builds. For example:
 
 ```text
 bmk makeapp -r -ud max2d_gl -t gui -o effects_gallery examples/effects_gallery.bmx
@@ -41,7 +41,7 @@ bmk makeapp -r -ud max2d_gl -t gui -o effects_gallery examples/effects_gallery.b
 | 7 | One stationary mask spanning four independently rotating source tiles |
 | 8 | Soft threshold reveal using the red channel of a procedural map |
 
-In the SDL GPU build, Space pauses/resumes animation on either page. Left/right changes blur radius
+Space pauses/resumes animation on either page. Left/right changes blur radius
 from 0 to 16 source pixels. Escape exits. Layer outputs are retained and rebuilt
 on radius changes; switching views uses cached images. Package views reuse their
 effect descriptions and textures while updating parameters. The shared-map view
@@ -141,3 +141,12 @@ Soft shadows, independent/group inner shadows, radius changes and bloom were
 visually checked on macOS. Shadow, inner-shadow, bloom, inverse-mask and retained
 buffer regressions pass on macOS, Windows and Ubuntu OpenGL. See the
 [validation details](effects-and-masking.md#opengl-cached-shadows-and-gallery-validation-2026-11-20).
+
+## Complete OpenGL gallery validation (2026-11-20)
+
+Both pages now run through `Max2D.GLEffects`. The macOS GUI build was inspected
+for displacement, glowing dissolve, ordinary/moving masks, shared-map tiles,
+soft thresholds and returning to cached bloom. Eight focused OpenGL examples
+and both the SDL gallery and linear HDR scene also built. The effect parity
+sweep passed 98 selected checks across macOS, Windows and Ubuntu; see
+[package validation](shader-packages.md#opengl-effect-parity-validation-2026-11-20).

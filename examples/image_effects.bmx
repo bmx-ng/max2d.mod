@@ -1,9 +1,14 @@
 SuperStrict
 
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_gl
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
+?
 
-AppTitle = "Max2D image effects - native SDL GPU"
+AppTitle = "Max2D image effects"
 Graphics(940, 550)
 
 Local grayscale:TMax2DSaturationEffect = CreateSaturationEffect(0)

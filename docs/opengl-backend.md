@@ -201,15 +201,19 @@ The borderless regression also passes on Linux ARM64 GNOME/Xwayland with VM
 acceleration. Its native helper independently checks the fullscreen property and
 RandR monitor bounds, and checks that the original sizing hints return on exit.
 
-## Colour and coordinate shader packages
+## Shader packages and effect parity
 
-Import `Max2D.GLEffects` for ABI 1/2 packages with desktop GLSL assets, including
+Import `Max2D.GLEffects` for ABI 1–4 packages with desktop GLSL assets, including
 `CreateColorMatrixEffect`, `CreateDistortionEffect` and `CreateGradedDistortionEffect`. The shared `Max2D.ShaderEffects` module owns package
 schemas and parameters. Contexts cache compiled programs by package identity;
 closing a context releases them. Existing packages need regeneration/embedding
-to include the GLSL 1.20 asset. ABI 3/4 two-texture packages remain unsupported.
+to include the GLSL 1.20 asset. Two-texture packages include displacement,
+dissolve, texture masks and transformed/shared maps.
 
 Build `examples/color_matrix.bmx` with `-ud max2d_gl` for the interactive
 original/contrast/sepia comparison. `examples/coordinate_effects.bmx` and
 `examples/graded_distortion.bmx` also accept `-ud max2d_gl`. See [shader packages](shader-packages.md)
-for generation and support checks. This implementation is confined to Max2D.
+for generation and support checks. The complete effects gallery and all focused
+shader/map examples accept the same build flag. The linear HDR scene also offers
+an OpenGL SDR presentation path. Actual HDR window presentation is SDL GPU-only.
+This implementation is confined to Max2D.

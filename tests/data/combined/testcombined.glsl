@@ -59,8 +59,8 @@ return sampled;
 }
 void main() {
 vec4 c=sampleRegion(userEffect((texcoord-p[3].xy)/p[3].zw));
-if(coverage!=0) c.rgb=vec3(1.0);
-if(sourcePremult!=0) c.rgb=c.a>0.0?c.rgb/c.a:vec3(0.0);
+if(coverage!=0) c=vec4(1,1,1,c.a);
+if(sourcePremult!=0) c.rgb=c.a>0?c.rgb/c.a:vec3(0);
 c*=tint;
 c=userColour(c);
 c.a=clamp(c.a,0.0,1.0);

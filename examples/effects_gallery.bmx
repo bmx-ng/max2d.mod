@@ -96,7 +96,6 @@ DrawImage(uploaded,0,0)
 SetRenderImage(Null)
 SetBlend(ALPHABLEND)
 bloom.Prepare(w,h,2)
-?Not max2d_gl
 Local grade:TMax2DShaderEffect = CreateColorMatrixEffect()
 grade.SetFloat4("row0",0.393,0.769,0.189,0)
 grade.SetFloat4("row1",0.349,0.686,0.168,0)
@@ -129,22 +128,18 @@ For Local i:Int = 0 Until 4
 	tiles[i] = CreateImageView(source,(i Mod 2)*(w/2),(i/2)*(h/2),w/2,h/2)
 	SetImageHandle(tiles[i],w/4,h/4)
 Next
-?
 Local selected:Int = 7, page:Int, grouped:Int, dirty:Int = True, radius:Float = 8
 Local paused:Int, time:Float, previous:Int = MilliSecs()
 While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Local now:Int = MilliSecs(), elapsed:Int = now-previous
 	previous = now
-?Not max2d_gl
 	If KeyHit(KEY_TAB) Then
 		page = 1-page
 		selected = page*9
 	End If
-?
 	For Local i:Int = 0 To 8
 		If KeyHit(KEY_0+i) Then selected = page*9+i
 	Next
-?Not max2d_gl
 	If KeyHit(KEY_SPACE) Then paused = Not paused
 	If Not paused Then time :+ Float(Min(elapsed,100))*0.001
 	wave.SetFloat("time",time); graded.SetFloat("time",time)
@@ -153,7 +148,6 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Local low:Float = progress*1.2-0.2
 	threshold.SetFloat4("range",low,low+0.2,0,0)
 	movingMask.SetTextureTransform(Float(0.2*Sin(time*50)),Float(0.1*Cos(time*40)),0.8,0.8,time*20)
-?
 	If KeyHit(KEY_G) Then grouped = Not grouped
 	If KeyHit(KEY_LEFT) Then
 		radius = Float(Max(0,radius-2)); dirty = True
@@ -220,7 +214,6 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 			End If
 		Case 8
 			DrawImageEffect(bloom.Result(),tone,520,190)
-?Not max2d_gl
 		Case 9
 			DrawImageEffect(source,grade,520,190)
 		Case 10
@@ -247,15 +240,10 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 			SetRotation(0)
 		Case 17
 			DrawImageEffect(source,threshold,520,190)
-?
 	End Select
 	SetAlpha(1)
 	SetColor(30,40,60)
-?max2d_gl
-	DrawText("OpenGL layers and cached effects | 0-8: select",30,440)
-?Not max2d_gl
 	DrawText("Tab: switch pages ("+(page+1)+"/2)   0-8: select   Space: pause animation",30,440)
-?
 	DrawText("Left/Right: blur radius "+Int(radius)+" | Escape: exit",30,465)
 	If selected = 7 Then
 		Local grouping:String = "Independent shapes: neighbours do not alter each other's shadow."

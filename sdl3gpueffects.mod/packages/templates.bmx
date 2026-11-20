@@ -93,10 +93,10 @@ Public
 """
 
 Const C_ASSET_FOOTER:String = """
-static const unsigned char *assets[] = {asset0,asset1,asset2};
+static const unsigned char *assets[] = {asset0,asset1,asset2,asset3};
 static const int sizes[] = {@SIZES@};
-const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<3?assets[i]:0; }
-int @FACTORY@Size(int i) { return i>=0 && i<3?sizes[i]:0; }
+const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<4?assets[i]:0; }
+int @FACTORY@Size(int i) { return i>=0 && i<4?sizes[i]:0; }
 
 """
 

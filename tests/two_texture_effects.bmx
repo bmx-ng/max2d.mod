@@ -1,10 +1,14 @@
 SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
-?
+?Not max2d_gl
 Import Max2D.SDL3GPUEffects
+?
 Import BRL.StandardIO
 
 Function Check(ok:Int,message:String)
@@ -18,7 +22,7 @@ Function FloatImage:TImage(pixels:Float[],flags:Int)
 	MemCopy(bytes,pixels,Size_T(bytes.Length))
 	Return LoadImage(TTextureData.Create([TTextureLevel.Create(pixels.Length/4,1,PF_RGBA32F,bytes)]),flags)
 End Function
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
 ?
 Try
@@ -27,9 +31,9 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(64,64)
 		If Not Max2DSupportsImageEffect(displacement) Then
-?max2d_sdlgpu
+?max2d_sdlgpu Or max2d_gl
 			Throw "Native two-texture shader unsupported"
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 			Check(Not Max2DSupportsImageEffect(dissolve),"Software rejects dissolve")
 			Local rejected:Int
 			Try

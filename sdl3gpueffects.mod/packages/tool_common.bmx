@@ -192,15 +192,19 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			helper:+sampling
 		End If
 		WriteTextFile(output+"/"+name+"."+ext,head.Replace("@COUNT@",String(count))+helper+tail)
-		If abi<=2 And lang="glsl" Then
-			Local desktopHelper:String=helper, desktopTail:String=TAIL_gl120
-			If abi=2 Then
+		If lang="glsl" Then
+			Local desktopHelper:String=helper, desktopTail:String=TAIL_gl120, desktopHead:String=HEAD_gl120
+			If abi>=2 Then
 				desktopHelper=GL120_TEXEL+helper.Replace("texelFetch(image,ivec2(q),0)","m2dTexel(q,info.xy)")
-				desktopTail=desktopTail.Replace("vec2 uv=texcoord;~nif(sourceTarget!=0) uv.y=1.0-uv.y;~nvec4 c=texture2D(image,uv);", "vec4 c=sampleRegion(userEffect((texcoord-p["+params.Size()+"].xy)/p["+params.Size()+"].zw));")
-				desktopTail=desktopTail.Replace("c=userEffect(c);~n", "")
-				If colourBodies Then desktopTail=desktopTail.Replace("c.a=clamp(c.a,0.0,1.0);", "c=userColour(c);~nc.a=clamp(c.a,0.0,1.0);")
+				desktopTail=tail.Replace("mode.x","coverage").Replace("mode.y","sourcePremult").Replace("mode.z","mask").Replace("mode.w","premultiply")
+				desktopTail=desktopTail.Replace("c=vec4(1,1,1,c.r)","c=vec4(1,1,1,c.a)").Replace("result=c;","gl_FragColor=c;")
+				If abi>=3 Then
+					desktopHead:+"uniform sampler2D secondImage;~nuniform int secondTarget;~n"
+					desktopHelper=GL120_TEXEL.Replace("m2dTexel","m2dMapTexel").Replace("sourceTarget","secondTarget").Replace("texture2D(image,","texture2D(secondImage,")+desktopHelper.Replace("texelFetch(secondImage,ivec2(q),0)","m2dMapTexel(q,info.xy)")
+					desktopTail=desktopTail.Replace("m=vec4(1,1,1,m.r)","m=vec4(1,1,1,m.a)")
+				End If
 			End If
-			WriteTextFile(output+"/"+name+".glsl",HEAD_gl120.Replace("@COUNT@",String(count))+desktopHelper+desktopTail)
+			WriteTextFile(output+"/"+name+".glsl",desktopHead.Replace("@COUNT@",String(count))+desktopHelper+desktopTail)
 		End If
 	Next
 	Local names:String[], kinds:String[], arguments:String[]
@@ -215,9 +219,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Next
 	Local source:String=BMX_WRAPPER.Replace("@PREFIX@",prefix).Replace("@NAME@",name).Replace("@FACTORY@",factory)
 	source=source.Replace("@NAMES@",", ".Join(names)).Replace("@KINDS@",", ".Join(kinds)).Replace("@ARGUMENTS@",", ".Join(arguments))
-	Local abiArgument:String
-	If abi>=2 Then abiArgument=", "+abi
-	If abi<=2 Then abiArgument=", "+abi+", "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
+	Local abiArgument:String=", "+abi+", "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
 	source=source.Replace("@ABI_ARGUMENT@",abiArgument)
 	WriteTextFile(output+"/"+name+".bmx",source)
 End Function
@@ -226,8 +228,7 @@ Function EmbedPackage(manifest:String, output:String)
 	Local root:TJSONObject=ReadManifest(manifest)
 	Local name:String=root.GetString("name"), factory:String=root.GetString("factory")
 	Local text:String="/* Generated shader assets. */~n"
-	Local extensions:String[]=["metal","frag.spv","dxbc"]
-	If root.GetInteger("abi")<=2 Then extensions=extensions+["glsl"]
+	Local extensions:String[]=["metal","frag.spv","dxbc","glsl"]
 	Local sizes:String[]=New String[extensions.Length]
 	For Local i:Int=0 Until extensions.Length
 		Local blob:TBank=LoadBank(output+"/"+name+"."+extensions[i])
@@ -241,8 +242,6 @@ Function EmbedPackage(manifest:String, output:String)
 		Next
 		text:+"~n};~n"
 	Next
-	Local footer:String=C_ASSET_FOOTER
-	If extensions.Length=4 Then footer=footer.Replace("asset0,asset1,asset2","asset0,asset1,asset2,asset3").Replace("i<3","i<4")
-	text:+footer.Replace("@SIZES@",",".Join(sizes)).Replace("@FACTORY@",factory)
+	text:+C_ASSET_FOOTER.Replace("@SIZES@",",".Join(sizes)).Replace("@FACTORY@",factory)
 	WriteTextFile(output+"/"+name+"_assets.c",text)
 End Function

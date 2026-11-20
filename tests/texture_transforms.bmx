@@ -1,10 +1,14 @@
 SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
-?
+?Not max2d_gl
 Import Max2D.SDL3GPUEffects
+?
 Import BRL.StandardIO
 Import "data/legacytexturemask/legacytexturemask_assets.c"
 Include "data/legacytexturemask/legacytexturemask.bmx"
@@ -19,7 +23,7 @@ Function FloatImage:TImage(pixels:Float[],width:Int,flags:Int)
 	MemCopy(bytes,pixels,Size_T(bytes.Length))
 	Return LoadImage(TTextureData.Create([TTextureLevel.Create(width,pixels.Length/4/width,PF_RGBA32F,bytes)]),flags)
 End Function
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
 ?
 Try
@@ -36,9 +40,9 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(64,64)
 		If Not Max2DSupportsImageEffect(mask) Then
-?max2d_sdlgpu
+?max2d_sdlgpu Or max2d_gl
 			Throw "Transformed masks unsupported"
-?Not max2d_sdlgpu
+?Not max2d_sdlgpu And Not max2d_gl
 			EndGraphics
 			Exit
 ?

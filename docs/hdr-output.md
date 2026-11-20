@@ -11,6 +11,10 @@ Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current()
 If context.SupportsHDROutput() Then context.SetHDROutput(True)
 ```
 
+`examples/hdr_scene.bmx` also accepts `-ud max2d_gl` to demonstrate the same
+linear artwork and bloom with SDR tone mapping. This does not enable HDR window
+presentation on OpenGL; the HDR toggle is shown only in the SDL GPU build.
+
 ## Capabilities and display state
 
 - `SupportsHDROutput()` checks extended linear swapchain and float target support.

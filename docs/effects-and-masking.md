@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL built-in effects |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional SDL GPU and OpenGL effect providers |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -22,6 +22,28 @@ The [shader package guide](shader-packages.md) documents the current ABI contrac
 [HDR output](hdr-output.md) distinguishes float rendering, SDR presentation and
 actual HDR display output.
 
+### Effect parity: SDL GPU and OpenGL
+
+| Feature | SDL GPU | OpenGL + GLEffects |
+| --- | --- | --- |
+| Saturation, colourize, blur, outlines | Yes | Yes |
+| Bloom, tone mapping and linear output | Yes | Yes |
+| Retained buffers, layer chains, soft/inner shadows | Yes | Yes |
+| Colour and coordinate packages (ABI 1/2) | Yes | Yes |
+| Displacement, dissolve and texture masks (ABI 3/4) | Yes | Yes |
+| Transformed/shared maps and soft thresholds | Yes | Yes |
+| Complete effects gallery | Both pages | Both pages |
+| HDR window presentation | Capability-dependent | No; SDR presentation |
+
+OpenGL uses generated GLSL 1.20 assets. Both providers use the same public effect,
+parameter and buffer APIs. This is functional parity for the implemented effects;
+it does not assert matching performance or native display capabilities. All
+OpenGL changes remain within Max2D.
+
+The completion sweep passed 98 selected checks across macOS, Windows and Ubuntu,
+including 27 OpenGL suites per platform. The complete gallery and linear HDR
+scene were visually inspected on macOS. See [validation details](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
+
 ### Deliberate limits and remaining work
 
 - Shader packages support colour, coordinates and one secondary texture through
@@ -30,9 +52,9 @@ actual HDR display output.
 - Effects expose their passes and resource ownership. Retained buffers are
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
-- Custom shader packages use native SDL GPU for ABI 1–4. OpenGL supports ABI 1/2
-  colour and coordinate packages with desktop GLSL assets through its optional effect provider.
-  OpenGL ABI 3/4, legacy Direct3D and SDL_Renderer report packages unsupported.
+- Custom shader packages support ABI 1–4 on native SDL GPU and OpenGL through
+  their optional effect providers. OpenGL packages need desktop GLSL assets.
+  Legacy Direct3D and SDL_Renderer report packages unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
   compiles, but Direct3D runtime validation remains outstanding.
@@ -90,7 +112,7 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 | Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
 | Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
-SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL built-in, colour-package and coordinate-package effects require `Max2D.GLEffects`. The descriptions and buffer owners live in
+SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL built-in and shader-package effects require `Max2D.GLEffects`. The descriptions and buffer owners live in
 `Max2D.Effects`; package schemas and factories live in `Max2D.ShaderEffects`.
 Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
@@ -317,10 +339,10 @@ accept `-ud max2d_gl`. The HDR example renders into float layers and tone maps t
 an SDR window. Linear HDR values in a float texture do not enable HDR window
 presentation; that remains a separate SDL GPU capability.
 Chains containing unsupported effects reject during preflight before writing.
-ABI 1 colour and ABI 2 coordinate packages also work through this provider;
-secondary maps remain future OpenGL work. The gallery offers its layer/cached-effects page on OpenGL; its shader-package
-page requires SDL GPU;
-[the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
+ABI 1–4 packages also work through this provider, including displacement,
+dissolve, texture masks, transformed/shared maps and soft thresholds. The gallery
+offers both pages on OpenGL. [The OpenGL comparison](../examples/gl_effects.bmx)
+focuses on the built-in effects.
 Left/Right adjusts saturation and Space changes the silhouette colour.
 
 ### OpenGL provider validation (2026-11-20)
@@ -570,8 +592,7 @@ captures the source transform per call; distinct placements require separate
 effect draws. Neither helper adds a render target or redraws the map.
 
 Arbitrary texture layouts and normal/light-map data contracts would be future
-extensions. OpenGL two-texture packages and separate legacy Direct3D
-implementations are also future work; SDL_Renderer has no general custom shader hook.
+extensions. Separate legacy Direct3D implementations remain future work; SDL_Renderer has no general custom shader hook.
 
 ## Cost and validation boundaries
 

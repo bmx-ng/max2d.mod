@@ -1,8 +1,8 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1/2 shader packages.
-about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Two-texture shader packages remain unsupported.
+bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1–4 shader packages.
+about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation.
 End Rem
 Module Max2D.GLEffects
 ModuleInfo "Version: 0.01"
@@ -263,8 +263,7 @@ Type TGLShaderPackageBackend Extends TMax2DShaderPackageBackend
 		Return m2d_gl_package_shader(TGLMax2DContext(context).native,package)
 	End Method
 	Method SelectShader(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame) Override
-		If second Then Throw "Max2D OpenGL: two-texture packages are not supported"
-		m2d_gl_select_package_effect(TGLMax2DContext(context).native,shader,values)
+		m2d_gl_select_package_effect(TGLMax2DContext(context).native,shader,values,TGLMax2DContext(context).NativeFrame(second))
 	End Method
 	Method ClearShader(context:TMax2DContext) Override
 		m2d_gl_select_image_effect(TGLMax2DContext(context).native,Null,0,0,0,0)
@@ -272,6 +271,6 @@ Type TGLShaderPackageBackend Extends TMax2DShaderPackageBackend
 End Type
 Extern "C"
 	Function m2d_gl_package_shader:Byte Ptr(context:Byte Ptr,package:Byte Ptr)
-	Function m2d_gl_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr)
+	Function m2d_gl_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr)
 End Extern
 RegisterShaderPackageBackend(New TGLShaderPackageBackend)

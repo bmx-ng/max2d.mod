@@ -1,13 +1,24 @@
 SuperStrict
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_gl
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
+?
 
 AppTitle = "Max2D linear artwork and HDR bloom"
 Graphics(1000, 540)
+?Not max2d_gl
 Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
 Local hdrSupported:Int = context.SupportsHDROutput()
 If hdrSupported And context.HDRHeadroom() > 1 Then context.SetHDROutput(True)
-Local tone:TMax2DLinearOutputEffect = CreateLinearOutputEffect(context.HDROutput())
+Local hdrEnabled:Int=context.HDROutput()
+?max2d_gl
+Local hdrEnabled:Int
+?
+Local headroom:Float=1
+Local tone:TMax2DLinearOutputEffect = CreateLinearOutputEffect(hdrEnabled)
 Local bloom:TMax2DBloom = CreateBloom(1.5, 12)
 Local supported:Int = Max2DSupportsImageEffect(tone) And Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F) And Max2DTextureFormatSupport(PF_RGBA32F, 0) <> ETextureFormatSupport.Unsupported
 Local source:TRenderImage, composite:TRenderImage
@@ -76,9 +87,13 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If KeyHit(KEY_UP) Then change = 0.25
 	If change Then tone.SetExposure(Float(Max(0.25, Min(4.0, tone.GetExposure()+change))))
 	If KeyHit(KEY_SPACE) Then enabled = Not enabled
+?Not max2d_gl
 	If KeyHit(KEY_H) And hdrSupported Then context.SetHDROutput(Not context.HDROutput())
-	tone.SetHDR(context.HDROutput())
+	hdrEnabled=context.HDROutput()
+	headroom=context.HDRHeadroom()
+	tone.SetHDR(hdrEnabled)
 	tone.SetWhiteLevel(context.SDRWhiteLevel())
+?
 	If KeyHit(KEY_I) Then
 		bloom.SetIntensity(Float((bloom.GetIntensity()+0.5) Mod 3))
 		dirty = True
@@ -91,8 +106,8 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Cls
 	SetColor(255, 255, 255)
 	Local mode:String = "SDR tone mapping + sRGB encoding"
-	If context.HDROutput() Then mode = "HDR display output"
-	DrawText(mode+" | Headroom: "+context.HDRHeadroom()+"x", 25, 25)
+	If hdrEnabled Then mode = "HDR display output"
+	DrawText(mode+" | Headroom: "+headroom+"x", 25, 25)
 	DrawText("Linear artwork + emitters", 25, 75)
 	Local bloomLabel:String = "With bloom"
 	If Not enabled Then bloomLabel = "Bloom disabled"
@@ -111,7 +126,11 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Else
 		DrawText("Required floating-point images or shaders are unavailable.", 25, 115)
 	End If
+?max2d_gl
+	DrawText("OpenGL SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
+?Not max2d_gl
 	DrawText("H: HDR/SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
+?
 	DrawText("Threshold: "+bloom.GetThreshold()+" | Exposure: "+tone.GetExposure()+" | Bloom intensity: "+bloom.GetIntensity(), 25, 505)
 	Flip
 Wend
