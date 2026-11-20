@@ -5,6 +5,7 @@ Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
+Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
 ?max2d_d3d11
@@ -47,7 +48,9 @@ Try
 		If Not Max2DSupportsImageEffect(effect) Then
 ?max2d_sdlgpu
 			Throw "SDL GPU saturation effect unavailable: " + SDL_GetError()
-?Not max2d_sdlgpu
+?max2d_gl
+			Throw "OpenGL effect provider unavailable"
+?Not max2d_sdlgpu And Not max2d_gl
 			rejected = False
 			Try
 				DrawImageEffect(image, effect, 0, 0)
@@ -144,9 +147,11 @@ Try
 				rejected = True
 			End Try
 			Check(rejected And CaptureMax2DStats().submissions = 0, "empty and malformed batches submit nothing")
-?max2d_sdlgpu
+?max2d_sdlgpu Or max2d_gl
 			Local stride:Int = 48
+?max2d_sdlgpu
 			If compact Then stride = 16
+?max2d_sdlgpu Or max2d_gl
 			Local capacity:Int = TMax2DGraphics.Current().context.batch.Length / stride
 			positions = New Float[(capacity + 1) * 2]
 			positions[capacity * 2] = 20

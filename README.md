@@ -388,3 +388,7 @@ For the current implementation status, deliberate limits and validation gaps,
 see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026-11-20).
 The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
 composition and custom shader/map effects.
+
+OpenGL now has an optional `Max2D.GLEffects` provider for saturation and colourize,
+including repeated-sprite batches. See the [OpenGL comparison](examples/gl_effects.bmx)
+and [support details](docs/effects-and-masking.md#basic-opengl-image-effects).

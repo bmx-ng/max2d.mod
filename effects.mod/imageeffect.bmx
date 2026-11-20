@@ -380,7 +380,7 @@ param: Source image; sampling the current render target is forbidden.
 param: Reusable effect description.
 param: Reusable array containing x,y pairs in drawing order; no array copy is made.
 param: Zero-based image frame shared by all copies.
-about: Uses the normal image handle and current drawing state. The native SDL GPU provider captures parameters once and batches copies up to the existing sprite-buffer capacity. It ends the preceding batch and flushes before returning, leaving no ambient effect. Empty positions are a no-op; an odd length throws before drawing. Allocate and update the positions array outside the draw call to avoid per-frame allocation. Providers without batch acceleration may submit each copy separately.
+about: Uses the normal image handle and current drawing state. The native SDL GPU and OpenGL providers capture parameters once and batch copies up to the existing sprite-buffer capacity. It ends the preceding batch and flushes before returning, leaving no ambient effect. Empty positions are a no-op; an odd length throws before drawing. Allocate and update the positions array outside the draw call to avoid per-frame allocation. Providers without batch acceleration may submit each copy separately.
 End Rem
 Function DrawImageEffectBatch(image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int = 0)
 	If Not image Or Not effect Then Throw "Max2D Effects: image and effect are required"

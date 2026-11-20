@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -30,8 +30,9 @@ actual HDR display output.
 - Effects expose their passes and resource ownership. Retained buffers are
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
-- Custom shaders use native SDL GPU. OpenGL, legacy Direct3D and SDL_Renderer
-  do not implement the package API; capability queries report unsupported.
+- Custom shader packages use native SDL GPU. OpenGL has an optional saturation/
+  colourize provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
+  the package API; capability queries report unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
   compiles, but Direct3D runtime validation remains outstanding.
@@ -63,7 +64,8 @@ map transforms and shared mapping, threshold masks, cached helpers, buffers,
 linear colour, HDR requests, blending, layer composition, integration, drawing
 state and native context lifetime. Software/OpenGL passes include explicit
 unsupported-shader handling; they do not imply those backends implement shaders.
-VM HDR passes cover rejection and SDR fallback. Direct3D execution, physical VM
+This sweep predates the optional OpenGL provider described below; its validation
+is recorded separately. VM HDR passes cover rejection and SDR fallback. Direct3D execution, physical VM
 HDR output and GPU performance are outside this sweep.
 
 The expanded gallery was built as a macOS GUI app and visually checked on Metal
@@ -88,8 +90,9 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 | Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
 | Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
-Shader effects require `Max2D.SDL3GPUEffects`; the descriptions and buffer owners
-live in `Max2D.Effects`. Optional effects add no work to ordinary drawing when
+SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation and
+colourize require `Max2D.GLEffects`. The descriptions and buffer owners live in
+`Max2D.Effects`. Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
 
 ## Layer masking
@@ -242,11 +245,78 @@ intermediate surface. The existing growable draw/vertex buffers remain shared.
 
 The [built-in shader package](../sdl3gpueffects.mod/shaders/README.md) contains
 equivalent Metal, SPIR-V and shader-model 5.1 DXBC implementations. Only the
-optional module links those assets. Backends without a registered provider,
-including OpenGL, D3D9, D3D11 and SDL_Renderer, report this shader effect
-unsupported. The public API does not silently fall back to a CPU conversion.
+optional module links those assets. Backends without a registered provider, including D3D9, D3D11 and SDL_Renderer,
+report this shader effect unsupported. OpenGL now supplies saturation and colourize
+through the optional `Max2D.GLEffects` provider described below. The public API does not silently fall back to a CPU conversion.
 The saturation provider described here uses a fixed built-in shader. Custom
 colour, coordinate and two-texture shaders use the versioned package API below.
+
+## Basic OpenGL image effects
+
+Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation and
+colourize through the existing effect API:
+
+```blitzmax
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+
+Graphics(800,600)
+Local grey:TMax2DSaturationEffect=CreateSaturationEffect(0)
+Local silhouette:TMax2DColorizeEffect=CreateColorizeEffect(80,160,240)
+' DrawImageEffect(image,grey,x,y)
+' DrawImageEffectBatch(image,silhouette,positions)
+```
+
+The implementation remains within Max2D. It uses the existing OpenGL 2.1 / GLSL
+1.20 backend and leaves BRL.GLGraphics and Pub.GLEW unchanged. Effect source is
+kept as readable multiline strings in the optional BlitzMax module. Without its
+import, the two descriptions continue to report unsupported on OpenGL.
+
+Saturation operates on straight sampled RGB after drawing tint; colourize replaces
+RGB with its chosen colour before tint. Both preserve sampled alpha and apply
+drawing alpha once. Ordinary images, coverage textures, atlas views and
+premultiplied render images use their normal orientation and interpretation.
+Floating-point targets retain HDR and negative values when the backend supports
+them. Sampling inherits the normal GL filter and mip selection; these are colour
+effects, not the bounded coordinate/map sampling contracts of the package API.
+
+Shader programs are compiled lazily and cached by graphics context. A support
+query warms the cache without changing the selected effect. Each effect draw
+flushes the preceding batch, submits its captured parameters and clears the
+selection, including on failure. Repeated copies share a submission up to the
+existing vertex-buffer capacity. Warmed effects add no intermediate texture,
+texture upload or readback. Ordinary draws use their original shader; no optional
+effect shader is compiled unless requested. Closing a context releases its cache,
+and reusable descriptions can be used in a new context.
+
+Layer chains can use these effects. Chains containing unsupported
+blur or other effects reject during preflight before writing their outputs.
+Blur, outlines, bloom, tone mapping, custom shader packages and secondary maps
+remain future OpenGL work. The full effects gallery still requires SDL GPU;
+[the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
+Left/Right adjusts saturation and Space changes the silhouette colour.
+
+### OpenGL provider validation (2026-11-20)
+
+Twelve release regressions pass on each of macOS, Windows and Ubuntu OpenGL:
+`gl_effects`, `gl_effects_optional`, `image_effects`, `colorize_effects`,
+`custom_blending`, `layer_effects`, `float_targets`, `coverage_atlas`,
+`integration`, `gl_targets`, `gl_mipmaps` and `drawing_state`. The saturation and
+colourize regressions also pass on macOS SDL GPU and software SDL (explicit
+rejection), for 40 selected checks across the profiles, excluding reruns.
+
+Checks cover two graphics lifetimes, parameter changes, 100-sprite batching and
+capacity overflow, failure cleanup, feedback rejection, custom blends, ordinary
+draws surrounding effects, transformed atlas views, render-image orientation,
+coverage textures and alpha-test thresholds. HDR/negative-value checks ran on
+all three OpenGL platforms without skipping float targets. Mixed chains reject
+unsupported blur before writing their destination; colourize-only chains work.
+The existing target/mipmap/integration checks exercise the shared ordinary path.
+These are correctness and submission-count checks, not GPU timing measurements.
+
+The macOS GUI demo was visually checked with saturation and silhouette-colour
+changes; its 100-sprite batch reports one submission. Shader programs use GLSL
+1.20, but this does not establish coverage of every OpenGL 2.1 driver.
 
 ## Two-pass layer blur
 
