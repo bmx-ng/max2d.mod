@@ -387,11 +387,12 @@ and soft texture-driven reveals with adjustable transition width and inversion.
 For the current implementation status, deliberate limits and validation gaps,
 see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026-11-20).
 The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
-composition and custom shader/map effects.
+composition and custom shader/map effects. Build it with `-ud max2d_gl` for the
+OpenGL layer/cached-effects page.
 
 OpenGL has an optional `Max2D.GLEffects` provider for saturation, colourize,
 outlines, blur, bloom extraction, tone mapping and linear output. It supports
-batches, layer chains, retained buffers and reusable bloom. Build the blur,
+batches, layer chains, retained buffers, reusable bloom and cached soft/inner shadows. Build the blur,
 scaled-blur, colourize, outline, layer-chain, bloom and HDR-bloom examples with
 `-ud max2d_gl`. Float HDR rendering is supported; HDR window presentation remains
 a separate SDL GPU feature. See the [OpenGL comparison](examples/gl_effects.bmx)

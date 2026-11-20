@@ -309,13 +309,15 @@ All three share the ordinary source interpretation, tint, alpha, filter and mip
 rules of the colour effects.
 
 Layer chains can combine these built-in effects. Retained effect buffers,
-scaled blur and `TMax2DBloom` use the same public APIs on OpenGL and SDL GPU.
+scaled blur, `TMax2DBloom`, `TMax2DShadow` and `TMax2DInnerShadow` use the same
+public APIs on OpenGL and SDL GPU.
 The blur, colourize, outline, layer-chain, scaled-blur, bloom and HDR-bloom examples
 accept `-ud max2d_gl`. The HDR example renders into float layers and tone maps to
 an SDR window. Linear HDR values in a float texture do not enable HDR window
 presentation; that remains a separate SDL GPU capability.
 Chains containing unsupported effects reject during preflight before writing.
-Custom shader packages and secondary maps remain future OpenGL work. The full effects gallery still requires SDL GPU;
+Custom shader packages and secondary maps remain future OpenGL work. The gallery offers its layer/cached-effects page on OpenGL; its shader-package
+page requires SDL GPU;
 [the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
 Left/Right adjusts saturation and Space changes the silhouette colour.
 
@@ -394,6 +396,30 @@ Both bloom examples build as OpenGL GUI apps. The HDR-bloom comparison was
 visually checked on macOS, including threshold, exposure and bloom toggling.
 The window presents tone-mapped SDR; the float-layer checks establish HDR
 rendering correctness, not HDR display output or GPU performance.
+
+### OpenGL cached shadows and gallery validation (2026-11-20)
+
+`shadow_pipeline`, `inner_shadow`, `bloom_pipeline`, `inverse_layer_masks` and
+`effect_buffers` pass on macOS, Windows and Ubuntu OpenGL. The two shadow tests
+also pass on macOS SDL GPU and software SDL (explicit unsupported paths), for
+19 selected checks excluding reruns. They require the OpenGL capabilities and
+run float reference checks rather than silently accepting unsupported effects.
+
+Soft-shadow alpha is compared with an independent blur kernel. Inner-shadow
+alpha is compared with a shifted kernel including fractional offsets, partial
+coverage and a hole. Tests cover source preservation, state restoration,
+invalid-parameter cache preservation, layout invalidation and two context
+lifetimes. Warmed soft-shadow updates use three draws at full resolution or six
+with two reduction levels; inner shadows use five or eight. These updates create
+no textures, upload no pixels and perform no readbacks. Cached-result retrieval
+performs no rendering. Window sampling uses an explicit logical resolution.
+
+The gallery and both focused shadow examples build as OpenGL GUI apps. The
+SDL GPU gallery also builds with its two pages. The OpenGL gallery was visually
+checked on macOS for soft shadows, independent/group inner shadows, radius
+changes and bloom. Its keys select only the nine supported layer views; Tab does
+not enter shader-package views. All work uses the existing shadow helpers and
+OpenGL effects without additional backend changes.
 
 ## Two-pass layer blur
 

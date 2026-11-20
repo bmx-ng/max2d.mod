@@ -2,7 +2,10 @@ SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
@@ -37,6 +40,10 @@ Try
 	Local offsets:Float[] = [Float(0),0,3,-2,-3,2,1.5,-0.5,40,40]
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64, 64)
+		SetVirtualResolution(64, 64)
+?max2d_gl
+		Check(Max2DSupportsImageEffect(CreateColorizeEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsLayerInverseAlpha(), "OpenGL shadow capabilities required")
+?
 		Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
 		If Not Max2DSupportsImageEffect(CreateColorizeEffect()) Or Not Max2DSupportsLayerInverseAlpha() Then
 			shadow.Prepare(32, 32, 2)

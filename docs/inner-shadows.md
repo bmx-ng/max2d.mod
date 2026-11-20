@@ -3,7 +3,8 @@
 `TMax2DInnerShadow` creates recessed shading inside a layer's alpha coverage.
 It retains three full-size buffers and a blur pyramid. Source colours are ignored;
 the result is white with transparent areas, ready for ordinary draw-time tinting.
-Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend.
+Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend, or
+`Max2D.GLEffects` with `Max2D.GLMax2D`. The same cache and buffer API works on both.
 
 ```blitzmax
 Local shadow:TMax2DInnerShadow = CreateInnerShadow(8, 3, 3)

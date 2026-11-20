@@ -2,7 +2,8 @@
 
 `TMax2DShadow` caches a blurred white silhouette of a render image's alpha.
 Source RGB is ignored, and the result remains transparent around the silhouette.
-Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend.
+Import `Max2D.SDL3GPUEffects` with the native SDL GPU backend, or
+`Max2D.GLEffects` with `Max2D.GLMax2D`. The same cache and buffer API works on both.
 
 ```blitzmax
 Local shadow:TMax2DShadow = CreateShadow(12)

@@ -1,9 +1,17 @@
 # Effects gallery
 
-Build `examples/effects_gallery.bmx` as a GUI app using the native SDL GPU backend.
-It requires the optional SDL3GPUEffects provider, inverse-alpha blending and RGBA16F
-render images. It compares source artwork with one selected effect. Tab switches between two
-pages; 0–8 selects a view on the current page.
+Build `examples/effects_gallery.bmx` as a GUI app. The default build uses native
+SDL GPU with `Max2D.SDL3GPUEffects` and offers both pages. Add `-ud max2d_gl` to
+build with OpenGL and `Max2D.GLEffects`; this build offers the nine layer/cached
+effect views on page 1. Shader-package views on page 2 require SDL GPU.
+Both builds require inverse-alpha blending and RGBA16F render images.
+
+The gallery compares source artwork with one selected effect. Keys 0–8 select
+views. In the SDL GPU build, Tab switches between pages. For example:
+
+```text
+bmk makeapp -r -ud max2d_gl -t gui -o effects_gallery examples/effects_gallery.bmx
+```
 
 ## Page 1: layers and cached effects
 
@@ -33,7 +41,7 @@ pages; 0–8 selects a view on the current page.
 | 7 | One stationary mask spanning four independently rotating source tiles |
 | 8 | Soft threshold reveal using the red channel of a procedural map |
 
-Space pauses/resumes animation on either page. Left/right changes blur radius
+In the SDL GPU build, Space pauses/resumes animation on either page. Left/right changes blur radius
 from 0 to 16 source pixels. Escape exits. Layer outputs are retained and rebuilt
 on radius changes; switching views uses cached images. Package views reuse their
 effect descriptions and textures while updating parameters. The shared-map view
@@ -125,3 +133,11 @@ checked on macOS Metal, including navigation back to cached bloom. The broader
 [effects checkpoint](effects-and-masking.md#checkpoint-regression-sweep) records
 125 passing checks across the macOS profiles and both Vulkan VMs. These are
 correctness checks; the benchmark figures above remain the earlier CPU capture.
+
+## OpenGL validation (2026-11-20)
+
+The OpenGL gallery and focused soft/inner-shadow examples build as GUI apps.
+Soft shadows, independent/group inner shadows, radius changes and bloom were
+visually checked on macOS. Shadow, inner-shadow, bloom, inverse-mask and retained
+buffer regressions pass on macOS, Windows and Ubuntu OpenGL. See the
+[validation details](effects-and-masking.md#opengl-cached-shadows-and-gallery-validation-2026-11-20).
