@@ -1,5 +1,6 @@
 ' Short synthesized cues: no external assets, music or per-frame sample generation.
 Type TPinSound
+ Field overdriveSound:TSound,overdriveVoice:TChannel
  Field ready:Int,muted:Int,voices:TChannel[12],sounds:TSound[8],nextVoice:Int
  Method New()
   ready=SetAudioDriver("SDL3")
@@ -12,6 +13,7 @@ Type TPinSound
   sounds[5]=Tone(660,990,0.65,2)
   sounds[6]=Tone(240,55,0.4,0)
   sounds[7]=Tone(1200,1500,0.12,0)
+  overdriveSound=OverdrivePulse()
  End Method
  Method Tone:TSound(start:Float,finish:Float,duration:Float,kind:Int)
   Local sample:TAudioSample=CreateAudioSample(Int(duration*44100),44100,SF_MONO16LE)
@@ -28,6 +30,34 @@ Type TPinSound
   Next
   Return LoadSound(sample)
  End Method
+ ' One seamless second of reactor pulses, synthesized once at startup.
+ Method OverdrivePulse:TSound()
+  Local sample:TAudioSample=CreateAudioSample(44100,44100,SF_MONO16LE)
+  For Local i:Int=0 Until sample.length
+   Local seconds:Float=Float(i)/44100
+   Local pulse:Float=Float(Sin(seconds*360))
+   Local envelope:Float=pulse*pulse
+   Local wave:Float=Float(Sin(seconds*110*360)*0.55+Sin(seconds*220*360)*0.25+Sin(seconds*330*360)*0.15)
+   Local value:Int=Int(wave*envelope*14000)
+   sample.samples[i*2]=Byte(value & 255); sample.samples[i*2+1]=Byte((value Shr 8) & 255)
+  Next
+  Return LoadSound(sample,SOUND_LOOP)
+ End Method
+ Method UpdateOverdrive(remaining:Float,paused:Int)
+  If Not ready Or muted Or paused Or remaining<=0 Then
+   If overdriveVoice Then overdriveVoice.Stop(); overdriveVoice=Null
+   Return
+  End If
+  If Not overdriveSound Then Return
+  If Not overdriveVoice Then
+   overdriveVoice=overdriveSound.Cue()
+   If Not overdriveVoice Then Return
+   overdriveVoice.SetVolume(0.20)
+   overdriveVoice.SetPaused(False)
+  End If
+  ' A little urgency for the final ten seconds, without drowning out impacts.
+  overdriveVoice.SetRate(1+Max(0,10-remaining)*0.05)
+ End Method
  Method Play(index:Int,x:Float=5.6,rate:Float=1)
   If Not ready Or muted Or Not sounds[index] Then Return
   Local slot:Int=nextVoice Mod voices.Length; nextVoice:+1
@@ -39,6 +69,7 @@ Type TPinSound
   channel.SetRate(rate); channel.SetPaused(False)
  End Method
  Method Silence()
+  If overdriveVoice Then overdriveVoice.Stop(); overdriveVoice=Null
   For Local channel:TChannel=EachIn voices
    If channel Then channel.Stop()
   Next

@@ -196,6 +196,10 @@ Unavailable effects fall back to simpler rendering.
 flippers, launch, mode start, completion, drain and rollovers. SDL3 plays these
 through a bounded twelve-voice pool with stereo placement and conservative
 volume. Press **M** or tap **SFX ON/OFF** to mute; pausing silences current cues.
+Overdrive adds a quiet, looping reactor pulse on its own channel, so impacts
+cannot cut it off. It quickens during the final ten seconds and stops on mode
+completion, timeout, final drain, pause, restart or mute. Resuming or unmuting
+restarts it only while Overdrive is active.
 The game still runs if an audio device is unavailable. This demo uses sound
 effects only, with no soundtrack.
 

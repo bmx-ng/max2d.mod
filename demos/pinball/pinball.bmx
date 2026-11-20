@@ -158,6 +158,7 @@ While Not AppTerminate()
  End If
  previousLaunch=launchDown
  renderAlpha=Float(accumulator/PHYSICS_DT)
+ audio.UpdateOverdrive(table.overdriveTime,paused Or table.gameOver)
  visuals.Update(dt)
  visuals.BeginScene()
  DrawTable()
