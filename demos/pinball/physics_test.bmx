@@ -62,7 +62,7 @@ Print "PASS bumper scoring and impulse"
 For Local i:Int=0 Until 60
  t.Tick(False,False)
 Next
-t.ball.SetXForm(New b2Vec2.Create(4.7,FLIPPER_Y),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
+t.ball.SetXForm(New b2Vec2.Create(4.7,17.0),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
 Local upward:Float
 For Local i:Int=0 Until 25
  t.Tick(True,False)
@@ -71,7 +71,7 @@ Next
 Check(upward < -12,"Flipper does not launch ball upwards")
 Print "PASS flipper strike (upward velocity "+upward+")"
 t.balls=1; t.waiting=False; t.saveTime=0
-t.ball.SetXForm(New b2Vec2.Create(6,23),0); t.Tick(False,False)
+t.ball.SetXForm(New b2Vec2.Create(6,21),0); t.Tick(False,False)
 Check(t.gameOver And t.balls=0,"Final drain did not end game")
 t.Free()
 Print "PASS drain and cleanup"
@@ -83,7 +83,7 @@ For Local tick:Int=0 Until 14400
  If t.gameOver Then totalHits:+t.hits; t.Free(); t=New TPinTable
  If t.waiting Then t.charge=0.7; t.Launch()
  Local p:b2Vec2=t.ball.GetPosition()
- t.Tick(p.GetY()>FLIPPER_Y-2 And p.GetX()<6 And (tick Mod 100)<35,p.GetY()>FLIPPER_Y-2 And p.GetX()>=6 And (tick Mod 100)<35)
+ t.Tick(p.GetY()>15 And p.GetX()<6 And (tick Mod 100)<35,p.GetY()>15 And p.GetX()>=6 And (tick Mod 100)<35)
  p=t.ball.GetPosition()
  Check(p.GetX()=p.GetX() And p.GetY()=p.GetY(),"Non-finite ball position")
  Check(p.GetX()>0 And p.GetX()<12.5,"Ball escaped side rails")
@@ -98,11 +98,11 @@ Print "PASS two-minute physics soak: "+totalHits+" contacts"
 For Local side:Int=0 Until 2
  For Local surface:Int=0 Until 3
   t=New TPinTable; t.waiting=False; t.saveTime=0
-  Local sign:Float=1,cx:Float=2.75,cy:Float=14.8,nx:Float=0.8661856,ny:Float=-0.4997225
+  Local sign:Float=1,cx:Float=2.75,cy:Float=14.1,nx:Float=0.8661856,ny:Float=-0.4997225
   If side=1 Then sign=-1; cx=8.85
   nx:*sign
   If surface=1 Then nx=-nx; ny=-ny
-  If surface=2 Then cx=3.5; cy=16.1; nx=0.4997225; ny=0.8661856
+  If surface=2 Then cx=3.5; cy=15.4; nx=0.4997225; ny=0.8661856
   If surface=2 And side=1 Then cx=8.1; nx=-nx
   t.ball.SetXForm(New b2Vec2.Create(cx+nx*0.7,cy+ny*0.7),0)
   t.ball.SetLinearVelocity(New b2Vec2.Create(-nx*6,-ny*6))
@@ -223,7 +223,7 @@ For Local seed:Int=0 Until 40
  Local returned:Int
  For Local tick:Int=0 Until 960
   t.Tick(False,False)
-  If t.ball.GetPosition().GetY()>FLIPPER_Y-1.3 Then returned=True; Exit
+  If t.ball.GetPosition().GetY()>15.7 Then returned=True; Exit
  Next
  Check(returned,"Open Forge orbit did not return to flippers: "+seed)
  Check(t.forgeOpen And t.forgeTime>90,"Orbit escaped by closing the Forge")
@@ -231,7 +231,7 @@ For Local seed:Int=0 Until 40
 Next
 ' A real flipper contact restores the normal sling kick for the next shot.
 t=New TPinTable; t.waiting=False; t.slingChain=7
-t.ball.SetXForm(New b2Vec2.Create(4.7,FLIPPER_Y),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
+t.ball.SetXForm(New b2Vec2.Create(4.7,17),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
 For Local i:Int=0 Until 12
  t.Tick(True,False)
 Next
@@ -247,52 +247,3 @@ t.ball.SetXForm(New b2Vec2.Create(1.1,12),0); t.UpdateForge()
 Check(Not t.forgeOpen,"Forge outlet did not close after ball cleared")
 t.Free()
 Print "PASS Forge lower-left outlet clearance"
-
-' Real downward passages through all four safe lanes complete a word once.
-t=New TPinTable; t.waiting=False
-For Local lane:Int=0 Until 4
- t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],LETTER_LANE_Y-0.3),0)
- t.ball.SetLinearVelocity(New b2Vec2.Create(0,6))
- For Local i:Int=0 Until 8
-  t.Tick(False,False)
- Next
- If lane<3 Then Check(t.letterMask=(1 Shl (lane+1))-1,"Letter lane did not light: "+lane)
-Next
-Check(t.wordsCompleted=1 And t.letterMask=0 And t.score=1000,"FLUX word reward/reset")
-' Upward crossings and stationary balls cannot score.
-t.previousX=t.laneX[0]; t.previousY=LETTER_LANE_Y+0.3; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y-0.3),0)
-t.UpdateLetterLanes(); Check(t.letterMask=0,"Upward lane crossing scored")
-t.previousY=LETTER_LANE_Y; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y),0)
-t.UpdateLetterLanes(); Check(t.letterMask=0,"Stationary lane scored")
-' Swept crossings still light a lane even when both samples are far away.
-t.previousY=LETTER_LANE_Y-0.8; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y+0.7),0)
-t.UpdateLetterLanes(); Check(t.letterMask=1,"Fast lane crossing missed")
-t.UpdateLetterLanes(); Check(t.letterMask=1 And t.score=1000,"Lit lane repeated bonus")
-' Flippers no longer change letters. A different physical lane lights L.
-t.ball.SetXForm(New b2Vec2.Create(5.8,12),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0))
-t.Tick(True,False); t.Tick(False,True)
-Check(t.letterMask=1,"Flippers changed collected letters")
-t.previousX=t.laneX[1]; t.previousY=LETTER_LANE_Y-0.3
-t.ball.SetXForm(New b2Vec2.Create(t.laneX[1],LETTER_LANE_Y+0.3),0); t.UpdateLetterLanes()
-Check(t.letterMask=3,"Second channel did not light L")
-t.Spawn(); Check(t.letterMask=3 And t.wordsCompleted=1,"Letter progress lost across balls")
-t.Free()
-Print "PASS fixed side-channel letters, downward crossings, bonus and persistence"
-
-' Every entrance must feed the flippers without a pinch at the merge.
-For Local lane:Int=0 Until 4
- For Local speed:Int=0 Until 3
-  t=New TPinTable; t.waiting=False; t.saveTime=0
-  t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],LETTER_LANE_Y-0.3),0)
-  t.ball.SetLinearVelocity(New b2Vec2.Create(0,Float(speed)*3))
-  Local returned:Int
-  For Local tick:Int=0 Until 960
-   t.Tick(False,False)
-   If t.ball.GetPosition().GetY()>FLIPPER_Y-1.3 Then returned=True; Exit
-  Next
-  Check(returned,"Side channel trapped ball: "+lane+" speed "+speed)
-  Check(t.letterMask & (1 Shl lane),"Side channel missed its letter: "+lane)
-  t.Free()
- Next
-Next
-Print "PASS all four side channels feed flippers at three entry speeds"

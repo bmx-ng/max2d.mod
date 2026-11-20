@@ -11,17 +11,6 @@ Roll over the three numbered top lights (150 points each) to arm the centre
 jackpot for 15 seconds. Pass through its glowing ring to collect 1,000 points,
 then build the next set. An expired jackpot requires another set of lights.
 
-## FLUX letter lanes
-
-Two physical entrance channels on the left carry **F** and **L**; two on the
-right carry **U** and **X**. Each pair merges into the return behind its
-slingshot. The centre remains clear, with no letter selector or lane dividers.
-
-A downward ball passage lights that channel's own letter. Flipper presses do
-not change letters, and upward travel does not count. Light all four for
-**1,000 points**, then build another word. Letter progress and the completed-word
-count persist across balls and reset with a new game.
-
 ## Forge challenge
 
 Hit the **left core three times** to fill its three orange charge segments.
@@ -124,7 +113,6 @@ rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
 Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,
 40 open-Forge trajectories returning to the flippers within eight seconds,
-FLUX lane crossings, word rewards, progress persistence and all four side returns at three entry speeds,
 and a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.

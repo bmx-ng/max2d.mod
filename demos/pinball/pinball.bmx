@@ -19,7 +19,7 @@ Import "macos_input.m"
 Include "physics.bmx"
 Include "input.bmx"
 
-Const WIDTH:Int=1000,HEIGHT:Int=880,SCALE:Float=34,TX:Float=80,TY:Float=42
+Const WIDTH:Int=1000,HEIGHT:Int=820,SCALE:Float=34,TX:Float=80,TY:Float=42
 Global table:TPinTable=New TPinTable
 Global controls:TPinControls
 Global bloom:TMax2DBloom,halo:TMax2DShadow
@@ -80,16 +80,16 @@ While Not AppTerminate()
  rightDown=KeyDown(KEY_RIGHT) Or KeyDown(KEY_D) Or KeyDown(KEY_RSHIFT) Or controls.ButtonDown(1) Or KeyHit(KEY_RIGHT) Or KeyHit(KEY_D) Or KeyHit(KEY_RSHIFT) Or controls.ButtonHit(1)
  launchDown=KeyDown(KEY_SPACE) Or KeyDown(KEY_DOWN) Or controls.ButtonDown(2)
  If inside And mouseHeld Then
-  If (mouseX-180)^2+(mouseY-836)^2<34^2 Then leftDown=True
-  If (mouseX-405)^2+(mouseY-836)^2<34^2 Then rightDown=True
+  If (mouseX-180)^2+(mouseY-776)^2<34^2 Then leftDown=True
+  If (mouseX-405)^2+(mouseY-776)^2<34^2 Then rightDown=True
   If mouseX>570 And mouseX<920 And mouseY>590 And mouseY<690 Then launchDown=True
  End If
  If testMode Then
   dt=1.0/60; paused=False
   If table.waiting And Not table.gameOver Then table.charge=0.7; table.Launch()
   Local ballPos:b2Vec2=table.ball.GetPosition()
-  leftDown=ballPos.GetY()>FLIPPER_Y-2 And ballPos.GetX()<6 And (testSteps Mod 100)<35
-  rightDown=ballPos.GetY()>FLIPPER_Y-2 And ballPos.GetX()>=6 And (testSteps Mod 100)<35
+  leftDown=ballPos.GetY()>15 And ballPos.GetX()<6 And (testSteps Mod 100)<35
+  rightDown=ballPos.GetY()>15 And ballPos.GetX()>=6 And (testSteps Mod 100)<35
  End If
  If Not paused And Not table.gameOver Then
   If table.waiting And launchDown Then table.charge=Min(1,table.charge+dt*0.8)
@@ -180,17 +180,19 @@ Function LayoutControls()
 End Function
 Function DrawTable()
  ' Rounded-looking cabinet layers and a quiet technical playfield.
- Paint(12,19,37); DrawRect(85,45,420,760)
+ Paint(12,19,37); DrawRect(85,45,420,702)
  Paint(22,34,52); DrawRect(82,42,420,3)
  Paint(18,32,49)
- For Local y:Int=2 To 21
+ For Local y:Int=2 To 19
   Line(1,y,12,y,1)
  Next
  For Local x:Int=1 To 12
-  Line(x,1,x,21.5,1)
+  Line(x,1,x,20,1)
  Next
  Paint(27,49,65); Ring(TX+5.6*SCALE,TY+7*SCALE,125)
  Paint(23,39,58); Ring(TX+5.6*SCALE,TY+7*SCALE,143)
+ Text("F L U X",203,490,1.45,41,72,88)
+ Text("ENERGY REACTOR",198,530,0.6,49,82,97)
  For Local rail:TPinRail=EachIn table.rails
   Paint(2,5,14,0.8); Line(rail.x1+0.09,rail.y1+0.16,rail.x2+0.09,rail.y2+0.16,11)
   If rail.active Then Paint(119,48,92) Else Paint(35,83,104)
@@ -285,19 +287,7 @@ Function DrawTable()
   SetLineWidth(4); DrawLine(x-vx,y-vy,x+vx,y+vy); SetLineWidth(1)
   Local anchor:Float=3.4
   If i=1 Then anchor=8.4
-  Paint(232,242,246); DrawOval(TX+anchor*SCALE-5,TY+FLIPPER_Y*SCALE-5,10,10)
- Next
- ' Each side entrance has two physical channels, each with its own letter.
- Local letters:String="FLUX"
- For Local i:Int=0 Until 4
-  Local x:Float=TX+table.laneX[i]*SCALE,y:Float=TY+LETTER_LANE_Y*SCALE
-  Local lit:Int=table.letterMask & (1 Shl i)
-  If lit Or table.wordFlash>0 Then
-   Glow(x,y,1.1,111,241,186,0.6+table.laneFlash[i])
-   Text(letters[i..i+1],x-6,y-11,0.9,147,255,202)
-  Else
-   Text(letters[i..i+1],x-6,y-11,0.9,130,154,178)
-  End If
+  Paint(232,242,246); DrawOval(TX+anchor*SCALE-5,TY+17*SCALE-5,10,10)
  Next
  For Local n:Int=0 Until trailCount
   Local idx:Int=(trailHead-1-n+36) Mod 36,fade:Float=1-Float(n)/36
@@ -312,14 +302,14 @@ Function DrawTable()
   Paint(223,241,249); DrawOval(x-7,y-7,13,13)
   Paint(255,255,255); DrawOval(x-5,y-5,5,5)
  End If
- Paint(233,94,128,0.5); Line(4.5,21.7,7.2,21.7,2)
- Text("D R A I N",236,792,0.55,160,94,126)
+ Paint(233,94,128,0.5); Line(4.5,20.2,7.2,20.2,2)
+ Text("D R A I N",236,735,0.55,160,94,126)
  If table.surge>0 Then
   Paint(238,111,191,Float(0.5+Sin(clockTime*240)*0.2)); Ring(TX+5.6*SCALE,TY+7*SCALE,145)
  End If
- DrawFlipperButton(180,836,"L",leftDown)
- DrawFlipperButton(405,836,"R",rightDown)
- Text("HOLD TO FLIP",242,833,0.55,110,149,170)
+ DrawFlipperButton(180,776,"L",leftDown)
+ DrawFlipperButton(405,776,"R",rightDown)
+ Text("HOLD TO FLIP",242,773,0.55,110,149,170)
 End Function
 Function DrawFlipperButton(x:Float,y:Float,label:String,held:Int)
  Paint(18,39,56); DrawOval(x-33,y-33,66,66)
@@ -364,7 +354,7 @@ Function DrawInterface()
   Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
  End If
  Text("Arrows / A D / Shift: flippers",570,536,0.82,143,170,190)
- Text("Space: launch / Side lanes light F L U X",570,560,0.72,143,170,190)
+ Text("Hold Space, release to launch",570,560,0.82,143,170,190)
  Paint(19,39,56); DrawRect(570,590,350,100)
  Paint(55,100,120); DrawRect(570,590,350,2)
  If table.gameOver Then
@@ -378,21 +368,13 @@ Function DrawInterface()
   Paint(40,66,84); DrawRect(592,651,306,8)
   Paint(124,229,214); DrawRect(592,651,306*table.charge,8)
  Else
-   If table.wordFlash>0 Then
-   Text("FLUX COMPLETE! +1000",592,607,0.95,207,218,255)
-  Else
-   Local word:String=""
-   For Local i:Int=0 Until 4
-    If table.letterMask & (1 Shl i) Then word:+"FLUX"[i..i+1]+" " Else word:+"- "
-   Next
-   Text("FLUX: "+word,592,607,1.0,184,205,247)
-  End If
-  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Complete FLUX for 1000 / Words "+table.wordsCompleted,592,650,0.73)
+  Text("BALL IN PLAY",592,607,1.1,164,229,217)
+  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Hit the cores. Keep the ball alive.",592,650,0.78)
  End If
  Paint(16,30,45); DrawRect(570,722,350,50)
  If paused Then Text("RESUME",592,737,0.9) Else Text("PAUSE",592,737,0.9)
  Text("P / Esc",820,739,0.7,109,153,177)
- Text("MAX2D + BOX2D / PHYSICS TABLE 01",570,852,0.6,86,121,148)
+ Text("MAX2D + BOX2D / PHYSICS TABLE 01",570,792,0.6,86,121,148)
 End Function
 
 ?osx
