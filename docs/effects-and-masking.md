@@ -1,5 +1,75 @@
 # Effects and group masking
 
+## Current checkpoint (2026-11-20)
+
+The core effects architecture is implemented. This checkpoint records the public
+APIs, their limits and remaining validation work.
+
+| Area | Implemented |
+| --- | --- |
+| Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters |
+| Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
+| Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
+| Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
+| Shader authoring | Versioned packages, typed parameters, BlitzMax generation/embedding tools |
+| Custom sampling | Coordinates, combined grading/distortion, displacement and bounded atlas sampling |
+| Secondary maps | One extra texture, independent transforms, shared placement across sprites |
+| Reveals | Weighted channel masks, inversion, glowing dissolve and soft threshold masks |
+
+The [gallery](effects-gallery.md) provides two pages covering these effect families.
+The [shader package guide](shader-packages.md) documents the current ABI contracts;
+[HDR output](hdr-output.md) distinguishes float rendering, SDR presentation and
+actual HDR display output.
+
+### Deliberate limits and remaining work
+
+- Shader packages support colour, coordinates and one secondary texture through
+  ABI 1–4. Arbitrary resource layouts, additional maps and shader reflection are
+  not implemented. Source/map sampling in coordinate packages uses mip level zero.
+- Effects expose their passes and resource ownership. Retained buffers are
+  available; a general memory-budgeted scratch pool and automatic effect graph
+  are not implemented. Padding and result invalidation remain explicit.
+- Custom shaders use native SDL GPU. OpenGL, legacy Direct3D and SDL_Renderer
+  do not implement the package API; capability queries report unsupported.
+  Fixed-function layer operations remain available where their exact blends work.
+- Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
+  compiles, but Direct3D runtime validation remains outstanding.
+- Physical HDR output has been demonstrated on macOS. The VMs test unsupported
+  HDR requests and SDR fallback, not physical Windows/Linux HDR output. HDR10/PQ
+  and automatic colour management are not implemented.
+- Submission/resource counters and CPU benchmark captures exist. Comprehensive
+  GPU timestamps, pass accounting and isolated performance captures remain work
+  to do; existing CPU timings do not establish GPU speedups.
+
+### Checkpoint regression sweep
+
+The accumulated effects suite passed **125 checks** on 2026-11-20, using release
+builds. The [per-profile test record](effects-checkpoint-results.json) lists every
+selected test. This is a bounded effects/integration sweep, not the complete
+repository suite.
+
+| Platform/profile | Passed checks |
+| --- | ---: |
+| macOS package generation | 1 |
+| macOS Metal | 28 |
+| macOS software SDL | 26 |
+| macOS OpenGL | 14 |
+| Windows VM Vulkan | 28 |
+| Ubuntu VM Vulkan | 28 |
+
+Coverage includes package generation, colour/coordinate/two-texture shaders,
+map transforms and shared mapping, threshold masks, cached helpers, buffers,
+linear colour, HDR requests, blending, layer composition, integration, drawing
+state and native context lifetime. Software/OpenGL passes include explicit
+unsupported-shader handling; they do not imply those backends implement shaders.
+VM HDR passes cover rejection and SDR fallback. Direct3D execution, physical VM
+HDR output and GPU performance are outside this sweep.
+
+The expanded gallery was built as a macOS GUI app and visually checked on Metal
+for page navigation, colour matrices, combined grading/distortion, displacement,
+dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
+
 ## Choosing an API
 
 | Task | API / guide |
@@ -13,6 +83,10 @@
 | Cached soft shadows | [TMax2DShadow](shadows.md) |
 | Complete cached bloom | [TMax2DBloom](bloom.md) |
 | Linear artwork and HDR/SDR presentation | [Colour handling and HDR output](hdr-output.md) |
+| Custom colour, coordinate and two-texture effects | [Shader packages](shader-packages.md) |
+| Texture masks, dissolve and soft thresholds | [Shader packages](shader-packages.md#soft-threshold-masks) |
+| Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
+| Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
 Shader effects require `Max2D.SDL3GPUEffects`; the descriptions and buffer owners
 live in `Max2D.Effects`. Optional effects add no work to ordinary drawing when
@@ -171,8 +245,8 @@ equivalent Metal, SPIR-V and shader-model 5.1 DXBC implementations. Only the
 optional module links those assets. Backends without a registered provider,
 including OpenGL, D3D9, D3D11 and SDL_Renderer, report this shader effect
 unsupported. The public API does not silently fall back to a CPU conversion.
-This first package does not expose arbitrary shaders or additional texture
-slots; those require the validated package design below.
+The saturation provider described here uses a fixed built-in shader. Custom
+colour, coordinate and two-texture shaders use the versioned package API below.
 
 ## Two-pass layer blur
 
@@ -232,6 +306,7 @@ per pass, and two retained output images. Their logical RGBA8 storage totals
 pixel upload or readback is performed by a warmed draw. Cache the result and
 rebuild only when source pixels or radius change, as shown in the
 [interactive blur example](../examples/blur_effects.bmx). Wider blur is available through the retained reduction levels described below.
+For explicit ownership of reusable scratch images, use `TMax2DEffectBuffers`.
 Automatic scratch pooling remains future work.
 
 ## Chaining whole-layer effects
@@ -282,58 +357,48 @@ intermediate for its fixed three-step chain and lets you toggle grayscale.
 
 ## Architecture for general shader effects
 
-The public [shader package API](shader-packages.md) implements colour and
-coordinate effects, combined distortion and grading, and two-texture displacement
-dissolve and texture masks. Parameters are typed and image bounds have explicit edge modes.
-Arbitrary texture layouts and shader reflection remain future work.
+The public [shader package API](shader-packages.md) implements colour (ABI 1),
+coordinates (ABI 2), a secondary texture (ABI 3), and independent map transforms
+(ABI 4). ABI 1–3 packages remain compatible. Built-ins and custom packages use
+the same registration path. BlitzMax tools validate manifests, generate shader
+wrappers and embed the Metal, SPIR-V and DXBC assets. This is schema/container
+validation, not general shader reflection.
 
-The operations above exercise the target, parameter and compositing contracts.
-Further shader work should keep two explicit categories:
+Two execution models remain explicit:
 
-* **Direct draw effects** change a draw's sampling or colour without needing the
-  destination. A selected immutable effect snapshot joins texture, blend, clip
-  and target in the batch key. Changing effect or parameter values ends the
-  pending batch. Queued draws retain their submitted snapshot even if the
-  caller changes a parameter object later. A parameter object is reusable; one
-  fixed-size native uniform upload per changed batch is preferable to per-draw
-  allocations. Ordinary drawing continues through its current pipeline.
-* **Layer effects** sample a previously rendered group. They declare input
-  textures, output format, sampling radius/padding and bounds. They require an
-  explicit render-image target or an opt-in scoped group API. A radius-zero
-  colour effect can cover just the group's bounds; a blur expands by its sample
-  radius. Rendering a full window when the group occupies a small rectangle
-  would waste bandwidth. An effect chain can ping-pong between two compatible
-  scratch targets owned by the graphics context. A source may never be the
-  active destination in the same pass.
+- **Direct draw effects** change source sampling or colour without reading the
+  destination. The submitted draw captures effect parameters and texture bindings;
+  later setter calls cannot change queued draws. `DrawImageEffectBatch` shares a
+  captured configuration across repeated copies. Ordinary drawing does not select
+  an effect or allocate effect intermediates.
+- **Layer effects** read a previously rendered group. Chains and cached helpers
+  expose their passes and retained outputs. `TMax2DEffectBuffers` owns configurable
+  render images and blur levels; it is not a global pool. Sampling the active
+  destination is rejected, and callers provide adequate padding for halos.
 
-An effect description should contain a stable name, typed parameter layout,
-declared texture slots, colour convention, bounds/padding and a package version.
-Create effect instances once, then update typed values between draws. Built-in
-and third-party shader packages should use the same backend registration
-contract. The package should carry precompiled SPIR-V for Vulkan, Metal source
-or metallib for Metal, and appropriate Direct3D bytecode, plus GLSL 1.20 for
-the desktop OpenGL baseline. This matches the current SDL GPU shader-source
-layout but needs a versioned binding manifest and reflection/validation at
-registration. A package is supported only when its exact format and resource
-limits fit the active context. Direct3D 9 needs a separate shader profile and
-Direct3D 11 a separate device implementation. `SDL3RenderMax2D` has no general
-shader hook; it must report custom shader effects unsupported. The SDL renderer
-named `gpu` is still SDL_Renderer and does not make it the native SDL GPU
-backend. Fixed-function operations such as this alpha multiplication can be
-supported where the selected SDL renderer exposes the exact blend equation.
+Package descriptions own immutable shader assets and typed parameter layouts.
+Reusable effect instances hold values and optional map images. Native shaders
+and pipelines belong to the current graphics context; descriptions may outlive
+it and are checked again when used in another context. Buffer owners similarly
+validate context ownership and must be prepared for the new context.
 
-Texture slots should be explicit rather than implicit global image bindings.
-The package must declare whether a slot expects a straight-alpha image,
-premultiplied render image, coverage map or other data. Rendering a layer into
-RGBA starts premultiplied; a shader's output to that layer must preserve the
-same convention. Normal maps and light maps can later use typed data slots
-without changing sprite texture semantics. The resource owner is the current
-`TMax2DContext`; pipelines, parameter buffers and scratch targets are released
-on context close or device loss. Shader package descriptions may outlive a
-context, but native objects cannot. Capability checks must be repeated after
-changing backend or recreating graphics.
+The wrapper interprets ordinary, premultiplied render-image and coverage inputs,
+applies drawing tint and preserves the output alpha convention. Coordinate and
+map sampling stays within the selected image/view bounds with explicit
+transparent, clamp or repeat edge modes. RGB remains unclamped for floating-point
+HDR targets. There is no implicit colour-space conversion.
 
-## Cost and validation plan
+`SetTextureTransform` controls map placement relative to each source image.
+`SetTextureMapping` converts a captured virtual-space placement into source-local
+coordinates so independently transformed sprites can share one map. The latter
+captures the source transform per call; distinct placements require separate
+effect draws. Neither helper adds a render target or redraws the map.
+
+Arbitrary texture layouts and normal/light-map data contracts would be future
+extensions. OpenGL shader packages and separate legacy Direct3D implementations
+are also future work; SDL_Renderer has no general custom shader hook.
+
+## Cost and validation boundaries
 
 The default draw path needs zero effect lookups, passes, copies or allocations
 when no effect is selected. A rectangular clip changes scissor state and can
@@ -696,8 +761,9 @@ submissions with zero texture creation, upload or readback. Software SDL and
 OpenGL report the shader unsupported, and the existing bloom regression passes
 on all three macOS profiles. The GUI comparison was inspected with exposure and
 threshold changes and bloom toggled off/on. DXBC compiles without warnings;
-Direct3D runtime validation remains outstanding. This validates SDR display of
-HDR content, not an HDR monitor output mode or automatic colour management.
+Direct3D runtime validation remains outstanding. This particular regression validates SDR display of HDR content. Actual HDR
+window output was added separately; see [HDR output](hdr-output.md) for the
+implementation, display checks and remaining platform limits.
 
 ## Reusable buffer ownership
 
@@ -717,3 +783,8 @@ for independent map placement without redrawing the map. See
 For one map spanning independently transformed sprites, capture its placement with
 `CaptureImageTransform` and call `effect.SetTextureMapping(placement,sprite,x,y)`
 before each effect draw. See [sharing a map](shader-packages.md#sharing-a-map-across-sprites).
+
+For soft texture-driven reveals, use `CreateThresholdMaskEffect(map,low,high)`.
+It adds a smooth transition band after channel selection and filtering, supports
+inversion and shares the same mapping helpers. See
+[soft threshold masks](shader-packages.md#soft-threshold-masks).

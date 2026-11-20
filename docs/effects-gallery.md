@@ -2,7 +2,10 @@
 
 Build `examples/effects_gallery.bmx` as a GUI app using the native SDL GPU backend.
 It requires the optional SDL3GPUEffects provider, inverse-alpha blending and RGBA16F
-render images. It compares source artwork with one selected effect:
+render images. It compares source artwork with one selected effect. Tab switches between two
+pages; 0–8 selects a view on the current page.
+
+## Page 1: layers and cached effects
 
 | Key | View |
 | --- | --- |
@@ -16,8 +19,27 @@ render images. It compares source artwork with one selected effect:
 | 7 | Cached inner shadow over the source |
 | 8 | HDR bloom, tone mapped into the SDR window |
 
-Left/right changes blur radius from 0 to 16 source pixels. Escape exits. Outputs
-are retained and rebuilt on radius changes; switching views uses cached images.
+## Page 2: shader packages and maps
+
+| Key | View |
+| --- | --- |
+| 0 | Sepia colour matrix |
+| 1 | Animated wave distortion |
+| 2 | Waves and desaturation in one effect draw |
+| 3 | Texture-driven displacement |
+| 4 | Animated dissolve with an edge glow |
+| 5 | Reusable texture alpha mask |
+| 6 | Independently moving, scaled and rotated mask |
+| 7 | One stationary mask spanning four independently rotating source tiles |
+| 8 | Soft threshold reveal using the red channel of a procedural map |
+
+Space pauses/resumes animation on either page. Left/right changes blur radius
+from 0 to 16 source pixels. Escape exits. Layer outputs are retained and rebuilt
+on radius changes; switching views uses cached images. Package views reuse their
+effect descriptions and textures while updating parameters. The shared-map view
+captures transforms per tile and uses four effect draws; it is not a single batch.
+The noise map is uploaded once. The gallery's SDR window clips the dissolve's
+bright edge; float composition and HDR output are shown in the focused examples.
 The gallery precomputes several outputs for comparison, so its total storage and
 rebuild work exceed those of an application using only one effect. The focused
 examples remain available for learning each API in isolation.
@@ -31,7 +53,8 @@ the same blurred alpha and can lighten each other's inner edges. This is expecte
 group behaviour. Separate layers avoid that interaction at the cost of additional
 buffers and draws. Letters in the text still share one text layer.
 
-Other views operate on the combined source. Bloom uses a separately prepared
+Except for the shared-map tiles, other views operate on the combined source.
+Bloom uses a separately prepared
 linear floating-point source with extra energy in bright artwork. Its left panel
 shows that HDR source with the same SDR presentation mapping as the bloom panel;
 this gallery does not enable HDR monitor output. See `hdr_scene.bmx` for that.
@@ -94,3 +117,11 @@ and combined inner shadows, cached blur, inverse masks and bloom presentation.
 Both bloom panels use the same opaque black source background and tone mapping.
 This capture and gallery inspection were on Metal; no new Vulkan or Direct3D
 performance claim is made by this tranche.
+
+## Expanded gallery checkpoint (2026-11-20)
+
+The second page adds nine shader/map views. The GUI was rebuilt and visually
+checked on macOS Metal, including navigation back to cached bloom. The broader
+[effects checkpoint](effects-and-masking.md#checkpoint-regression-sweep) records
+125 passing checks across the macOS profiles and both Vulkan VMs. These are
+correctness checks; the benchmark figures above remain the earlier CPU capture.

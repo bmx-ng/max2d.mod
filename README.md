@@ -383,3 +383,8 @@ aligned across independently rotating sprites.
 
 The [threshold-mask comparison](examples/threshold_masks.bmx) demonstrates hard
 and soft texture-driven reveals with adjustable transition width and inversion.
+
+For the current implementation status, deliberate limits and validation gaps,
+see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026-11-20).
+The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
+composition and custom shader/map effects.
