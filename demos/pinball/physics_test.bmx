@@ -62,7 +62,7 @@ Print "PASS bumper scoring and impulse"
 For Local i:Int=0 Until 60
  t.Tick(False,False)
 Next
-t.ball.SetXForm(New b2Vec2.Create(4.7,17.0),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
+t.ball.SetXForm(New b2Vec2.Create(4.7,FLIPPER_Y),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
 Local upward:Float
 For Local i:Int=0 Until 25
  t.Tick(True,False)
@@ -71,7 +71,7 @@ Next
 Check(upward < -12,"Flipper does not launch ball upwards")
 Print "PASS flipper strike (upward velocity "+upward+")"
 t.balls=1; t.waiting=False; t.saveTime=0
-t.ball.SetXForm(New b2Vec2.Create(6,21),0); t.Tick(False,False)
+t.ball.SetXForm(New b2Vec2.Create(6,23),0); t.Tick(False,False)
 Check(t.gameOver And t.balls=0,"Final drain did not end game")
 t.Free()
 Print "PASS drain and cleanup"
@@ -83,7 +83,7 @@ For Local tick:Int=0 Until 14400
  If t.gameOver Then totalHits:+t.hits; t.Free(); t=New TPinTable
  If t.waiting Then t.charge=0.7; t.Launch()
  Local p:b2Vec2=t.ball.GetPosition()
- t.Tick(p.GetY()>15 And p.GetX()<6 And (tick Mod 100)<35,p.GetY()>15 And p.GetX()>=6 And (tick Mod 100)<35)
+ t.Tick(p.GetY()>FLIPPER_Y-2 And p.GetX()<6 And (tick Mod 100)<35,p.GetY()>FLIPPER_Y-2 And p.GetX()>=6 And (tick Mod 100)<35)
  p=t.ball.GetPosition()
  Check(p.GetX()=p.GetX() And p.GetY()=p.GetY(),"Non-finite ball position")
  Check(p.GetX()>0 And p.GetX()<12.5,"Ball escaped side rails")
@@ -223,7 +223,7 @@ For Local seed:Int=0 Until 40
  Local returned:Int
  For Local tick:Int=0 Until 960
   t.Tick(False,False)
-  If t.ball.GetPosition().GetY()>15.7 Then returned=True; Exit
+  If t.ball.GetPosition().GetY()>FLIPPER_Y-1.3 Then returned=True; Exit
  Next
  Check(returned,"Open Forge orbit did not return to flippers: "+seed)
  Check(t.forgeOpen And t.forgeTime>90,"Orbit escaped by closing the Forge")
@@ -231,7 +231,7 @@ For Local seed:Int=0 Until 40
 Next
 ' A real flipper contact restores the normal sling kick for the next shot.
 t=New TPinTable; t.waiting=False; t.slingChain=7
-t.ball.SetXForm(New b2Vec2.Create(4.7,17),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
+t.ball.SetXForm(New b2Vec2.Create(4.7,FLIPPER_Y),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,1))
 For Local i:Int=0 Until 12
  t.Tick(True,False)
 Next
@@ -251,7 +251,8 @@ Print "PASS Forge lower-left outlet clearance"
 ' Real downward passages through all four safe lanes complete a word once.
 t=New TPinTable; t.waiting=False
 For Local lane:Int=0 Until 4
- t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],14),0)
+ If lane>0 Then t.SetLaneControls(False,True); t.SetLaneControls(False,False)
+ t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],LETTER_LANE_Y-0.3),0)
  t.ball.SetLinearVelocity(New b2Vec2.Create(0,6))
  For Local i:Int=0 Until 8
   t.Tick(False,False)
@@ -260,24 +261,28 @@ For Local lane:Int=0 Until 4
 Next
 Check(t.wordsCompleted=1 And t.letterMask=0 And t.score=1000,"FLUX word reward/reset")
 ' Upward crossings and stationary balls cannot score.
-t.previousX=t.laneX[0]; t.previousY=14.6; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],14),0)
+t.previousX=t.laneX[0]; t.previousY=LETTER_LANE_Y+0.3; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y-0.3),0)
 t.UpdateLetterLanes(); Check(t.letterMask=0,"Upward lane crossing scored")
-t.previousY=14.3; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],14.3),0)
+t.previousY=LETTER_LANE_Y; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y),0)
 t.UpdateLetterLanes(); Check(t.letterMask=0,"Stationary lane scored")
+t.selectedLetter=0
 ' Swept crossings still light a lane even when both samples are far away.
-t.previousY=13.5; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],15),0)
+t.previousY=LETTER_LANE_Y-0.8; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y+0.7),0)
 t.UpdateLetterLanes(); Check(t.letterMask=1,"Fast lane crossing missed")
 t.UpdateLetterLanes(); Check(t.letterMask=1 And t.score=1000,"Lit lane repeated bonus")
-' Left/right rotate the illuminated pattern; holds and disabled input do not.
-t.SetLaneControls(True,False); Check(t.letterMask=8,"Left lane wrap")
-t.SetLaneControls(True,False); Check(t.letterMask=8,"Held flipper shifted twice")
+' Left/right move only the selection; collected letters stay put.
+t.SetLaneControls(True,False); Check(t.selectedLetter=3 And t.letterMask=1,"Left selection wrap must preserve collected letters")
+t.SetLaneControls(True,False); Check(t.selectedLetter=3,"Held flipper shifted twice")
 t.SetLaneControls(False,False); t.SetLaneControls(False,True)
-Check(t.letterMask=1,"Right lane wrap")
+Check(t.selectedLetter=0 And t.letterMask=1,"Right selection wrap")
 t.SetLaneControls(False,False); t.SetLaneControls(True,True)
-Check(t.letterMask=1,"Simultaneous flippers must cancel lane shift")
+Check(t.selectedLetter=0,"Simultaneous flippers must cancel selection shift")
 t.SetLaneControls(False,False); t.SetLaneControls(True,False,False)
-Check(t.letterMask=1,"Paused input shifted letters")
-t.SetLaneControls(True,False); Check(t.letterMask=1,"Resume fabricated a fresh press")
-t.Spawn(); Check(t.letterMask=1 And t.wordsCompleted=1,"Letter progress lost across balls")
+Check(t.selectedLetter=0,"Paused input shifted selection")
+t.SetLaneControls(True,False); Check(t.selectedLetter=0,"Resume fabricated a fresh press")
+t.SetLaneControls(False,False); t.SetLaneControls(False,True)
+t.UpdateLetterLanes()
+Check(t.letterMask=3,"Same lane failed to catch newly selected L")
+t.Spawn(); Check(t.letterMask=3 And t.wordsCompleted=1,"Letter progress lost across balls")
 t.Free()
 Print "PASS FLUX lanes, swept/downward detection, bonus, edge controls and persistence"

@@ -21,9 +21,9 @@ Type TPinControls Extends TVirtualJoystick
   If event.id=EVENT_APPSUSPEND Then suspended=True
  End Method
  Method Layout(w:Int,h:Int)
-  Local scale:Float=Min(Float(w)/1000,Float(h)/820),ox:Float=(w-1000*scale)/2,oy:Float=(h-820*scale)/2
-  SetButton(0,ox+180*scale,oy+776*scale,34*scale)
-  SetButton(1,ox+405*scale,oy+776*scale,34*scale)
+  Local scale:Float=Min(Float(w)/1000,Float(h)/880),ox:Float=(w-1000*scale)/2,oy:Float=(h-880*scale)/2
+  SetButton(0,ox+180*scale,oy+836*scale,34*scale)
+  SetButton(1,ox+405*scale,oy+836*scale,34*scale)
   SetButton(2,ox+745*scale,oy+640*scale,48*scale)
   SetButton(3,ox+745*scale,oy+747*scale,25*scale)
   Local button:TPinRectButton=TPinRectButton(buttons[2])

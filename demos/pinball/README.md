@@ -13,18 +13,21 @@ then build the next set. An expired jackpot requires another set of lights.
 
 ## FLUX letter lanes
 
-Four painted rollover lanes flank the slingshots: **F L U X**, from left to
-right. All feed back toward the flippers through the existing table guides.
-A downward passage lights that lane; upward travel does not count.
+Four painted return switches sit below the slingshots. Short dividers separate
+the inner and outer lanes; all feed back toward the flippers. The taller
+1000 x 880 layout gives the lower playfield extra room.
 
-Each fresh left/right flipper press rotates the lit pattern in that direction,
-including wrapping around the ends. Holds shift only once; simultaneous presses
-cancel each other. Keyboard, mouse and touch flippers share this behaviour.
-Time a shift before the ball reaches a lane to collect a missing light.
+A gold outline selects one letter in **F L U X**. Each fresh left/right flipper
+press moves that selection in its direction, wrapping at the ends. Holds move
+it only once; simultaneous presses cancel each other. Keyboard, mouse and touch
+share this behaviour. A downward ball passage through any return switch collects
+the currently selected letter, turning it green. Already collected letters stay
+put, so changing selection does not rearrange progress. Upward travel does not count.
 
-Light all four for **1,000 points**, then build another word. Letter progress
+Catch all four for **1,000 points**, then build another word. Letter progress
 and the completed-word count persist across balls and reset with a new game.
-The lane lights flash on completion and the sidebar shows the collected pattern.
+The challenge is keeping the needed letter selected while also using the
+flippers to save the ball.
 
 ## Forge challenge
 
