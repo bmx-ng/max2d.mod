@@ -21,6 +21,11 @@ choose a backend without rewriting your scene code.
 colour matrices, waves, ripples, displacement, dissolve and transformed/shared
 texture masks on SDL GPU and OpenGL.
 
+Native Direct3D built-in effects are available through `Max2D.D3D11Effects` and
+`Max2D.D3D9Effects`: colour effects, blur, outlines, bloom and reusable shadows.
+See the [D3D11](docs/d3d11.md#optional-image-effects) and
+[D3D9](docs/d3d9.md#optional-image-effects) guides for requirements and current limits.
+
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
 `examples/hdr_scene.bmx` adds sRGB artwork conversion and linear bloom with
@@ -207,6 +212,7 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
+| `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
 | `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by `SDL3GPUEffects` and `GLEffects`; use a renderer provider to draw. |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |

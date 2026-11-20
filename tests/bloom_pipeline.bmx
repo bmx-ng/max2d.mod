@@ -5,11 +5,18 @@ Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
 Import BRL.StandardIO
+Include "effect_test_readback.bmx"
 Function Check(ok:Int, message:String)
 	If Not ok Then Throw message
 End Function
@@ -24,7 +31,7 @@ Try
 	Check(rejected And bloom.GetIntensity() = 1, "invalid intensity preserves settings")
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64, 64)
-?max2d_gl
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
 		Check(Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateLinearOutputEffect()), "OpenGL bloom providers required")
 ?
 		Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
@@ -43,7 +50,10 @@ Try
 			Print "bloom shader unsupported"
 			Exit
 		End If
-		bloom.Prepare(32, 32, 2)
+?max2d_d3d9
+		bloom.SetThreshold(0.05)
+?
+		bloom.Prepare(32, 32, 2, effectTestBloomFormat)
 		rejected = False
 		Try
 			bloom.Result()
@@ -55,13 +65,29 @@ Try
 		For Local y:Int = 14 Until 18
 			For Local x:Int = 14 Until 18
 				Local offset:Int = (y*32+x)*4
+?max2d_d3d9
+				values[offset] = 0.8; values[offset+1] = 0.4; values[offset+2] = 0.2; values[offset+3] = 0.5
+?Not max2d_d3d9
 				values[offset] = 8; values[offset+1] = 4; values[offset+2] = 2; values[offset+3] = 0.5
+?
 			Next
 		Next
 		Local bytes:Byte[] = New Byte[values.Length*4]
 		MemCopy(bytes, values, Size_T(bytes.Length))
-		Local image:TImage = LoadImage(TTextureData.Create([TTextureLevel.Create(32, 32, PF_RGBA32F, bytes)]), 0)
-		Local source:TRenderImage = CreateRenderImage(32, 32, FILTEREDIMAGE, PF_RGBA16F)
+		Local data:TTextureData=TTextureData.Create([TTextureLevel.Create(32, 32, PF_RGBA32F, bytes)])
+?max2d_d3d9
+		Local bitmap:TPixmap=CreatePixmap(32,32,PF_RGBA8888)
+		For Local y:Int=0 Until 32
+			For Local x:Int=0 Until 32
+				Local i:Int=(y*32+x)*4
+				bitmap.WritePixel(x,y,(Int(values[i+3]*255+0.5) Shl 24) | (Int(values[i]*255+0.5) Shl 16) | (Int(values[i+1]*255+0.5) Shl 8) | Int(values[i+2]*255+0.5))
+			Next
+		Next
+		Local image:TImage=LoadImage(bitmap,0)
+?Not max2d_d3d9
+		Local image:TImage=LoadImage(data,0)
+?
+		Local source:TRenderImage = CreateRenderImage(32, 32, FILTEREDIMAGE, effectTestBloomFormat)
 		SetRenderImage(source)
 		SetBlend(SOLIDBLEND)
 		DrawImage(image, 0, 0)
@@ -73,27 +99,27 @@ Try
 			bloom.SetIntensity(0)
 			result = bloom.Update(source)
 			Check(canvas.renderImage = source, "update restores target")
-			Local zero:TTextureData = ReadRenderTextureData(result)
+			Local zero:TTextureData = ReadEffectTestTexture(result)
 			bloom.SetIntensity(1)
 			Check(bloom.Result() = result, "setting changes retain cached result")
 			bloom.Update(source)
-			Local one:TTextureData = ReadRenderTextureData(result)
+			Local one:TTextureData = ReadEffectTestTexture(result)
 			bloom.SetIntensity(2)
 			bloom.Update(source)
-			Local two:TTextureData = ReadRenderTextureData(result)
+			Local two:TTextureData = ReadEffectTestTexture(result)
 			Local z:Float Ptr = Float Ptr(zero.Level().Data()), a:Float Ptr = Float Ptr(one.Level().Data()), b:Float Ptr = Float Ptr(two.Level().Data())
 			Local halo:Int
 			For Local i:Int = 0 Until 32*32
 				Check(z[i*4+3] = 1 And a[i*4+3] = 1 And b[i*4+3] = 1, "bloom output is opaque")
 				For Local c:Int = 0 Until 3
-					Check(Abs(z[i*4+c]-values[i*4+c]*values[i*4+3]) < 0.001, "zero intensity flattens source over black")
-					Check(Abs((b[i*4+c]-z[i*4+c])-2*(a[i*4+c]-z[i*4+c])) < 0.008, "intensity scales only bloom")
+					Check(Abs(z[i*4+c]-values[i*4+c]*values[i*4+3]) < Max(effectTestTolerance,0.001), "zero intensity flattens source over black")
+					Check(Abs((b[i*4+c]-z[i*4+c])-2*(a[i*4+c]-z[i*4+c])) < Max(effectTestTolerance*2,0.008), "intensity scales only bloom")
 				Next
 				If values[i*4+3] = 0 And a[i*4] > 0.001 Then halo = True
 			Next
 			Check(halo, "glow survives outside source coverage")
 			ResetMax2DStats()
-			bloom.Prepare(32, 32, 2)
+			bloom.Prepare(32, 32, 2, effectTestBloomFormat)
 			Check(bloom.Result() = result, "identical preparation retains cached result")
 			bloom.Update(source)
 			Local stats:TMax2DStats = CaptureMax2DStats()
@@ -136,7 +162,7 @@ Try
 		Check(rejected And bloom.Result() = result, "invalid radius preserves previous result")
 		bloom.SetRadius(8)
 		SetRenderImage(Null)
-		bloom.Prepare(40, 40, 2)
+		bloom.Prepare(40, 40, 2, effectTestBloomFormat)
 		rejected = False
 		Try
 			bloom.Result()

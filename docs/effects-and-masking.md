@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional SDL GPU and OpenGL effect providers |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional SDL GPU, OpenGL and native Direct3D effect providers |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -44,6 +44,29 @@ The completion sweep passed 98 selected checks across macOS, Windows and Ubuntu,
 including 27 OpenGL suites per platform. The complete gallery and linear HDR
 scene were visually inspected on macOS. See [validation details](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
 
+### Native Direct3D effects
+
+`Max2D.D3D11Effects` and `Max2D.D3D9Effects` add the seven built-in effects and
+support the shared buffer, layer, bloom and shadow APIs. D3D11 supports float
+composition where the device advertises the formats. D3D9 currently uses RGBA8
+buffers and requires pixel shader 3.0 for effects (ordinary drawing still needs
+only shader 2.0). Both providers embed compiled shaders; their build tools are
+BlitzMax programs.
+
+Custom shader packages and HDR window presentation remain outstanding on these
+native providers. SDL GPU's Direct3D bytecode is a separate backend contract.
+See the [D3D11](d3d11.md#optional-image-effects) and
+[D3D9](d3d9.md#optional-image-effects) guides.
+
+The first native Direct3D checkpoint passed **34 Windows checks**: 18 D3D11
+(including real device replacement) and 16 D3D9 (including presentation resets
+and close/reopen), plus five affected OpenGL suites on macOS. D3D9 pipeline
+references use RGBA8 and account for bounded legacy filtering precision;
+D3D11 retains the float/HDR references. Direct blur and outline pixel checks
+retain their original tolerances. Optional-provider checks pass on both backends.
+The two native shadow GUI examples also compile. VM desktop capture returned a
+black image, so this checkpoint does not claim visual desktop inspection.
+
 ### Deliberate limits and remaining work
 
 - Shader packages support colour, coordinates and one secondary texture through
@@ -54,10 +77,10 @@ scene were visually inspected on macOS. See [validation details](shader-packages
   are not implemented. Padding and result invalidation remain explicit.
 - Custom shader packages support ABI 1–4 on native SDL GPU and OpenGL through
   their optional effect providers. OpenGL packages need desktop GLSL assets.
-  Legacy Direct3D and SDL_Renderer report packages unsupported.
+  Native D3D9/D3D11 and SDL_Renderer report packages unsupported.
   Fixed-function layer operations remain available where their exact blends work.
-- Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
-  compiles, but Direct3D runtime validation remains outstanding.
+- Metal and Windows/Ubuntu Vulkan have regression coverage. SDL GPU Direct3D bytecode
+  compiles, but that backend’s Direct3D runtime validation remains outstanding.
 - Physical HDR output has been demonstrated on macOS. The VMs test unsupported
   HDR requests and SDR fallback, not physical Windows/Linux HDR output. HDR10/PQ
   and automatic colour management are not implemented.

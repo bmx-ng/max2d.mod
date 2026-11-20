@@ -2,6 +2,7 @@
 #include <max2d.mod/core.mod/blend.h>
 #include <d3d9.h>
 #include <vector>
+#include <map>
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
@@ -10,6 +11,10 @@ extern const DWORD m2d9_draw_shader[];
 struct M2D9 {
     IDirect3DDevice9 *device;
     IDirect3DPixelShader9 *shader;
+    std::map<const void *,IDirect3DPixelShader9 *> effects;
+    IDirect3DPixelShader9 *effect;
+    float effectParameters[4];
+    int effectBaseLevel;
     int mipmaps;
 	D3DCAPS9 caps;
     float sx,sy;
@@ -67,7 +72,23 @@ void *m2d9_open(IDirect3DDevice9 *device) {
     if(!check(device->CreatePixelShader(m2d9_draw_shader,&c->shader),"CreatePixelShader (ps_2_0 required)")){delete c;return NULL;}
     c->device=device; device->AddRef(); return c;
 }
-void m2d9_close(M2D9 *c) {if(c){c->shader->Release();c->device->Release();delete c;}}
+void *m2d9_create_image_effect(M2D9 *c,const void *code,size_t size) {
+    if(!c||!code||!size) return NULL;
+    if(c->caps.PixelShaderVersion<D3DPS_VERSION(3,0)) {
+        check(E_NOTIMPL,"Image effects require pixel shader 3.0");return NULL;
+    }
+    auto found=c->effects.find(code);
+    if(found!=c->effects.end()) return found->second;
+    IDirect3DPixelShader9 *shader=NULL;
+    if(!check(c->device->CreatePixelShader((const DWORD *)code,&shader),"Create image effect")) return NULL;
+    c->effects[code]=shader;return shader;
+}
+void m2d9_select_image_effect(M2D9 *c,IDirect3DPixelShader9 *shader,float x,float y,float z,float w,int baseLevelOnly) {
+    if(!c) return;
+    c->effect=shader;c->effectBaseLevel=shader&&baseLevelOnly;
+    c->effectParameters[0]=x;c->effectParameters[1]=y;c->effectParameters[2]=z;c->effectParameters[3]=w;
+}
+void m2d9_close(M2D9 *c) {if(c){for(auto &entry:c->effects) entry.second->Release();c->shader->Release();c->device->Release();delete c;}}
 void m2d9_texture_size(M2D9 *c,int *width,int *height) {
 	D3DCAPS9 caps={};
 	*width=*height=0;
@@ -176,9 +197,15 @@ int m2d9_submit(M2D9 *c,M2D9Texture *dest,M2D9Texture *t,int blend,const float *
     }
     IDirect3DDevice9 *d=c->device;
 #define TRY(call) if(!check((call),#call))return 0
-    TRY(d->SetVertexShader(NULL));TRY(d->SetPixelShader(c->shader));
+    TRY(d->SetVertexShader(NULL));TRY(d->SetPixelShader(c->effect?c->effect:c->shader));
     float options[4]={t?1.f:0.f,t&&(t->target||t->mipmapped)?1.f:0.f,(blend==3||blend==4||(dest&&blend<=2))?1.f:0.f,blend==1?1.f:0.f};
     TRY(d->SetPixelShaderConstantF(0,options,1));
+    if(c->effect) {
+        float scale[4]={t?float(t->width)/t->allocatedWidth:1.f,t?float(t->height)/t->allocatedHeight:1.f,t?float(t->width):1.f,t?float(t->height):1.f};
+        float parameters[4]={c->effectParameters[0],c->effectParameters[1],c->effectParameters[2],c->effectBaseLevel&&t?float(t->filtered):c->effectParameters[3]};
+        TRY(d->SetPixelShaderConstantF(1,parameters,1));
+        TRY(d->SetPixelShaderConstantF(2,scale,1));
+    }
     TRY(d->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1));
     D3DVIEWPORT9 viewport={0,0,(DWORD)c->width,(DWORD)c->height,0,1};
     TRY(d->SetViewport(&viewport));TRY(d->SetScissorRect(&c->clip));
@@ -212,15 +239,15 @@ int m2d9_submit(M2D9 *c,M2D9Texture *dest,M2D9Texture *t,int blend,const float *
     TRY(d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE));TRY(d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE));
     TRY(d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE));TRY(d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE));
     TRY(d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE));
-    TRY(d->SetSamplerState(0,D3DSAMP_MINFILTER,t&&t->filtered?D3DTEXF_LINEAR:D3DTEXF_POINT));
-    TRY(d->SetSamplerState(0,D3DSAMP_MAGFILTER,t&&t->filtered?D3DTEXF_LINEAR:D3DTEXF_POINT));
-    TRY(d->SetSamplerState(0,D3DSAMP_MIPFILTER,t&&t->mipmapped?(t->filtered?D3DTEXF_LINEAR:D3DTEXF_POINT):D3DTEXF_NONE));
+    TRY(d->SetSamplerState(0,D3DSAMP_MINFILTER,t&&t->filtered&&!c->effectBaseLevel?D3DTEXF_LINEAR:D3DTEXF_POINT));
+    TRY(d->SetSamplerState(0,D3DSAMP_MAGFILTER,t&&t->filtered&&!c->effectBaseLevel?D3DTEXF_LINEAR:D3DTEXF_POINT));
+    TRY(d->SetSamplerState(0,D3DSAMP_MIPFILTER,t&&t->mipmapped&&!c->effectBaseLevel?(t->filtered?D3DTEXF_LINEAR:D3DTEXF_POINT):D3DTEXF_NONE));
     TRY(d->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP));TRY(d->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP));
     TRY(d->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE));
     std::vector<M2D9Vertex> vertices(count);
     for(int i=0;i<count;++i,v+=8){M2D9Vertex &o=vertices[i];o.x=c->ox+v[0]*c->sx-0.5f;o.y=c->oy+v[1]*c->sy-0.5f;o.z=0;o.rhw=1;
         o.color=D3DCOLOR_ARGB(channel(v[5]),channel(v[2]),channel(v[3]),channel(v[4]));
-        o.u=t?v[6]*t->width/t->allocatedWidth:0;o.v=t?v[7]*t->height/t->allocatedHeight:0;}
+        o.u=t?(c->effect?v[6]:v[6]*t->width/t->allocatedWidth):0;o.v=t?(c->effect?v[7]:v[7]*t->height/t->allocatedHeight):0;}
     TRY(d->BeginScene());
     HRESULT draw=d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,count/3,vertices.data(),sizeof(M2D9Vertex));
     HRESULT end=d->EndScene();

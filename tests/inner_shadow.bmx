@@ -5,11 +5,18 @@ Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
 Import BRL.StandardIO
+Include "effect_test_readback.bmx"
 Function Check(ok:Int, message:String)
 	If Not ok Then Throw message
 End Function
@@ -41,7 +48,7 @@ Try
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64, 64)
 		SetVirtualResolution(64, 64)
-?max2d_gl
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
 		Check(Max2DSupportsImageEffect(CreateColorizeEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsLayerInverseAlpha(), "OpenGL shadow capabilities required")
 ?
 		Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
@@ -61,8 +68,8 @@ Try
 			Exit
 		End If
 		shadow.SetRadius(4)
-		shadow.Prepare(32, 32, 0, PF_RGBA32F)
-		Local source:TRenderImage = CreateRenderImage(32, 32, 0, PF_RGBA32F)
+		shadow.Prepare(32, 32, 0, effectTestFormat)
+		Local source:TRenderImage = CreateRenderImage(32, 32, 0, effectTestFormat)
 		SetRenderImage(source)
 		SetBlend(SOLIDBLEND)
 		For Local y:Int = 0 Until 32
@@ -73,7 +80,7 @@ Try
 			Next
 		Next
 		SetImageHandle(source, 3, 5)
-		Local before:TTextureData = ReadRenderTextureData(source)
+		Local before:TTextureData = ReadEffectTestTexture(source)
 		For Local compact:Int = 0 Until 2
 ?max2d_sdlgpu
 			SetSDLGPUMax2DCompactSprites(compact)
@@ -103,14 +110,14 @@ Try
 					SetViewport(1, 2, 3, 4)
 					Local result:TRenderImage = shadow.Update(source)
 					Check(canvas.renderImage = source And Abs(GetAlpha()-0.2) < 0.001, "target and opacity restored")
-					Local pixels:TTextureData = ReadRenderTextureData(result)
+					Local pixels:TTextureData = ReadEffectTestTexture(result)
 					Local p:Float Ptr = Float Ptr(pixels.Level().Data())
 					For Local y:Int = 0 Until 32
 						For Local x:Int = 0 Until 32
 							Local expected:Float = Alpha(x,y)*(1-Sample(reference,x-offsets[o],y-offsets[o+1]))
 							Local i:Int = (y*32+x)*4
-							Check(Abs(p[i+3]-expected) < 0.00002, "inner alpha matches independent shifted kernel")
-							If expected > 0.0001 Then Check(Abs(p[i]-1) < 0.00002 And Abs(p[i+1]-1) < 0.00002 And Abs(p[i+2]-1) < 0.00002, "white coverage ignores source RGB")
+							Check(Abs(p[i+3]-expected) < effectTestTolerance, "inner alpha matches independent shifted kernel")
+							If p[i+3] > 0 Then Check(Abs(p[i]-1) < effectTestTolerance And Abs(p[i+1]-1) < effectTestTolerance And Abs(p[i+2]-1) < effectTestTolerance, "white coverage ignores source RGB")
 						Next
 					Next
 				Next
@@ -121,7 +128,7 @@ Try
 		Local stats:TMax2DStats = CaptureMax2DStats()
 		Check(stats.submissions = 5 And stats.textureCreations = 0 And stats.textureUpdates = 0 And stats.readbacks = 0, "full resolution cost")
 		Local cached:TRenderImage = shadow.Result()
-		shadow.Prepare(32,32,0,PF_RGBA32F)
+		shadow.Prepare(32,32,0,effectTestFormat)
 		Check(shadow.Result() = cached, "same preparation retains cache")
 		shadow.SetRadius(100)
 		Local rejected:Int
@@ -132,7 +139,7 @@ Try
 		End Try
 		Check(rejected And shadow.Result() = cached, "preflight failure preserves cache")
 		shadow.SetRadius(8)
-		shadow.Prepare(32,32,2,PF_RGBA32F)
+		shadow.Prepare(32,32,2,effectTestFormat)
 		rejected = False
 		Try
 			shadow.Result()
@@ -150,7 +157,7 @@ Try
 		shadow.Result()
 		stats = CaptureMax2DStats()
 		Check(stats.submissions = 0, "cache lookup performs no draws")
-		Local after:TTextureData = ReadRenderTextureData(source)
+		Local after:TTextureData = ReadEffectTestTexture(source)
 		Local a:Float Ptr = Float Ptr(before.Level().Data()), b:Float Ptr = Float Ptr(after.Level().Data())
 		For Local i:Int = 0 Until 32*32*4
 			Check(a[i] = b[i], "source pixels unchanged")

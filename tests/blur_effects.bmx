@@ -8,8 +8,10 @@ Framework Max2D.GLMax2D
 Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11 And Not max2d_sdlgpu
 Framework Max2D.SDL3RenderMax2D
 ?
@@ -23,7 +25,7 @@ End Function
 
 Function CheckPixel(p:TPixmap, x:Int, y:Int, alpha:Int, message:String)
 	Local value:Int = p.ReadPixel(x, y)
-	Check(Abs(((value Shr 24) & 255) - alpha) <= 1, message + " alpha")
+	Check(Abs(((value Shr 24) & 255) - alpha) <= 1, message + " alpha: expected "+alpha+", got "+((value Shr 24) & 255))
 	If alpha > 1 Then
 		Check(((value Shr 16) & 255) >= 250 And ((value Shr 8) & 255) <= 2 And (value & 255) <= 2, message + " preserves red without transparent-blue fringe")
 	End If
@@ -44,9 +46,9 @@ Try
 		If Not Max2DSupportsImageEffect(horizontal) Then
 ?max2d_sdlgpu
 			Throw "blur unavailable: " + SDL_GetError()
-?max2d_gl
-			Throw "OpenGL blur unavailable"
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
+			Throw "Native blur unavailable"
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 			Print "blur_effects passed: unsupported provider reported"
 			EndGraphics
 			End

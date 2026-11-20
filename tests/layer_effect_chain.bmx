@@ -8,8 +8,10 @@ Framework Max2D.GLMax2D
 Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11 And Not max2d_sdlgpu
 Framework Max2D.SDL3RenderMax2D
 ?
@@ -26,7 +28,12 @@ End Function
 
 Function CheckPixel(p:TPixmap, alpha:Int, gray:Int = -1)
 	Local value:Int = p.ReadPixel(8, 8)
-	Check(Abs(((value Shr 24) & 255) - alpha) <= 1, "chain alpha")
+	Local tolerance:Int=1
+?max2d_d3d9
+	' Empty chains use the legacy filtered copy, whose 8-bit alpha can differ by two.
+	tolerance=2
+?
+	Check(Abs(((value Shr 24) & 255) - alpha) <= tolerance, "chain alpha: expected "+alpha+", got "+((value Shr 24)&255))
 	If gray >= 0 Then
 		Check(Abs(((value Shr 16) & 255) - gray) <= 3 And Abs(((value Shr 8) & 255) - gray) <= 3 And Abs((value & 255) - gray) <= 3, "chain colour")
 	Else

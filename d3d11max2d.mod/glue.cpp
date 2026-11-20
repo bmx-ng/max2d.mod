@@ -15,6 +15,9 @@ extern const size_t m2d11_vertex_shader_size,m2d11_pixel_shader_size;
 struct M2D11 {
  ID3D11Device *device;ID3D11DeviceContext *context;
  ID3D11VertexShader *vs;ID3D11PixelShader *ps;ID3D11InputLayout *layout;
+ std::map<const void *,ID3D11PixelShader *> effects;
+ ID3D11PixelShader *effect;
+ float effectParameters[4];
  ID3D11Buffer *vertices,*settings;UINT capacity;
  std::map<int,ID3D11BlendState *> customBlends;
  ID3D11BlendState *blends[5];ID3D11SamplerState *samplers[2];
@@ -41,6 +44,7 @@ const char *m2d11_error(){return errorText;}
 void m2d11_close(M2D11 *c){
  if(!c)return;
  c->context->ClearState();
+ for(auto &entry:c->effects) release(entry.second);
  release(c->vs);release(c->ps);release(c->layout);release(c->vertices);release(c->settings);
  for(auto &entry:c->customBlends)release(entry.second);
  for(auto &s:c->blends)release(s);for(auto &s:c->samplers)release(s);
@@ -83,7 +87,7 @@ void *m2d11_open(ID3D11Device *device,ID3D11DeviceContext *context){
   {"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,8,D3D11_INPUT_PER_VERTEX_DATA,0},
   {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,24,D3D11_INPUT_PER_VERTEX_DATA,0}};
  if(SUCCEEDED(hr))hr=device->CreateInputLayout(input,3,m2d11_vertex_shader,m2d11_vertex_shader_size,&c->layout);
- D3D11_BUFFER_DESC buffer={};buffer.ByteWidth=32;buffer.Usage=D3D11_USAGE_DYNAMIC;buffer.BindFlags=D3D11_BIND_CONSTANT_BUFFER;buffer.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
+ D3D11_BUFFER_DESC buffer={};buffer.ByteWidth=48;buffer.Usage=D3D11_USAGE_DYNAMIC;buffer.BindFlags=D3D11_BIND_CONSTANT_BUFFER;buffer.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
  if(SUCCEEDED(hr))hr=device->CreateBuffer(&buffer,nullptr,&c->settings);
  D3D11_RASTERIZER_DESC raster={};raster.FillMode=D3D11_FILL_SOLID;raster.CullMode=D3D11_CULL_NONE;raster.DepthClipEnable=TRUE;raster.ScissorEnable=TRUE;
  if(SUCCEEDED(hr))hr=device->CreateRasterizerState(&raster,&c->raster);
@@ -104,6 +108,21 @@ void *m2d11_open(ID3D11Device *device,ID3D11DeviceContext *context){
  }
  if(!check(hr,"Create D3D11 rendering pipeline")){m2d11_close(c);return nullptr;}
  return c;
+}
+// Bytecode keys are immutable embedded assets. Every native device owns its shaders.
+void *m2d11_create_image_effect(M2D11 *c,const void *code,size_t size) {
+ if(!c||!code||!size) return nullptr;
+ auto found=c->effects.find(code);
+ if(found!=c->effects.end()) return found->second;
+ ID3D11PixelShader *shader=nullptr;
+ if(!check(c->device->CreatePixelShader(code,size,nullptr,&shader),"Create image effect")) return nullptr;
+ c->effects[code]=shader;
+ return shader;
+}
+void m2d11_select_image_effect(M2D11 *c,ID3D11PixelShader *shader,float x,float y,float z,float w) {
+ if(!c) return;
+ c->effect=shader;
+ c->effectParameters[0]=x;c->effectParameters[1]=y;c->effectParameters[2]=z;c->effectParameters[3]=w;
 }
 void m2d11_texture_size(M2D11 *c,int *width,int *height) {
 	// The graphics driver requires feature level 10.0 or later.
@@ -230,12 +249,13 @@ static int draw(M2D11 *c,ID3D11RenderTargetView *target,M2D11Texture *t,int blen
 		2*(pixels?1:c->sx)/c->width,-2*(pixels?1:c->sy)/c->height,
 		pixels?-1.f:2.f*c->ox/c->width-1,pixels?1.f:1-2.f*c->oy/c->height,
 		t?(t->coverage?2.f:1.f):0.f,blend==1?1.f:0.f,
-		t&&(t->target||t->mipmapped)?1.f:0.f,outputPremult&&blend<=2?1.f:0.f
+		t&&(t->target||t->mipmapped)?1.f:0.f,outputPremult&&blend<=2?1.f:0.f,
+        c->effectParameters[0],c->effectParameters[1],c->effectParameters[2],c->effectParameters[3]
 	};
  if(!check(ctx->Map(c->settings,0,D3D11_MAP_WRITE_DISCARD,0,&mapped),"Map settings"))return 0;
  memcpy(mapped.pData,settings,sizeof(settings));ctx->Unmap(c->settings,0);
  UINT stride=32,offset=0;ctx->IASetVertexBuffers(0,1,&c->vertices,&stride,&offset);ctx->IASetInputLayout(c->layout);ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
- ctx->VSSetShader(c->vs,nullptr,0);ctx->PSSetShader(c->ps,nullptr,0);ctx->GSSetShader(nullptr,nullptr,0);ctx->HSSetShader(nullptr,nullptr,0);ctx->DSSetShader(nullptr,nullptr,0);
+ ctx->VSSetShader(c->vs,nullptr,0);ctx->PSSetShader(!pixels&&c->effect?c->effect:c->ps,nullptr,0);ctx->GSSetShader(nullptr,nullptr,0);ctx->HSSetShader(nullptr,nullptr,0);ctx->DSSetShader(nullptr,nullptr,0);
  ctx->VSSetConstantBuffers(0,1,&c->settings);ctx->PSSetConstantBuffers(0,1,&c->settings);
  // Unbind the previous source before making it a destination, and bind the
  // new destination before sampling a texture that was previously a target.

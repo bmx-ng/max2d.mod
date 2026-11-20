@@ -5,11 +5,18 @@ Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
 Import BRL.StandardIO
+Include "effect_test_readback.bmx"
 Function Check(ok:Int, message:String)
 	If Not ok Then Throw message
 End Function
@@ -19,7 +26,7 @@ Try
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64, 64)
 		SetVirtualResolution(64, 64)
-?max2d_gl
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
 		Check(Max2DSupportsImageEffect(CreateColorizeEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsLayerInverseAlpha(), "OpenGL shadow capabilities required")
 ?
 		Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
@@ -38,8 +45,8 @@ Try
 			Exit
 		End If
 		shadow.SetRadius(4)
-		shadow.Prepare(17, 17, 0, PF_RGBA32F)
-		Local source:TRenderImage = CreateRenderImage(17, 17, 0, PF_RGBA32F)
+		shadow.Prepare(17, 17, 0, effectTestFormat)
+		Local source:TRenderImage = CreateRenderImage(17, 17, 0, effectTestFormat)
 		SetRenderImage(source)
 		SetClsColor(0, 0, 0, 0)
 		Cls
@@ -47,7 +54,7 @@ Try
 		SetColor(255, 0, 0)
 		SetAlpha(0.5)
 		DrawRect(8, 8, 1, 1)
-		Local sourceBefore:TTextureData = ReadRenderTextureData(source)
+		Local sourceBefore:TTextureData = ReadEffectTestTexture(source)
 		For Local compact:Int = 0 Until 2
 ?max2d_sdlgpu
 			SetSDLGPUMax2DCompactSprites(compact)
@@ -60,22 +67,22 @@ Try
 			Local r:Int, g:Int, b:Int
 			GetColor(r, g, b)
 			Check(r = 20 And g = 40 And b = 60 And GetAlpha() = 0.25, "tint and opacity restored")
-			Local pixels:TTextureData = ReadRenderTextureData(result)
+			Local pixels:TTextureData = ReadEffectTestTexture(result)
 			Local p:Float Ptr = Float Ptr(pixels.Level().Data())
 			For Local y:Int = 0 Until 17
 				For Local x:Int = 0 Until 17
 					Local expected:Float
 					If x >= 4 And x <= 12 And y >= 4 And y <= 12 Then expected = Float(weights[x-4]*weights[y-4])/131072
 					Local i:Int = (y*17+x)*4
-					Check(Abs(p[i+3]-expected) < 0.00001, "shadow alpha matches independent kernel")
-					If expected > 0 Then Check(Abs(p[i]-1) < 0.00001 And Abs(p[i+1]-1) < 0.00001 And Abs(p[i+2]-1) < 0.00001, "shadow ignores source RGB")
+					Check(Abs(p[i+3]-expected) < effectTestShadowTolerance, "shadow alpha matches independent kernel")
+					If p[i+3] > 0 Then Check(Abs(p[i]-1) < effectTestShadowTolerance And Abs(p[i+1]-1) < effectTestShadowTolerance And Abs(p[i+2]-1) < effectTestShadowTolerance, "shadow ignores source RGB")
 				Next
 			Next
 			ResetMax2DStats()
 			shadow.Update(source)
 			Local stats:TMax2DStats = CaptureMax2DStats()
 			Check(stats.submissions = 3 And stats.textureCreations = 0 And stats.textureUpdates = 0 And stats.readbacks = 0, "full resolution steady-state cost")
-			shadow.Prepare(17, 17, 0, PF_RGBA32F)
+			shadow.Prepare(17, 17, 0, effectTestFormat)
 			Check(shadow.Result() = result, "identical prepare retains result")
 			shadow.SetRadius(100)
 			Local rejected:Int
@@ -88,13 +95,13 @@ Try
 			shadow.SetRadius(4)
 		Next
 		SetOrigin(0, 0)
-		Local sourceAfter:TTextureData = ReadRenderTextureData(source)
+		Local sourceAfter:TTextureData = ReadEffectTestTexture(source)
 		Local before:Float Ptr = Float Ptr(sourceBefore.Level().Data()), after:Float Ptr = Float Ptr(sourceAfter.Level().Data())
 		For Local i:Int = 0 Until 17*17*4
 			Check(before[i] = after[i], "source pixels preserved")
 		Next
 		shadow.SetRadius(8)
-		shadow.Prepare(17, 17, 2, PF_RGBA32F)
+		shadow.Prepare(17, 17, 2, effectTestFormat)
 		Local rejected:Int
 		Try
 			shadow.Result()
@@ -113,6 +120,7 @@ Try
 		Check(stats.submissions = 0, "cached result performs no draws")
 		' Colour, opacity and offset are ordinary draws of the same cached white mask.
 		SetRenderImage(Null)
+		SetVirtualResolution(64,64)
 		SetClsColor(0, 0, 0)
 		Cls
 		SetBlend(ALPHABLEND)

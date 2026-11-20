@@ -8,8 +8,10 @@ Framework Max2D.GLMax2D
 Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11 And Not max2d_sdlgpu
 Framework Max2D.SDL3RenderMax2D
 ?
@@ -38,7 +40,7 @@ Function CheckMask(p:TPixmap, alpha:Int[], radius:Int, offset:Int = 0, r:Int = 2
 		For Local x:Int = 0 Until 17
 			Local pixel:Int = p.ReadPixel(x+offset, y)
 			Local a:Int = Int(Expected(alpha, 17, 15, x, y, radius)*opacity+0.5)
-			Check(Abs(((pixel Shr 24) & 255)-a) <= 1, "outline alpha radius="+radius+" at "+x+","+y)
+			Check(Abs(((pixel Shr 24) & 255)-a) <= 1, "outline alpha radius="+radius+" at "+x+","+y+": expected "+a+", got "+((pixel Shr 24)&255))
 			If a > 8 Then Check(Abs(((pixel Shr 16) & 255)-r) <= 3 And Abs(((pixel Shr 8) & 255)-g) <= 3 And Abs((pixel & 255)-b) <= 3, "outline colour")
 		Next
 	Next
@@ -58,9 +60,9 @@ Try
 		If Not Max2DSupportsImageEffect(outline) Then
 ?max2d_sdlgpu
 			Throw "outline unavailable: "+SDL_GetError()
-?max2d_gl
-			Throw "OpenGL outline unavailable"
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
+			Throw "Native outline unavailable"
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 			EndGraphics
 			Print "outline_effects passed: unsupported provider reported"
 			End
@@ -95,6 +97,9 @@ Try
 		SetBlend(SOLIDBLEND)
 		DrawImage(image, 0, 0)
 		SetImageHandle(source, 2, 3)
+		SetRenderImage(result)
+		DrawImage(source, 22, 3)
+		Local ordinaryReference:TPixmap=ReadRenderImage(result)
 		For Local compact:Int = 0 Until 2
 ?max2d_sdlgpu
 			SetSDLGPUMax2DCompactSprites(compact)
@@ -139,7 +144,7 @@ Try
 			pixels = ReadRenderImage(result)
 			For Local y:Int = 0 Until 15
 				For Local x:Int = 0 Until 17
-					Check(((pixels.ReadPixel(x+20, y) Shr 24) & 255) = alpha[y*17+x], "ordinary draw after outline")
+					Check(((pixels.ReadPixel(x+20, y) Shr 24) & 255) = ((ordinaryReference.ReadPixel(x+20,y) Shr 24)&255), "ordinary draw after outline")
 				Next
 			Next
 			Local chain:TMax2DImageEffect[] = [TMax2DImageEffect(outline), TMax2DImageEffect(CreateColorizeEffect(40, 160, 240))]

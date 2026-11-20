@@ -10,6 +10,7 @@ Import Max2D.GLEffects
 Framework Max2D.D3D9Max2D
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11 And Not max2d_sdlgpu
 Framework Max2D.SDL3RenderMax2D
 ?
@@ -68,9 +69,9 @@ Try
 		If Not Max2DSupportsImageEffect(tone) Then
 ?max2d_sdlgpu
 			Throw "tone mapping unavailable: "+SDL_GetError()
-?max2d_gl
+?max2d_gl Or max2d_d3d11
 			Throw "OpenGL effect unavailable"
-?Not max2d_sdlgpu And Not max2d_gl
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11
 			EndGraphics
 			Print "hdr_bloom passed: unsupported provider reported"
 			End

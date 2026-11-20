@@ -5,7 +5,13 @@ Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_sdlgpu And Not max2d_gl
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
@@ -95,6 +101,8 @@ Try
 		buffers.Prepare(19, 15, 1, 0)
 		FlushMax2D()
 		Check(oldFrame.closed And buffers.Image(0).width = 19 And buffers.Image(0).height = 15, "resize replaces storage and drains old frames")
+?Not max2d_d3d9 And Not max2d_d3d11
+		' Native Direct3D backends currently support one live window.
 		Local other:TGraphics = CreateGraphics(40, 40, 0, 0, 0, -1, -1)
 		SetGraphics(other)
 		rejected = False
@@ -114,6 +122,7 @@ Try
 		other.Close()
 		SetGraphics(canvas)
 		Check(buffers.Image(0).width = 19, "foreign context failure preserves layout")
+?
 		' Keep the owner across context closure; the next Prepare rebuilds it.
 		EndGraphics
 	Next

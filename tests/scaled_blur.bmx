@@ -8,8 +8,10 @@ Framework Max2D.GLMax2D
 Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11 And Not max2d_sdlgpu
 Framework Max2D.SDL3RenderMax2D
 ?
@@ -78,8 +80,8 @@ Try
 	For Local lifetime:Int = 0 Until 2
 		Check(Graphics(96, 96, 0, 0) <> Null, "graphics creation")
 		Local supported:Int = Max2DSupportsImageEffect(CreateBlurEffect())
-?max2d_gl
-		Check(supported,"OpenGL blur required")
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
+		Check(supported,"Native blur required")
 ?max2d_sdlgpu
 		Check(supported, "native blur required")
 		Print "scaled_blur driver=" + SDLGPUMax2DDriverName()
@@ -154,7 +156,12 @@ Try
 						For Local y:Int = 0 Until h
 							For Local x:Int = 0 Until w
 								Local pixel:Int = pixels.ReadPixel(x, y), a:Int = (pixel Shr 24) & 255
-								Check(Abs(a-expected.values[y*w+x]) <= 2, "CPU alpha reference levels=" + count + " odd=" + odd + " at " + x + "," + y + " actual=" + a + " expected=" + expected.values[y*w+x])
+								Local tolerance:Int=2
+?max2d_d3d9
+								' Legacy down/up-sampling adds bounded 8-bit filtering error per level.
+								tolerance:+count
+?
+								Check(Abs(a-expected.values[y*w+x]) <= tolerance, "CPU alpha reference levels=" + count + " odd=" + odd + " at " + x + "," + y + " actual=" + a + " expected=" + expected.values[y*w+x])
 								If a > 8 Then Check(((pixel Shr 16) & 255) >= 250 And (pixel & $ffff) = 0, "premultiplied red preserved")
 							Next
 						Next
