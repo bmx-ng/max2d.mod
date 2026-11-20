@@ -33,8 +33,8 @@ Hit the **centre core three times**, then shoot the centre jackpot ring to start
 top of normal scoring, and the tenth awards **2,000 points and a power cell**.
 The centre ring can collect an armed jackpot and activate Frenzy on the same shot.
 
-Hit the **right core three times**, then shoot the blue **MULTI** ring to release
-a second ball from the upper playfield. Make **eight core hits while both balls
+Hit the **right core six times**, then shoot **upwards through** the blue **MULTI** ring to release
+a second ball from the upper playfield. Falling balls and slow drifts do not activate it. Make **eight core hits while both balls
 survive** for **2,000 points and a power cell**. Both balls remain in play after
 completion; the reward is awarded once per activation. Losing either ball ends
 the challenge and leaves the survivor in play without spending a life. Only the

@@ -90,9 +90,13 @@ While Not AppTerminate()
   If table.waiting And Not table.gameOver Then table.charge=0.7; table.Launch()
   If testModes And (frames=0 Or frames=30) Then
    Local x:Float=5.6
-   If frames=0 Then table.multiCharge=3; x=8.1 Else table.frenzyCharge=3
+   If frames=0 Then table.multiCharge=MULTI_CHARGE_HITS; x=8.1 Else table.frenzyCharge=3
    table.ball.SetXForm(New b2Vec2.Create(x,9.9),0)
    table.ball.SetLinearVelocity(New b2Vec2.Create(0,9)); trailCount=0
+   If frames=0 Then
+    table.ball.SetXForm(New b2Vec2.Create(x,12),0)
+    table.ball.SetLinearVelocity(New b2Vec2.Create(0,-9))
+   End If
   End If
   If table.extraBall And table.frenzyTime>0 Then sawTogether=True
   If table.extraBall Then sawMultiball=True
@@ -231,10 +235,11 @@ Function DrawTable()
   Paint(118,239,217,0.8); Ring(x,y,14)
   If i>0 Then
    Local charge:Int=table.frenzyCharge
-   If i=1 Then charge=table.multiCharge
-   For Local segment:Int=0 Until 3
+   Local segments:Int=3,spacing:Float=16
+   If i=1 Then charge=table.multiCharge; segments=MULTI_CHARGE_HITS; spacing=8
+   For Local segment:Int=0 Until segments
     If segment<charge Then Paint(168,172,255) Else Paint(67,79,91)
-    DrawRect(x-22+segment*16,y+34,12,5)
+    DrawRect(x-22+segment*spacing,y+34,spacing-3,5)
    Next
   End If
   If table.frenzyTime>0 Then
@@ -269,7 +274,7 @@ Function DrawTable()
 
  End If
  Local multiX:Float=TX+8.1*SCALE,multiY:Float=TY+10.9*SCALE
- If table.multiCharge=3 Or table.multiActive Then
+ If table.multiCharge=MULTI_CHARGE_HITS Or table.multiActive Then
   Glow(multiX,multiY,2.0,104,165,255,0.7)
   Paint(143,192,255)
  Else
@@ -398,7 +403,7 @@ Function DrawInterface()
   Text("DOUBLE SCORE / "+Int(Ceil(table.surge))+" seconds",570,419,0.9,198,204,232)
  Else
   Text("CHARGE THE THREE CORES",570,379,0.9,129,221,214)
-  Text("Three hits charge a core. Shoot its ring.",570,420,0.75)
+  Text("Charge cores, then shoot their rings.",570,420,0.75)
   Text("Complete challenges to earn power cells.",570,448,0.75)
  End If
  If table.jackpotFlash>0 Then
@@ -422,8 +427,8 @@ Function DrawInterface()
  If table.frenzyTime>0 Then frenzyText="FRENZY: "+table.frenzyHits+"/10 hits / "+Int(Ceil(table.frenzyTime))+"s"
  If table.frenzyFlash>0 Then frenzyText="FRENZY COMPLETE! +2000 / CELL EARNED"
  Text(frenzyText,570,536,0.7,202,173,255)
- Local multiText:String="MULTI: right core "+table.multiCharge+"/3 | Cells "+table.multiCells
- If table.multiCharge=3 Then multiText="MULTI READY: shoot the blue ring"
+ Local multiText:String="MULTI: right core "+table.multiCharge+"/"+MULTI_CHARGE_HITS+" | Cells "+table.multiCells
+ If table.multiCharge=MULTI_CHARGE_HITS Then multiText="MULTI READY: shoot UP through blue ring"
  If table.multiActive Then multiText="MULTIBALL: "+table.multiHits+"/8 core hits"
  If table.multiActive And table.multiHits=8 Then multiText="MULTIBALL: cell earned / keep both alive"
  If table.multiFlash>0 Then multiText="MULTI COMPLETE! +2000 / CELL EARNED"

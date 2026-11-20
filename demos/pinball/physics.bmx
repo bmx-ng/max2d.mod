@@ -2,6 +2,7 @@
 ' This binding exposes joint angles and motor speeds in degrees.
 Const PHYSICS_DT:Float=1.0/120.0
 Const BALL_RADIUS:Float=0.24
+Const MULTI_CHARGE_HITS:Int=6
 Type TPinRail
  Field x1:Float,y1:Float,x2:Float,y2:Float,active:Int
 End Type
@@ -73,7 +74,7 @@ Type TPinTable
  Method HitCore(index:Int)
   If index=0 And forgeTime=0 And forgeCharge<3 Then forgeCharge:+1
   If index=2 And frenzyTime=0 And frenzyCharge<3 Then frenzyCharge:+1
-  If index=1 And Not multiActive And multiCharge<3 Then multiCharge:+1
+  If index=1 And Not multiActive And multiCharge<MULTI_CHARGE_HITS Then multiCharge:+1
   If frenzyTime>0 Then
    score:+200; frenzyHits:+1
    If frenzyHits=10 Then frenzyCells:+1; score:+2000; frenzyTime=0; frenzyFlash=3
@@ -96,7 +97,9 @@ Type TPinTable
   End If
   frenzyInside=inside
   inside=(p.GetX()-8.1)^2+(p.GetY()-10.9)^2<0.65^2
-  If multiCharge=3 And Not multiActive And Not multiInside And Crossed(8.1,10.9,0.65) Then
+  ' A charged lock needs an upward shot, not a ball falling past the ring.
+  Local upwardShot:Int=p.GetY()<previousY And ball.GetLinearVelocity().GetY()<-4
+  If upwardShot And multiCharge=MULTI_CHARGE_HITS And Not multiActive And Not multiInside And Crossed(8.1,10.9,0.65) Then
    multiCharge=0; multiHits=0; multiActive=True; multiPending=True
   End If
   multiInside=inside

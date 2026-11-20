@@ -251,7 +251,9 @@ Print "PASS Forge lower-left outlet clearance"
 ' Charge both new modes through actual core contacts, then use activation shots.
 t=New TPinTable; t.waiting=False; t.saveTime=0
 For Local core:Int=1 To 2
- For Local hit:Int=0 Until 3
+ Local required:Int=3
+ If core=1 Then required=MULTI_CHARGE_HITS
+ For Local hit:Int=0 Until required
   Local target:TPinTarget=t.targets[core]
   target.cooldown=0
   t.ball.SetXForm(New b2Vec2.Create(target.x+1,target.y),0)
@@ -261,7 +263,7 @@ For Local core:Int=1 To 2
   Next
  Next
 Next
-Check(t.frenzyCharge=3 And t.multiCharge=3,"New core charge from contacts")
+Check(t.frenzyCharge=3 And t.multiCharge=MULTI_CHARGE_HITS,"New core charge from contacts")
 t.previousX=5.6; t.previousY=9.5
 t.ball.SetXForm(New b2Vec2.Create(5.6,12.5),0); t.UpdateModes()
 Check(t.frenzyTime=25 And t.frenzyCharge=0,"Swept frenzy activation")
@@ -273,7 +275,14 @@ Check(t.frenzyCells=1 And t.frenzyTime=0 And t.score=rewardStart+4000,"Frenzy co
 t.HitCore(0); Check(t.frenzyCells=1,"Frenzy repeated completion")
 t.frenzyTime=PHYSICS_DT; t.UpdateModes(); t.UpdateModes(); Check(t.frenzyTime=0,"Frenzy timeout")
 t.previousX=8.1; t.previousY=9.5
-t.ball.SetXForm(New b2Vec2.Create(8.1,12),0); t.UpdateModes()
+t.ball.SetXForm(New b2Vec2.Create(8.1,12),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,9)); t.UpdateModes()
+Check(Not t.multiPending And t.multiCharge=MULTI_CHARGE_HITS,"Falling ball activated Multiball")
+t.previousY=12; t.ball.SetXForm(New b2Vec2.Create(8.1,9.5),0)
+t.ball.SetLinearVelocity(New b2Vec2.Create(0,-2)); t.UpdateModes()
+Check(Not t.multiPending,"Slow drift activated Multiball")
+t.multiCharge=3; t.ball.SetLinearVelocity(New b2Vec2.Create(0,-9)); t.UpdateModes()
+Check(Not t.multiPending,"Three hits still qualified Multiball")
+t.multiCharge=MULTI_CHARGE_HITS; t.UpdateModes()
 Check(t.multiPending And t.multiActive And t.multiCharge=0,"Swept multiball activation")
 t.Tick(False,False)
 Check(t.extraBall<>Null And Not t.multiPending,"Second ball release")
@@ -294,8 +303,8 @@ Check(t.ball.GetLinearVelocity().GetX()<0 And t.extraBall.GetLinearVelocity().Ge
 t.extraPreviousX=3.4; t.extraPreviousY=1.5
 t.extraBall.SetXForm(New b2Vec2.Create(3.4,3.5),0); t.UpdateExtraObjectives()
 Check(t.rolloverMask & 1,"Second ball missed rollover")
-t.extraPreviousX=8.1; t.extraPreviousY=9.5; t.multiCharge=3
-t.extraBall.SetXForm(New b2Vec2.Create(8.1,12),0); t.UpdateExtraObjectives()
+t.extraPreviousX=8.1; t.extraPreviousY=12; t.multiCharge=MULTI_CHARGE_HITS
+t.extraBall.SetXForm(New b2Vec2.Create(8.1,9.5),0); t.extraBall.SetLinearVelocity(New b2Vec2.Create(0,-9)); t.UpdateExtraObjectives()
 Check(Not t.multiPending,"Active multiball spawned a third ball")
 t.SetForgeGate(True); t.forgeTime=0
 t.ball.SetXForm(New b2Vec2.Create(6,12),0); t.extraBall.SetXForm(New b2Vec2.Create(1.7,9.4),0)
