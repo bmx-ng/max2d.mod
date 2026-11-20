@@ -98,11 +98,11 @@ Print "PASS two-minute physics soak: "+totalHits+" contacts"
 For Local side:Int=0 Until 2
  For Local surface:Int=0 Until 3
   t=New TPinTable; t.waiting=False; t.saveTime=0
-  Local sign:Float=1,cx:Float=2.75,cy:Float=14.1,nx:Float=0.8661856,ny:Float=-0.4997225
+  Local sign:Float=1,cx:Float=2.75,cy:Float=14.8,nx:Float=0.8661856,ny:Float=-0.4997225
   If side=1 Then sign=-1; cx=8.85
   nx:*sign
   If surface=1 Then nx=-nx; ny=-ny
-  If surface=2 Then cx=3.5; cy=15.4; nx=0.4997225; ny=0.8661856
+  If surface=2 Then cx=3.5; cy=16.1; nx=0.4997225; ny=0.8661856
   If surface=2 And side=1 Then cx=8.1; nx=-nx
   t.ball.SetXForm(New b2Vec2.Create(cx+nx*0.7,cy+ny*0.7),0)
   t.ball.SetLinearVelocity(New b2Vec2.Create(-nx*6,-ny*6))
@@ -251,7 +251,6 @@ Print "PASS Forge lower-left outlet clearance"
 ' Real downward passages through all four safe lanes complete a word once.
 t=New TPinTable; t.waiting=False
 For Local lane:Int=0 Until 4
- If lane>0 Then t.SetLaneControls(False,True); t.SetLaneControls(False,False)
  t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],LETTER_LANE_Y-0.3),0)
  t.ball.SetLinearVelocity(New b2Vec2.Create(0,6))
  For Local i:Int=0 Until 8
@@ -265,24 +264,35 @@ t.previousX=t.laneX[0]; t.previousY=LETTER_LANE_Y+0.3; t.ball.SetXForm(New b2Vec
 t.UpdateLetterLanes(); Check(t.letterMask=0,"Upward lane crossing scored")
 t.previousY=LETTER_LANE_Y; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y),0)
 t.UpdateLetterLanes(); Check(t.letterMask=0,"Stationary lane scored")
-t.selectedLetter=0
 ' Swept crossings still light a lane even when both samples are far away.
 t.previousY=LETTER_LANE_Y-0.8; t.ball.SetXForm(New b2Vec2.Create(t.laneX[0],LETTER_LANE_Y+0.7),0)
 t.UpdateLetterLanes(); Check(t.letterMask=1,"Fast lane crossing missed")
 t.UpdateLetterLanes(); Check(t.letterMask=1 And t.score=1000,"Lit lane repeated bonus")
-' Left/right move only the selection; collected letters stay put.
-t.SetLaneControls(True,False); Check(t.selectedLetter=3 And t.letterMask=1,"Left selection wrap must preserve collected letters")
-t.SetLaneControls(True,False); Check(t.selectedLetter=3,"Held flipper shifted twice")
-t.SetLaneControls(False,False); t.SetLaneControls(False,True)
-Check(t.selectedLetter=0 And t.letterMask=1,"Right selection wrap")
-t.SetLaneControls(False,False); t.SetLaneControls(True,True)
-Check(t.selectedLetter=0,"Simultaneous flippers must cancel selection shift")
-t.SetLaneControls(False,False); t.SetLaneControls(True,False,False)
-Check(t.selectedLetter=0,"Paused input shifted selection")
-t.SetLaneControls(True,False); Check(t.selectedLetter=0,"Resume fabricated a fresh press")
-t.SetLaneControls(False,False); t.SetLaneControls(False,True)
-t.UpdateLetterLanes()
-Check(t.letterMask=3,"Same lane failed to catch newly selected L")
+' Flippers no longer change letters. A different physical lane lights L.
+t.ball.SetXForm(New b2Vec2.Create(5.8,12),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0))
+t.Tick(True,False); t.Tick(False,True)
+Check(t.letterMask=1,"Flippers changed collected letters")
+t.previousX=t.laneX[1]; t.previousY=LETTER_LANE_Y-0.3
+t.ball.SetXForm(New b2Vec2.Create(t.laneX[1],LETTER_LANE_Y+0.3),0); t.UpdateLetterLanes()
+Check(t.letterMask=3,"Second channel did not light L")
 t.Spawn(); Check(t.letterMask=3 And t.wordsCompleted=1,"Letter progress lost across balls")
 t.Free()
-Print "PASS FLUX lanes, swept/downward detection, bonus, edge controls and persistence"
+Print "PASS fixed side-channel letters, downward crossings, bonus and persistence"
+
+' Every entrance must feed the flippers without a pinch at the merge.
+For Local lane:Int=0 Until 4
+ For Local speed:Int=0 Until 3
+  t=New TPinTable; t.waiting=False; t.saveTime=0
+  t.ball.SetXForm(New b2Vec2.Create(t.laneX[lane],LETTER_LANE_Y-0.3),0)
+  t.ball.SetLinearVelocity(New b2Vec2.Create(0,Float(speed)*3))
+  Local returned:Int
+  For Local tick:Int=0 Until 960
+   t.Tick(False,False)
+   If t.ball.GetPosition().GetY()>FLIPPER_Y-1.3 Then returned=True; Exit
+  Next
+  Check(returned,"Side channel trapped ball: "+lane+" speed "+speed)
+  Check(t.letterMask & (1 Shl lane),"Side channel missed its letter: "+lane)
+  t.Free()
+ Next
+Next
+Print "PASS all four side channels feed flippers at three entry speeds"

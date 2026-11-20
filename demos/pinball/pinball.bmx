@@ -91,8 +91,6 @@ While Not AppTerminate()
   leftDown=ballPos.GetY()>FLIPPER_Y-2 And ballPos.GetX()<6 And (testSteps Mod 100)<35
   rightDown=ballPos.GetY()>FLIPPER_Y-2 And ballPos.GetX()>=6 And (testSteps Mod 100)<35
  End If
- ' Sample edges every rendered frame, including frames with no physics step.
- table.SetLaneControls(leftDown,rightDown,Not paused And Not table.gameOver)
  If Not paused And Not table.gameOver Then
   If table.waiting And launchDown Then table.charge=Min(1,table.charge+dt*0.8)
   If (previousLaunch Or launchPressed) And Not launchDown Then table.Launch()
@@ -289,33 +287,18 @@ Function DrawTable()
   If i=1 Then anchor=8.4
   Paint(232,242,246); DrawOval(TX+anchor*SCALE-5,TY+FLIPPER_Y*SCALE-5,10,10)
  Next
- ' All four return switches collect the single selected letter.
+ ' Each side entrance has two physical channels, each with its own letter.
+ Local letters:String="FLUX"
  For Local i:Int=0 Until 4
-  Local x:Float=table.laneX[i]
-  Paint(46,72,92,0.65)
-  Line(x-0.25,LETTER_LANE_Y-0.6,x-0.25,LETTER_LANE_Y+0.4,1)
-  Line(x+0.25,LETTER_LANE_Y-0.6,x+0.25,LETTER_LANE_Y+0.4,1)
-  If table.laneFlash[i]>0 Then Glow(TX+x*SCALE,TY+LETTER_LANE_Y*SCALE,1.2,146,178,255,table.laneFlash[i]*2)
-  Paint(154,188,231)
-  Line(x-0.16,LETTER_LANE_Y-0.1,x,LETTER_LANE_Y+0.1,2)
-  Line(x,LETTER_LANE_Y+0.1,x+0.16,LETTER_LANE_Y-0.1,2)
- Next
- Local letters:String="FLUX",letterY:Float=TY+(LETTER_LANE_Y-0.15)*SCALE
- For Local i:Int=0 Until 4
-  Local x:Float=TX+(4.85+i*0.65)*SCALE,lit:Int=table.letterMask & (1 Shl i)
-  Paint(16,30,47); DrawRect(x-11,letterY-15,22,30)
+  Local x:Float=TX+table.laneX[i]*SCALE,y:Float=TY+LETTER_LANE_Y*SCALE
+  Local lit:Int=table.letterMask & (1 Shl i)
   If lit Or table.wordFlash>0 Then
-   Glow(x,letterY,1,111,241,186,0.5)
-   Text(letters[i..i+1],x-6,letterY-11,0.95,147,255,202)
+   Glow(x,y,1.1,111,241,186,0.6+table.laneFlash[i])
+   Text(letters[i..i+1],x-6,y-11,0.9,147,255,202)
   Else
-   Text(letters[i..i+1],x-6,letterY-11,0.95,104,131,158)
+   Text(letters[i..i+1],x-6,y-11,0.9,130,154,178)
   End If
  Next
- Local cursorX:Float=TX+(4.85+table.selectedLetter*0.65)*SCALE
- Paint(255,213,119); SetLineWidth(2)
- DrawLine(cursorX-11,letterY-16,cursorX+11,letterY-16); DrawLine(cursorX-11,letterY+16,cursorX+11,letterY+16)
- DrawLine(cursorX-11,letterY-16,cursorX-11,letterY+16); DrawLine(cursorX+11,letterY-16,cursorX+11,letterY+16)
- SetLineWidth(1)
  For Local n:Int=0 Until trailCount
   Local idx:Int=(trailHead-1-n+36) Mod 36,fade:Float=1-Float(n)/36
   Paint(94,211,238,fade*fade*0.22); DrawOval(TX+trailX[idx]*SCALE-4*fade,TY+trailY[idx]*SCALE-4*fade,8*fade,8*fade)
@@ -381,7 +364,7 @@ Function DrawInterface()
   Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
  End If
  Text("Arrows / A D / Shift: flippers",570,536,0.82,143,170,190)
- Text("Space: launch / Flippers select a letter",570,560,0.72,143,170,190)
+ Text("Space: launch / Side lanes light F L U X",570,560,0.72,143,170,190)
  Paint(19,39,56); DrawRect(570,590,350,100)
  Paint(55,100,120); DrawRect(570,590,350,2)
  If table.gameOver Then
@@ -402,9 +385,9 @@ Function DrawInterface()
    For Local i:Int=0 Until 4
     If table.letterMask & (1 Shl i) Then word:+"FLUX"[i..i+1]+" " Else word:+"- "
    Next
-   Text("FLUX: "+word+"  ["+"FLUX"[table.selectedLetter..table.selectedLetter+1]+"]",592,607,0.95,184,205,247)
+   Text("FLUX: "+word,592,607,1.0,184,205,247)
   End If
-  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Catch selected letter / Words "+table.wordsCompleted,592,650,0.73)
+  If table.saveTime>0 Then Text("Launch protection / "+Int(Ceil(table.saveTime))+"s",592,650,0.8) Else Text("Complete FLUX for 1000 / Words "+table.wordsCompleted,592,650,0.73)
  End If
  Paint(16,30,45); DrawRect(570,722,350,50)
  If paused Then Text("RESUME",592,737,0.9) Else Text("PAUSE",592,737,0.9)

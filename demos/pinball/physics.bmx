@@ -3,7 +3,7 @@
 Const PHYSICS_DT:Float=1.0/120.0
 Const BALL_RADIUS:Float=0.24
 Const FLIPPER_Y:Float=18.4
-Const LETTER_LANE_Y:Float=16.2
+Const LETTER_LANE_Y:Float=12.1
 Type TPinRail
  Field x1:Float,y1:Float,x2:Float,y2:Float,active:Int
 End Type
@@ -53,9 +53,9 @@ Type TPinTable
  Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
  Field forgeGate:b2Shape,forgeOutlet:b2Shape,forgeOpen:Int,forgeCharge:Int,forgeMask:Int,forgeCells:Int
  Field forgeTime:Float,forgeFlash:Float,forgeAnimation:Float,forgeSwitchInside:Int
- Field selectedLetter:Int,letterMask:Int,wordsCompleted:Int,laneLeftHeld:Int,laneRightHeld:Int
+ Field letterMask:Int,wordsCompleted:Int
  Field wordFlash:Float,laneFlash:Float[4]
- Field laneX:Float[]=[2.85,4.2,7.4,8.75]
+ Field laneX:Float[]=[1.16,2.1,9.1,10.03]
  Field slingChain:Int
  Field maxSpeed:Float
  Method New()
@@ -66,16 +66,18 @@ Type TPinTable
   Rail(0.7,3,0.7,13)
   Rail(0.7,3,3,0.7); Rail(3,0.7,9,0.7); Rail(9,0.7,12,2.5)
   Rail(12,2.5,12,19.1); Rail(10.5,4,10.5,19.1); Rail(10.5,19.1,12,19.1)
-  Rail(0.7,13,3.4,FLIPPER_Y); Rail(10.5,13,8.4,FLIPPER_Y)
+  Rail(0.7,14.5,3.4,FLIPPER_Y); Rail(10.5,14.5,8.4,FLIPPER_Y)
   Rail(0.7,13,0.7,21.5); Rail(10.5,13,10.5,21.5)
   For Local i:Int=0 Until 8
    targets[i]=New TPinTarget; targets[i].index=i
   Next
   Bumper(0,3.3,5.0); Bumper(1,7.9,5.0); Bumper(2,5.6,8.0)
-  targets[3].x=2.75; targets[3].y=14.1
-  targets[4].x=8.85; targets[4].y=14.1
-  Rail(2,12.8,3.5,15.4,3); Rail(8.1,15.4,9.6,12.8,4)
-  Rail(3.5,15.4,3.5,16.7); Rail(8.1,15.4,8.1,16.7)
+  targets[3].x=2.75; targets[3].y=14.8
+  targets[4].x=8.85; targets[4].y=14.8
+  Rail(2,13.5,3.5,16.1,3); Rail(8.1,16.1,9.6,13.5,4)
+  ' Two entrance channels per side, merging behind each slingshot.
+  Rail(1.55,11.7,1.65,12.25); Rail(2.8,12,2,13.5)
+  Rail(8.2,12,9.6,13.5); Rail(9.55,11.7,9.6,12.25)
   MakeFlipper(0,3.4,FLIPPER_Y,20)
   MakeFlipper(1,8.4,FLIPPER_Y,160)
   Local gateDef:b2BodyDef=New b2BodyDef
@@ -239,15 +241,6 @@ Type TPinTable
   End If
   jackpotInside=inside
  End Method
- Method SetLaneControls(left:Int,right:Int,enabled:Int=True)
-  Local shift:Int
-  If enabled Then
-   If left And Not laneLeftHeld Then shift:-1
-   If right And Not laneRightHeld Then shift:+1
-   If shift<>0 Then selectedLetter=(selectedLetter+shift+4) Mod 4
-  End If
-  laneLeftHeld=left; laneRightHeld=right
- End Method
  Method UpdateLetterLanes()
   wordFlash=Max(0,wordFlash-PHYSICS_DT)
   For Local i:Int=0 Until 4
@@ -260,10 +253,9 @@ Type TPinTable
   If previousY>=LETTER_LANE_Y Or p.GetY()<LETTER_LANE_Y Then Return
   Local x:Float=previousX+(p.GetX()-previousX)*(LETTER_LANE_Y-previousY)/(p.GetY()-previousY)
   For Local i:Int=0 Until 4
-   Local halfWidth:Float=0.45
-   If i=0 Or i=3 Then halfWidth=0.3
+   Local halfWidth:Float=0.28
    If Abs(x-laneX[i])<=halfWidth Then
-    letterMask:|1 Shl selectedLetter; laneFlash[i]=0.5
+    letterMask:|1 Shl i; laneFlash[i]=0.5
     If letterMask=15 Then
      score:+1000; wordsCompleted:+1; letterMask=0; wordFlash=2
     End If
@@ -272,7 +264,6 @@ Type TPinTable
   Next
  End Method
  Method Tick(left:Int,right:Int)
-  SetLaneControls(left,right,Not gameOver)
   elapsed:+PHYSICS_DT; surge=Max(0,surge-PHYSICS_DT); saveTime=Max(0,saveTime-PHYSICS_DT)
   For Local i:Int=0 Until 2
    previousAngle[i]=flipper[i].GetAngle()

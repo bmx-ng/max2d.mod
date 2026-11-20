@@ -13,21 +13,14 @@ then build the next set. An expired jackpot requires another set of lights.
 
 ## FLUX letter lanes
 
-Four painted return switches sit below the slingshots. Short dividers separate
-the inner and outer lanes; all feed back toward the flippers. The taller
-1000 x 880 layout gives the lower playfield extra room.
+Two physical entrance channels on the left carry **F** and **L**; two on the
+right carry **U** and **X**. Each pair merges into the return behind its
+slingshot. The centre remains clear, with no letter selector or lane dividers.
 
-A gold outline selects one letter in **F L U X**. Each fresh left/right flipper
-press moves that selection in its direction, wrapping at the ends. Holds move
-it only once; simultaneous presses cancel each other. Keyboard, mouse and touch
-share this behaviour. A downward ball passage through any return switch collects
-the currently selected letter, turning it green. Already collected letters stay
-put, so changing selection does not rearrange progress. Upward travel does not count.
-
-Catch all four for **1,000 points**, then build another word. Letter progress
-and the completed-word count persist across balls and reset with a new game.
-The challenge is keeping the needed letter selected while also using the
-flippers to save the ball.
+A downward ball passage lights that channel's own letter. Flipper presses do
+not change letters, and upward travel does not count. Light all four for
+**1,000 points**, then build another word. Letter progress and the completed-word
+count persist across balls and reset with a new game.
 
 ## Forge challenge
 
@@ -129,7 +122,10 @@ From the repository directory:
 Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
 ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
-Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,\n40 open-Forge trajectories returning to the flippers within eight seconds,\nFLUX lane crossings, word rewards, control edges and progress persistence,\nand a deterministic two-minute simulation with repeated strokes.
+Forge charging, activation, target collisions, timeout, safe gate closure and drain reset,
+40 open-Forge trajectories returning to the flippers within eight seconds,
+FLUX lane crossings, word rewards, progress persistence and all four side returns at three entry speeds,
+and a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
 
