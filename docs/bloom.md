@@ -1,7 +1,9 @@
 # Reusable bloom
 
 `TMax2DBloom` owns bright-pass extraction, scaled blur, glow gain and composition.
-It builds on `TMax2DEffectBuffers` and uses the optional SDL GPU effect provider.
+It builds on `TMax2DEffectBuffers` and uses either optional effect provider: `Max2D.SDL3GPUEffects` or
+`Max2D.GLEffects`. OpenGL supports float bloom and SDR tone-mapped presentation;
+HDR window presentation remains separate.
 
 ```blitzmax
 Local bloom:TMax2DBloom = CreateBloom(1.5, 12, 1)

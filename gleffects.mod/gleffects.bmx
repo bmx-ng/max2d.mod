@@ -1,7 +1,7 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for saturation, colourize, layer blur and outline effects.
+bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects.
 about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Other shader effects remain unsupported.
 End Rem
 Module Max2D.GLEffects
@@ -17,6 +17,9 @@ Global saturationKey:Byte
 Global colorizeKey:Byte
 Global blurKey:Byte
 Global outlineKey:Byte
+Global brightKey:Byte
+Global toneKey:Byte
+Global linearKey:Byte
 
 Const fragmentHeader:String = """
 #version 120
@@ -50,6 +53,32 @@ Const saturationBody:String = """
 """
 Const colorizeBody:String = """
 	c=vec4(parameters.rgb,c.a)*tint;
+
+"""
+
+Const brightBody:String = """
+	c*=tint;
+	float luminance=dot(c.rgb,vec3(0.2126,0.7152,0.0722));
+	c.a*=luminance>0.0?max(luminance-parameters.x,0.0)/luminance:0.0;
+
+"""
+Const toneBody:String = """
+	c*=tint;
+	c.rgb=1.0-1.0/(1.0+max(c.rgb,vec3(0.0))*parameters.x);
+	c.rgb=pow(abs(c.rgb),vec3(parameters.y));
+
+"""
+
+Const linearBody:String = """
+	c*=tint;
+	c.rgb=max(c.rgb,0.0)*parameters.x;
+	if(parameters.z!=0) c.rgb*=parameters.y;
+	else {
+		c.rgb=1.0-1.0/(1.0+c.rgb);
+		c.r=c.r<=0.0031308?12.92*c.r:1.055*pow(abs(c.r),1.0/2.4)-0.055;
+		c.g=c.g<=0.0031308?12.92*c.g:1.055*pow(abs(c.g),1.0/2.4)-0.055;
+		c.b=c.b<=0.0031308?12.92*c.b:1.055*pow(abs(c.b),1.0/2.4)-0.055;
+	}
 
 """
 
@@ -115,7 +144,7 @@ void main() {
 
 Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	Method Handles:Int(context:TMax2DContext,effect:TMax2DImageEffect) Override
-		Return TGLMax2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null)
+		Return TGLMax2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null Or TMax2DBrightPassEffect(effect)<>Null Or TMax2DToneMapEffect(effect)<>Null Or TMax2DLinearOutputEffect(effect)<>Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics,effect:TMax2DImageEffect) Override
@@ -139,10 +168,16 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 		If TMax2DColorizeEffect(effect) Then key=Varptr colorizeKey
 		If TMax2DBlurEffect(effect) Then key=Varptr blurKey
 		If TMax2DOutlineEffect(effect) Then key=Varptr outlineKey
+		If TMax2DBrightPassEffect(effect) Then key=Varptr brightKey
+		If TMax2DToneMapEffect(effect) Then key=Varptr toneKey
+		If TMax2DLinearOutputEffect(effect) Then key=Varptr linearKey
 		Local shader:Byte Ptr=m2d_gl_find_image_effect(context.native,key)
 		If shader Then Return shader
 		Local body:String=saturationBody
 		If TMax2DColorizeEffect(effect) Then body=colorizeBody
+		If TMax2DBrightPassEffect(effect) Then body=brightBody
+		If TMax2DToneMapEffect(effect) Then body=toneBody
+		If TMax2DLinearOutputEffect(effect) Then body=linearBody
 		Local code:String=fragmentHeader+body+fragmentFooter
 		Local baseLevelOnly:Int=TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null
 		If TMax2DBlurEffect(effect) Then code=blurFragment
@@ -165,6 +200,14 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 		Local saturation:TMax2DSaturationEffect=TMax2DSaturationEffect(effect)
 		If saturation Then
 			m2d_gl_select_image_effect(context.native,shader,saturation.GetAmount(),0,0,0)
+		Else If TMax2DBrightPassEffect(effect) Then
+			m2d_gl_select_image_effect(context.native,shader,TMax2DBrightPassEffect(effect).GetThreshold(),0,0,0)
+		Else If TMax2DLinearOutputEffect(effect) Then
+			Local output:TMax2DLinearOutputEffect=TMax2DLinearOutputEffect(effect)
+			m2d_gl_select_image_effect(context.native,shader,output.GetExposure(),output.GetWhiteLevel(),output.IsHDR(),0)
+		Else If TMax2DToneMapEffect(effect) Then
+			Local tone:TMax2DToneMapEffect=TMax2DToneMapEffect(effect)
+			m2d_gl_select_image_effect(context.native,shader,tone.GetExposure(),1.0/tone.GetGamma(),0,0)
 		Else If TMax2DOutlineEffect(effect) Then
 			m2d_gl_select_image_effect(context.native,shader,1.0/image.width,1.0/image.height,TMax2DOutlineEffect(effect).GetRadius(),0)
 		Else If TMax2DBlurEffect(effect) Then

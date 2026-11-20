@@ -389,8 +389,10 @@ see the [effects checkpoint](docs/effects-and-masking.md#current-checkpoint-2026
 The [effects gallery](docs/effects-gallery.md) now has two pages: cached layer
 composition and custom shader/map effects.
 
-OpenGL now has an optional `Max2D.GLEffects` provider for saturation, colourize, outlines and
-premultiplied layer blur, including repeated-sprite batches, layer chains and
-retained scaled-blur buffers. Build the blur, scaled-blur, colourize, outline and layer-chain
-examples with `-ud max2d_gl` to use it. See the [OpenGL comparison](examples/gl_effects.bmx)
+OpenGL has an optional `Max2D.GLEffects` provider for saturation, colourize,
+outlines, blur, bloom extraction, tone mapping and linear output. It supports
+batches, layer chains, retained buffers and reusable bloom. Build the blur,
+scaled-blur, colourize, outline, layer-chain, bloom and HDR-bloom examples with
+`-ud max2d_gl`. Float HDR rendering is supported; HDR window presentation remains
+a separate SDL GPU feature. See the [OpenGL comparison](examples/gl_effects.bmx)
 and [support details](docs/effects-and-masking.md#basic-opengl-image-effects).

@@ -2,7 +2,10 @@ SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
@@ -43,6 +46,9 @@ Try
 	Check(rejected And output.GetWhiteLevel() = 1, "invalid white level rejected atomically")
 	For Local lifetime:Int = 0 Until 2
 		Graphics(300, 80)
+?max2d_gl
+		Check(Max2DSupportsImageEffect(output), "OpenGL linear output required")
+?
 		If Not Max2DSupportsImageEffect(output) Then
 			Print "linear output shader unsupported; CPU conversion passed"
 			EndGraphics

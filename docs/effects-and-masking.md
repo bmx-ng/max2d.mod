@@ -8,7 +8,7 @@ APIs, their limits and remaining validation work.
 | Area | Implemented |
 | --- | --- |
 | Group composition | Alpha/inverse masks, opacity, nested layers and scissor clipping |
-| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL saturation/colourize/blur/outline |
+| Direct image effects | Explicit effect draws, repeated-sprite batches and captured parameters; optional OpenGL built-in effects |
 | Layer processing | Ordered chains, small blur, reduced-resolution blur, colourize and outlines |
 | Retained resources | Context-owned effect buffers, cached bloom, outer and inner shadows |
 | Colour and HDR | Linear artwork conversion, float composition, tone mapping and extended-linear HDR output |
@@ -30,8 +30,8 @@ actual HDR display output.
 - Effects expose their passes and resource ownership. Retained buffers are
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
-- Custom shader packages use native SDL GPU. OpenGL has an optional saturation/
-  colourize/blur/outline provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
+- Custom shader packages use native SDL GPU. OpenGL has an optional built-in effect
+  provider, but OpenGL, legacy Direct3D and SDL_Renderer do not implement
   the package API; capability queries report unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. Direct3D bytecode
@@ -90,8 +90,7 @@ dissolve, moving/shared masks, soft thresholds and returning to cached bloom.
 | Map placement across independently transformed sprites | [Shared texture mapping](shader-packages.md#sharing-a-map-across-sprites) |
 | Interactive comparisons | [Effects gallery](effects-gallery.md) |
 
-SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL saturation, colourize, outlines and
-blur require `Max2D.GLEffects`. The descriptions and buffer owners live in
+SDL GPU shader effects require `Max2D.SDL3GPUEffects`; OpenGL built-in effects require `Max2D.GLEffects`. The descriptions and buffer owners live in
 `Max2D.Effects`. Optional effects add no work to ordinary drawing when
 unused. The sections below retain the low-level APIs for custom composition.
 
@@ -253,8 +252,8 @@ colour, coordinate and two-texture shaders use the versioned package API below.
 
 ## Basic OpenGL image effects
 
-Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize, outlines and
-layer blur through the existing effect API:
+Import `Max2D.GLEffects` alongside `Max2D.GLMax2D` to enable saturation, colourize, outlines,
+layer blur, bright-pass extraction, tone mapping and linear output through the existing effect API:
 
 ```blitzmax
 Framework Max2D.GLMax2D
@@ -302,13 +301,21 @@ maximum neighbouring alpha minus the centre alpha. Source RGB is ignored; drawin
 tint colours the result. They require a render image, sample mip zero with
 transparent outside taps, and restore the mip range just as blur does.
 
-Layer chains can combine saturation, colourize, outlines and blur. The existing retained
-effect buffers and scaled-blur helper work without another OpenGL-specific API.
-The blur, colourize, outline, layer-chain and scaled-blur examples accept
-`-ud max2d_gl`.
+Bright-pass extraction preserves sampled RGB and scales alpha by the fraction of
+luminance above its threshold. Tone mapping applies exposure, nonnegative
+per-channel Reinhard mapping and a configurable gamma. Linear output provides
+either nonnegative linear gain or Reinhard mapping with the piecewise sRGB curve.
+All three share the ordinary source interpretation, tint, alpha, filter and mip
+rules of the colour effects.
+
+Layer chains can combine these built-in effects. Retained effect buffers,
+scaled blur and `TMax2DBloom` use the same public APIs on OpenGL and SDL GPU.
+The blur, colourize, outline, layer-chain, scaled-blur, bloom and HDR-bloom examples
+accept `-ud max2d_gl`. The HDR example renders into float layers and tone maps to
+an SDR window. Linear HDR values in a float texture do not enable HDR window
+presentation; that remains a separate SDL GPU capability.
 Chains containing unsupported effects reject during preflight before writing.
-Bloom extraction, tone mapping, custom shader packages and secondary maps
-remain future OpenGL work. The full effects gallery still requires SDL GPU;
+Custom shader packages and secondary maps remain future OpenGL work. The full effects gallery still requires SDL GPU;
 [the OpenGL comparison](../examples/gl_effects.bmx) shows the supported subset.
 Left/Right adjusts saturation and Space changes the silhouette colour.
 
@@ -357,6 +364,36 @@ These checks establish pixel correctness and retained-resource costs, not speed.
 
 All four updated examples build as macOS OpenGL GUI apps. The scaled-blur demo
 was visually checked in both equal-radius and wider-radius modes.
+
+### OpenGL bloom and output validation (2026-11-20)
+
+Nine release regressions pass on macOS, Windows and Ubuntu OpenGL:
+`bloom_pipeline`, `linear_colour`, `gl_effects`, `gl_effects_optional`,
+`effect_buffers`, `outline_effects`, `bloom_effects`, `hdr_bloom` and `scaled_blur`.
+The four bloom/linear-output regressions also pass on macOS SDL GPU and software
+SDL (explicit unsupported paths), for 35 selected checks excluding reruns.
+Floating-point tests ran on all three OpenGL platforms without skipping.
+
+Bright-pass tests compare threshold extraction with CPU luminance calculations,
+including tint, opacity, straight/premultiplied sources, batching and ordinary
+draws after effects. HDR tests use both RGBA16F and RGBA32F layers, exposures
+0/0.5/1/4, gamma 1/2.2, negative RGB and values up to 1000. They check retained
+highlight extraction, scaled blur, additive composition and mapped display
+against reference values. The warmed full HDR path uses nine submissions with
+no texture creation, upload or readback.
+
+Linear-output tests compare the sRGB curve and linear gain against a 256-step
+CPU reference, check alpha and unpremultiplication, and verify filtering occurs
+in linear light before output conversion. Reusable bloom tests cover retained
+buffers, glow intensity, cached-result validity and state restoration. The
+optional-import check covers all seven built-in descriptions. The window-state
+regression sets an explicit 64×64 virtual scene because Windows can enlarge the
+requested client width to its minimum size (130 pixels on the tested VM).
+
+Both bloom examples build as OpenGL GUI apps. The HDR-bloom comparison was
+visually checked on macOS, including threshold, exposure and bloom toggling.
+The window presents tone-mapped SDR; the float-layer checks establish HDR
+rendering correctness, not HDR display output or GPU performance.
 
 ## Two-pass layer blur
 

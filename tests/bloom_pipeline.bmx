@@ -2,7 +2,10 @@ SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
@@ -21,6 +24,9 @@ Try
 	Check(rejected And bloom.GetIntensity() = 1, "invalid intensity preserves settings")
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64, 64)
+?max2d_gl
+		Check(Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateLinearOutputEffect()), "OpenGL bloom providers required")
+?
 		Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
 		If Not Max2DSupportsImageEffect(CreateBrightPassEffect()) Then
 			bloom.Prepare(32, 32, 2, PF_RGBA8888)
@@ -99,6 +105,9 @@ Try
 		Next
 		' Rebuild between window draws, then verify the complete frame and restored tint/origin.
 		SetRenderImage(Null)
+		Print "bloom_pipeline window="+NativeResolutionWidth()+"x"+NativeResolutionHeight()+" logical="+canvas.context.view.width+"x"+canvas.context.view.height
+		' Desktop window minimum sizes can exceed the requested 64 pixels.
+		SetVirtualResolution(64, 64)
 		For Local frame:Int = 0 Until 3
 			SetClsColor(0, 0, 0)
 			Cls

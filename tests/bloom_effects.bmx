@@ -5,6 +5,7 @@ Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?max2d_gl
 Framework Max2D.GLMax2D
+Import Max2D.GLEffects
 ?max2d_d3d9
 Framework Max2D.D3D9Max2D
 ?max2d_d3d11
@@ -51,7 +52,9 @@ Try
 		If Not Max2DSupportsImageEffect(bright) Then
 ?max2d_sdlgpu
 			Throw "bright pass unavailable: "+SDL_GetError()
-?Not max2d_sdlgpu
+?max2d_gl
+			Throw "OpenGL effect unavailable"
+?Not max2d_sdlgpu And Not max2d_gl
 			EndGraphics
 			Print "bloom_effects passed: unsupported provider reported"
 			End

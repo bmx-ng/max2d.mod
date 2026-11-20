@@ -18,7 +18,6 @@ Try
 	For Local lifetime:Int=0 Until 2
 		Graphics(96,96)
 		Check(Max2DSupportsImageEffect(saturation) And Max2DSupportsImageEffect(colour),"GL providers required")
-		Check(Not Max2DSupportsImageEffect(CreateBrightPassEffect()),"Bright pass remains unsupported")
 		Local pixels:TPixmap=CreatePixmap(4,4,PF_RGBA8888)
 		For Local y:Int=0 Until 4
 			For Local x:Int=0 Until 4
