@@ -93,3 +93,57 @@ Print "Soak state: hits="+totalHits+" ball="+t.ball.GetPosition().GetX()+","+t.b
 Check(totalHits>10,"Soak did not exercise table contacts")
 t.Free()
 Print "PASS two-minute physics soak: "+totalHits+" contacts"
+
+' Strike both slingshots on the active face, the back, and the bottom end cap.
+For Local side:Int=0 Until 2
+ For Local surface:Int=0 Until 3
+  t=New TPinTable; t.waiting=False; t.saveTime=0
+  Local sign:Float=1,cx:Float=2.75,cy:Float=14.1,nx:Float=0.8661856,ny:Float=-0.4997225
+  If side=1 Then sign=-1; cx=8.85
+  nx:*sign
+  If surface=1 Then nx=-nx; ny=-ny
+  If surface=2 Then cx=3.5; cy=15.4; nx=0.4997225; ny=0.8661856
+  If surface=2 And side=1 Then cx=8.1; nx=-nx
+  t.ball.SetXForm(New b2Vec2.Create(cx+nx*0.7,cy+ny*0.7),0)
+  t.ball.SetLinearVelocity(New b2Vec2.Create(-nx*6,-ny*6))
+  Local touched:Int
+  For Local i:Int=0 Until 12
+   t.Tick(False,False)
+   If t.hits>0 Then touched=True
+  Next
+  Local v:b2Vec2=t.ball.GetLinearVelocity()
+  If surface=0 Then
+   Check(touched And v.GetX()*nx+v.GetY()*ny>10,"Slingshot face failed to kick")
+  Else
+   Check(Not touched And t.score=0,"Slingshot back or cap awarded a hit")
+   Check(v.GetX()*nx+v.GetY()*ny<2,"Slingshot back or cap bounced the ball")
+  End If
+  t.Free()
+ Next
+Next
+Print "PASS both slingshot faces, backs and bottom caps"
+
+t=New TPinTable; t.waiting=False
+For Local i:Int=0 Until 3
+ t.ball.SetXForm(New b2Vec2.Create(3.4+i*2.2,2.5),0)
+ t.ball.SetLinearVelocity(New b2Vec2.Create(0,0)); t.Tick(False,False)
+ Local earned:Int=t.score
+ For Local j:Int=0 Until 5
+  t.Tick(False,False)
+ Next
+ Check(t.score=earned,"Rollover repeated while occupied")
+Next
+Check(t.jackpotTime>14 And t.score=450,"Rollover bank did not arm jackpot")
+t.ball.SetXForm(New b2Vec2.Create(5.6,11),0); t.ball.SetLinearVelocity(New b2Vec2.Create(0,0)); t.Tick(False,False)
+Check(t.jackpots=1 And t.score=1450 And t.jackpotTime=0,"Jackpot collection")
+For Local i:Int=0 Until 5
+ t.Tick(False,False)
+Next
+Check(t.score=1450,"Jackpot awarded twice")
+t.jackpotTime=PHYSICS_DT; t.Tick(False,False); t.Tick(False,False)
+Check(t.jackpotTime=0 And t.jackpots=1,"Jackpot expiry")
+' Explicitly exercise a segment that crosses a switch between sample points.
+t.previousX=2.5; t.previousY=2.5; t.ball.SetXForm(New b2Vec2.Create(4.3,2.5),0)
+Check(t.Crossed(3.4,2.5,0.55),"Swept rollover missed")
+t.Free()
+Print "PASS rollover bank, jackpot collection, expiry and swept switches"

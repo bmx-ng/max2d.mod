@@ -7,6 +7,10 @@ balls per game. Light all three bumpers for 500 points and ten seconds of double
 scoring. There is a five-second launch protection period with at most one
 protected relaunch per launch.
 
+Roll over the three numbered top lights (150 points each) to arm the centre
+jackpot for 15 seconds. Pass through its glowing ring to collect 1,000 points,
+then build the next set. An expired jackpot requires another set of lights.
+
 ## Build
 
 From the Max2D repository directory in the bcc2 SDK:
@@ -40,7 +44,8 @@ Both flippers support simultaneous touches. Each captures its finger until
 release, including if it slides outside the initial hit area. Launcher and pause
 panels have rectangular touch regions matching their artwork. App suspension
 cancels touches and pauses. Controls account for native output scale and
-letterboxing. Physical touchscreen hardware has not yet been tested.
+letterboxing. The macOS SDL build disables the accent popup for held keys using
+a process-local SDL hint before creating the window. Physical touchscreen hardware has not yet been tested.
 
 The table starts with a ball in the shooter lane. A quick tap launches at minimum
 power; holding charges a stronger shot. A one-way gate closes after the ball
@@ -55,6 +60,9 @@ again to put it back into play.
 - Flippers collide with the ball but not the surrounding static table structure.
 - Contact callbacks queue bumper/slingshot events; impulses and scoring happen
   after Box2D unlocks the world. A cooldown suppresses duplicate contact scoring.
+- Only the inward-facing long edge of each slingshot kicks and scores. The back
+  and end caps cancel outward rebound while preserving motion along the surface.
+- Rollovers and the jackpot use swept ball segments, so fast shots cannot skip them.
 - Bumper kicks target a minimum outward speed; a 32-unit/s cap bounds energy spikes.
 - Table geometry supplies both physics and rendering.
 - Interpolated ball position and flipper angle, trails, impact rings and pulses.
@@ -80,7 +88,8 @@ From the repository directory:
 
 Physics checks cover launch-lane delivery, one-way gate/reset, flipper rise within 100 ms, limits/return, a 30-unit/s
 rail collision, actual bumper contact scoring/impulse, a flipper strike, final
-ball drain and a deterministic two-minute simulation with repeated strokes.
+ball drain, both slingshot faces/backs/bottom caps, rollover and jackpot rules,
+and a deterministic two-minute simulation with repeated strokes.
 Input checks cover independent fingers, launcher/pause hit regions, release,
 DPI scaling and letterbox offsets.
 

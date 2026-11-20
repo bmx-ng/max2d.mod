@@ -31,6 +31,12 @@ For Local a:Int=1 Until AppArgs.Length
  If AppArgs[a]="--capture-dir" And a+1<AppArgs.Length Then captureDir=AppArgs[a+1]; testMode=True
 Next
 AppTitle="Flux Pinball | Max2D + Box2D"
+?osx And Not max2d_gl
+' Set before SDL creates its Cocoa application/window. This is process-local.
+Local hintName:Byte Ptr="SDL_MAC_PRESS_AND_HOLD".ToCString(),hintValue:Byte Ptr="0".ToCString()
+PinballSDLSetHint(hintName,hintValue)
+MemFree(hintName); MemFree(hintValue)
+?
 Graphics WIDTH,HEIGHT,0
 SetVirtualResolution(WIDTH,HEIGHT,VIRTUAL_LETTERBOX)
 SetVirtualBarColor(6,10,22)
@@ -185,8 +191,8 @@ Function DrawTable()
  Next
  Paint(27,49,65); Ring(TX+5.6*SCALE,TY+7*SCALE,125)
  Paint(23,39,58); Ring(TX+5.6*SCALE,TY+7*SCALE,143)
- Text("F L U X",203,376,1.45,41,72,88)
- Text("ENERGY REACTOR",198,417,0.6,49,82,97)
+ Text("F L U X",203,490,1.45,41,72,88)
+ Text("ENERGY REACTOR",198,530,0.6,49,82,97)
  For Local rail:TPinRail=EachIn table.rails
   Paint(2,5,14,0.8); Line(rail.x1+0.09,rail.y1+0.16,rail.x2+0.09,rail.y2+0.16,11)
   If rail.active Then Paint(119,48,92) Else Paint(35,83,104)
@@ -213,6 +219,23 @@ Function DrawTable()
    Paint(133,255,226,t.flash*2); Ring(x,y,28+(0.45-t.flash)*100)
   End If
  Next
+ For Local i:Int=0 Until 3
+  Local x:Float=TX+(3.4+i*2.2)*SCALE,y:Float=TY+2.5*SCALE
+  Local lit:Int=(table.rolloverMask & (1 Shl i)) Or table.jackpotTime>0
+  If lit Then Glow(x,y,1.6,255,196,82,0.7+table.rolloverFlash[i])
+  If lit Then Paint(255,217,135) Else Paint(87,115,136)
+  Ring(x,y,17,2)
+  Text(String(i+1),x-5,y-10,0.75)
+ Next
+ Local jackpotX:Float=TX+5.6*SCALE,jackpotY:Float=TY+11*SCALE
+ If table.jackpotTime>0 Or table.jackpotFlash>0 Then
+  Glow(jackpotX,jackpotY,2.8,255,190,86,0.65+table.jackpotFlash)
+  Paint(255,221,143); Ring(jackpotX,jackpotY,27+Float(Sin(clockTime*240))*3,2)
+  Text("1000",jackpotX-19,jackpotY-10,0.75,255,235,179)
+ Else
+  Paint(51,74,93); Ring(jackpotX,jackpotY,27)
+  Text("JACKPOT",jackpotX-30,jackpotY-7,0.5,89,118,140)
+ End If
  For Local i:Int=3 Until 5
   Local t:TPinTarget=table.targets[i]
   If t.flash>0 Then Glow(TX+t.x*SCALE,TY+t.y*SCALE,3,245,68,146,t.flash)
@@ -278,6 +301,13 @@ Function DrawInterface()
   Text("Complete the set for a 500-point bonus",570,420,0.8)
   Text("and ten seconds of double scoring.",570,448,0.8)
  End If
+ If table.jackpotFlash>0 Then
+  Text("JACKPOT! +1000",570,477,0.85,255,220,142)
+ Else If table.jackpotTime>0 Then
+  Text("CENTRE JACKPOT / "+Int(Ceil(table.jackpotTime))+"s",570,477,0.85,255,220,142)
+ Else
+  Text("Top lights 1 + 2 + 3 arm the jackpot",570,477,0.78,218,191,133)
+ End If
  Text("Arrows / A D / Shift: flippers",570,510,0.82,143,170,190)
  Text("Hold Space, release to launch",570,540,0.82,143,170,190)
  Paint(19,39,56); DrawRect(570,590,350,100)
@@ -301,3 +331,9 @@ Function DrawInterface()
  Text("P / Esc",820,739,0.7,109,153,177)
  Text("MAX2D + BOX2D / PHYSICS TABLE 01",570,792,0.6,86,121,148)
 End Function
+
+?osx And Not max2d_gl
+Extern "C"
+ Function PinballSDLSetHint:Byte(name:Byte Ptr,value:Byte Ptr)="SDL_SetHint"
+End Extern
+?

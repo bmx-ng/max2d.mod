@@ -8,6 +8,7 @@ End Type
 Type TPinTarget
  Field x:Float,y:Float,radius:Float,index:Int
  Field cooldown:Float,flash:Float,pending:Int,nx:Float,ny:Float
+ Field passive:Int,passiveNX:Float,passiveNY:Float
 End Type
 Type TPinContacts Extends b2ContactListener
  Field table:TPinTable
@@ -20,6 +21,16 @@ Type TPinContacts Extends b2ContactListener
   Local n:b2Vec2=point.GetNormal()
   target.nx=n.GetX(); target.ny=n.GetY()
   If a.GetBody()=table.ball Then target.nx=-target.nx; target.ny=-target.ny
+  If target.index>=3 Then
+   Local faceX:Float=0.8661856
+   If target.index=4 Then faceX=-faceX
+   ' Only the long face pointing into the playfield is powered rubber.
+   ' End caps and the back are solid, unpowered surfaces.
+   If target.nx*faceX-target.ny*0.4997225<0.95 Then
+    target.passive=True; target.passiveNX=target.nx; target.passiveNY=target.ny
+    Return
+   End If
+  End If
   target.pending=True
  End Method
 End Type
@@ -30,6 +41,8 @@ Type TPinTable
  Field elapsed:Float,surge:Float,charge:Float,saveTime:Float,drainDelay:Float
  Field previousX:Float,previousY:Float,previousAngle:Float[2]
  Field gate:b2Shape,gateClosed:Int
+ Field rolloverMask:Int,jackpots:Int,rolloverInside:Int[3],jackpotInside:Int
+ Field jackpotTime:Float,jackpotFlash:Float,rolloverFlash:Float[3]
  Field maxSpeed:Float
  Method New()
   Local bounds:b2AABB=New b2AABB.Create(New b2Vec2.Create(-20,-20),New b2Vec2.Create(40,50))
@@ -68,6 +81,7 @@ Type TPinTable
   shape.SetAsBox(Float(Sqr((x2-x1)^2+(y2-y1)^2)/2),0.1)
   shape.SetFilterCategoryBits(2)
   shape.SetRestitution(0.55); shape.SetFriction(0.08)
+  If target>=0 Then shape.SetRestitution(0)
   Local fixture:b2Shape=body.CreateShape(shape)
   If target>=0 Then fixture.SetUserData(targets[target])
  End Method
@@ -107,6 +121,10 @@ Type TPinTable
  End Method
  Method Spawn()
   SetGate(False)
+  jackpotInside=False
+  For Local i:Int=0 Until 3
+   rolloverInside[i]=False
+  Next
   If ball Then world.DestroyBody(ball)
   Local def:b2BodyDef=New b2BodyDef
   def.SetPosition(New b2Vec2.Create(11.25,18.5)); def.SetIsBullet(True); def.SetLinearDamping(0.025)
@@ -120,6 +138,34 @@ Type TPinTable
   If Not waiting Or gameOver Then Return
   ball.SetLinearVelocity(New b2Vec2.Create(0,-(23+charge*6)))
   waiting=False; charge=0; saveTime=5
+ End Method
+ ' Swept detection prevents a fast ball skipping thin rollover switches.
+ Method Crossed:Int(x:Float,y:Float,radius:Float)
+  Local p:b2Vec2=ball.GetPosition(),dx:Float=p.GetX()-previousX,dy:Float=p.GetY()-previousY
+  Local fraction:Float=0,lengthSquared:Float=dx*dx+dy*dy
+  If lengthSquared>0 Then fraction=Max(0,Min(1,((x-previousX)*dx+(y-previousY)*dy)/lengthSquared))
+  Local ox:Float=previousX+fraction*dx-x,oy:Float=previousY+fraction*dy-y
+  Return ox*ox+oy*oy<radius*radius
+ End Method
+ Method UpdateObjectives()
+  jackpotTime=Max(0,jackpotTime-PHYSICS_DT); jackpotFlash=Max(0,jackpotFlash-PHYSICS_DT)
+  Local p:b2Vec2=ball.GetPosition()
+  For Local i:Int=0 Until 3
+   rolloverFlash[i]=Max(0,rolloverFlash[i]-PHYSICS_DT)
+   Local x:Float=3.4+i*2.2,inside:Int=(p.GetX()-x)^2+(p.GetY()-2.5)^2<0.55^2
+   If Not waiting And Not gameOver And Not rolloverInside[i] And Crossed(x,2.5,0.55) Then
+    If Not (rolloverMask & (1 Shl i)) And jackpotTime=0 Then
+     rolloverMask:|1 Shl i; score:+150; rolloverFlash[i]=0.6
+     If rolloverMask=7 Then rolloverMask=0; jackpotTime=15
+    End If
+   End If
+   rolloverInside[i]=inside
+  Next
+  Local inside:Int=(p.GetX()-5.6)^2+(p.GetY()-11)^2<0.8^2
+  If Not waiting And Not gameOver And jackpotTime>0 And Not jackpotInside And Crossed(5.6,11,0.8) Then
+   score:+1000; jackpots:+1; jackpotTime=0; jackpotFlash=1.2
+  End If
+  jackpotInside=inside
  End Method
  Method Tick(left:Int,right:Int)
   elapsed:+PHYSICS_DT; surge=Max(0,surge-PHYSICS_DT); saveTime=Max(0,saveTime-PHYSICS_DT)
@@ -142,6 +188,13 @@ Type TPinTable
   world.DoStep(PHYSICS_DT,10,6)
   ' Callbacks only queue events. Apply gameplay impulses after the world unlocks.
   For Local t:TPinTarget=EachIn targets
+   If t.passive Then
+    t.passive=False
+    ' Box2D mixes restitution using the larger value, including the ball's.
+    ' Remove that rebound on the unpowered back/caps; retain tangential motion.
+    Local v:b2Vec2=ball.GetLinearVelocity(),outward:Float=v.GetX()*t.passiveNX+v.GetY()*t.passiveNY
+    If outward>0 Then ball.SetLinearVelocity(New b2Vec2.Create(v.GetX()-outward*t.passiveNX,v.GetY()-outward*t.passiveNY))
+   End If
    If t.pending Then
     t.pending=False
     If t.cooldown<=0 And Not waiting And Not gameOver Then
@@ -159,6 +212,7 @@ Type TPinTable
     End If
    End If
   Next
+  UpdateObjectives()
   Local v:b2Vec2=ball.GetLinearVelocity(),speed:Float=Sqr(v.GetX()^2+v.GetY()^2)
   maxSpeed=Max(maxSpeed,speed)
   ' Bound pathological energy spikes while retaining ordinary flipper shots.
