@@ -33,9 +33,11 @@ Global paused:Int,leftDown:Int,rightDown:Int,launchDown:Int
 Global trailX:Float[36],trailY:Float[36],trailCount:Int,trailHead:Int
 Global accumulator:Double,renderAlpha:Float,clockTime:Float
 Global lastW:Int,lastH:Int
+Local testOverdrive:Int,sawOverdrive:Int
 Local testModes:Int,sawTogether:Int,sawMultiball:Int,sawFrenzy:Int,testMode:Int,captureDir:String,testSteps:Int,previousLaunch:Int,frames:Int
 For Local a:Int=1 Until AppArgs.Length
  If AppArgs[a]="--test" Then testMode=True
+ If AppArgs[a]="--test-overdrive" Then testMode=True; testOverdrive=True
  If AppArgs[a]="--test-modes" Then testMode=True; testModes=True
  If AppArgs[a]="--capture-dir" And a+1<AppArgs.Length Then captureDir=AppArgs[a+1]; testMode=True
 Next
@@ -114,6 +116,12 @@ While Not AppTerminate()
  If testMode Then
   dt=1.0/60; paused=False
   If table.waiting And Not table.gameOver Then table.charge=0.7; table.Launch()
+  If testOverdrive And frames=0 Then
+   table.forgeCells=1; table.frenzyCells=1; table.multiCells=1
+   table.ball.SetXForm(New b2Vec2.Create(5.6,12),0)
+   table.ball.SetLinearVelocity(New b2Vec2.Create(0,-9)); trailCount=0
+  End If
+  If table.overdriveTime>0 Then sawOverdrive=True
   If testModes And (frames=0 Or frames=30) Then
    Local x:Float=5.6
    If frames=0 Then table.multiCharge=MULTI_CHARGE_HITS; x=8.1 Else table.frenzyCharge=3
@@ -158,13 +166,14 @@ While Not AppTerminate()
  Flip
  frames:+1
  If testMode Then
-  If captureDir And (frames=1 Or frames=150 Or frames=360) Then
+  If captureDir And (frames=1 Or frames=150 Or frames=360 Or (testOverdrive And frames=30)) Then
    CreateDir(captureDir,True)
    If Not SavePixmapPNG(GrabPixmap(0,0,NativeResolutionWidth(),NativeResolutionHeight()),captureDir+"/flux-"+frames+".png") Then Throw "Capture failed"
   End If
   If frames=720 Then Exit
  End If
 Wend
+If testOverdrive And Not sawOverdrive Then Throw "Overdrive rendering smoke test did not activate"
 If testModes And (Not sawMultiball Or Not sawFrenzy Or Not sawTogether) Then Throw "Mode rendering smoke test did not activate both modes"
 If testMode Then Print "PASS: Flux runtime, "+testSteps+" physics steps, "+table.hits+" hits, score "+table.score+", peak speed "+table.maxSpeed
 audio.Silence()
@@ -270,7 +279,11 @@ Function DrawTable()
   TableText(String(i+1),x,y,14)
  Next
  Local jackpotX:Float=TX+5.6*SCALE,jackpotY:Float=TY+11*SCALE
- If table.jackpotTime>0 Or table.jackpotFlash>0 Then
+ If table.OverdriveReady() Or table.overdriveTime>0 Then
+  Glow(jackpotX,jackpotY,2.8,255,210,110,0.65+Float(Sin(clockTime*240))*0.15)
+  Paint(255,232,166); Ring(jackpotX,jackpotY,28,2)
+  TableText("OVERDRIVE",jackpotX,jackpotY,10,255,240,188,46)
+ Else If table.jackpotTime>0 Or table.jackpotFlash>0 Then
   Glow(jackpotX,jackpotY,2.8,255,190,86,0.65+table.jackpotFlash)
   Paint(255,221,143); Ring(jackpotX,jackpotY,27+Float(Sin(clockTime*240))*3,2)
   TableText("1000",jackpotX,jackpotY,14,255,235,179,42)
@@ -403,7 +416,19 @@ Function DrawInterface()
   DrawOval(648+i*27,307,12,12)
  Next
  Paint(35,58,77); DrawRect(570,352,350,1)
- If table.frenzyTime>0 Or table.multiActive Then
+ If table.overdriveFlash>0 Then
+  Text("OVERDRIVE COMPLETE",570,379,1.0,255,225,148)
+  Text("+10,000 / REACTOR STABILISED",570,420,0.85,255,239,196)
+  Text("Earn another set of cells to play again.",570,448,0.73)
+ Else If table.overdriveTime>0 Then
+  Text("OVERDRIVE / "+Int(Ceil(table.overdriveTime))+"s",570,379,1.1,255,225,148)
+  Text("3x bumper / sling scores. Each core 3 times:",570,420,0.71)
+  Text("LEFT "+table.overdriveHits[0]+"/3    CENTRE "+table.overdriveHits[2]+"/3    RIGHT "+table.overdriveHits[1]+"/3",570,448,0.75,255,231,164)
+ Else If table.OverdriveReady() Then
+  Text("OVERDRIVE READY",570,379,1.1,255,225,148)
+  Text("Shoot the gold centre ring to start.",570,420,0.78)
+  Text("30 seconds / all three cores / +10,000",570,448,0.75)
+ Else If table.frenzyTime>0 Or table.multiActive Then
   Text("CORE CHALLENGES ACTIVE",570,379,0.9,192,180,255)
   If table.frenzyTime>0 Then
    Text("Frenzy: 10 core hits in 25s / +200 per hit",570,420,0.73)
@@ -437,14 +462,14 @@ Function DrawInterface()
  Else If table.forgeCharge=3 Then
   Text("FORGE READY: shoot the orange ring",570,506,0.73,255,194,112)
  Else
-  Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+table.forgeCells,570,506,0.73,224,174,116)
+  Text("FORGE: left core "+table.forgeCharge+"/3  |  Cells "+(table.forgeCells-table.overdriveStarts),570,506,0.73,224,174,116)
  End If
- Local frenzyText:String="FRENZY: centre core "+table.frenzyCharge+"/3 | Cells "+table.frenzyCells
+ Local frenzyText:String="FRENZY: centre core "+table.frenzyCharge+"/3 | Cells "+(table.frenzyCells-table.overdriveStarts)
  If table.frenzyCharge=3 Then frenzyText="FRENZY READY: shoot centre ring"
  If table.frenzyTime>0 Then frenzyText="FRENZY: "+table.frenzyHits+"/10 hits / "+Int(Ceil(table.frenzyTime))+"s"
  If table.frenzyFlash>0 Then frenzyText="FRENZY COMPLETE! +2000 / CELL EARNED"
  Text(frenzyText,570,536,0.7,202,173,255)
- Local multiText:String="MULTI: right core "+table.multiCharge+"/"+MULTI_CHARGE_HITS+" | Cells "+table.multiCells
+ Local multiText:String="MULTI: right core "+table.multiCharge+"/"+MULTI_CHARGE_HITS+" | Cells "+(table.multiCells-table.overdriveStarts)
  If table.multiCharge=MULTI_CHARGE_HITS Then multiText="MULTI READY: shoot UP through blue ring"
  If table.multiActive Then multiText="MULTIBALL: "+table.multiHits+"/8 core hits"
  If table.multiActive And table.multiHits=8 Then multiText="MULTIBALL: cell earned / keep both alive"

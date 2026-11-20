@@ -44,8 +44,18 @@ All three challenges can overlap. Charge and earned cells persist across balls;
 Frenzy ends when the final ball drains. Multiball cannot release a third ball.
 Both balls score, activate switches, and keep the Forge exit open while inside.
 The charge bars and sidebar show readiness, objectives, timers and completion.
-Power cells are tracked towards a future Overdrive finale; that finale is not
-implemented yet.
+**Overdrive:** bank one cell from each challenge, then shoot the gold centre
+ring. This spends one of each cell and starts 30 seconds of triple bumper and
+slingshot scoring (replacing the normal double-score surge). Hit **each core
+three times** before time expires for **10,000 points**. Gold filaments and three
+lights around each core show the mode and progress. Other challenge rewards
+remain unchanged; the centre ring gives Overdrive priority over starting Frenzy.
+Both balls can contribute, and losing one during Multiball keeps Overdrive alive.
+Losing the final ball ends it, including a saved relaunch. Unused cells survive
+between balls; spent cells are not refunded. Earn another set to play again.
+
+The `--test-overdrive` console smoke test seeds a cell set and shoots the ring;
+normal play always starts with no cells.
 
 
 ## Build

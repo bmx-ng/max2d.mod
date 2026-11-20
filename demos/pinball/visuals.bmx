@@ -14,6 +14,7 @@ Type TPinVisuals
  Field plasmaChain:TMax2DImageEffect[]
  Field inner:TMax2DInnerShadow,liveBloom:TMax2DBloom
  Field sparks:TPinSpark[256],waves:TPinWave[12],sparkHead:Int,waveHead:Int
+ Field oldOverdrive:Int,oldOverdriveWins:Int
  Field oldFlash:Float[8],oldForge:Int,oldFrenzy:Int,oldMulti:Int,oldCells:Int,oldJackpots:Int,oldRollovers:Int
  Field oldWaiting:Int=True,oldBalls:Int=3,oldLeft:Int,oldRight:Int
  Field celebration:Float,sceneSupported:Int,plasmaSupported:Int
@@ -112,6 +113,7 @@ Type TPinVisuals
   For Local wave:TPinWave=EachIn waves
    wave.life=0
   Next
+  oldOverdrive=0; oldOverdriveWins=0
   oldFlash=New Float[8]; oldForge=0; oldFrenzy=0; oldMulti=0; oldCells=0
   oldJackpots=0; oldRollovers=0; oldWaiting=True; oldBalls=3; celebration=0
  End Method
@@ -152,8 +154,11 @@ Type TPinVisuals
   If (table.forgeTime>0 And Not oldForge) Or (table.frenzyTime>0 And Not oldFrenzy) Or (table.multiActive And Not oldMulti) Then
    Burst(TX+5.6*SCALE,TY+11*SCALE,168,161,255,48); audio.Play(4)
   End If
+  If table.overdriveTime>0 And Not oldOverdrive Then
+   Burst(TX+5.6*SCALE,TY+11*SCALE,255,225,145,64); audio.Play(4,5.6,0.8)
+  End If
   Local cells:Int=table.forgeCells+table.frenzyCells+table.multiCells
-  If cells>oldCells Or table.jackpots>oldJackpots Then
+  If cells>oldCells Or table.jackpots>oldJackpots Or table.overdriveWins>oldOverdriveWins Then
    celebration=2; audio.Play(5)
    For Local i:Int=0 Until 3
     Burst(TX+table.targets[i].x*SCALE,TY+table.targets[i].y*SCALE,255,217,126,40)
@@ -166,6 +171,7 @@ Type TPinVisuals
   If rightDown And Not oldRight Then audio.Play(2,8,1.1)
   oldLeft=leftDown; oldRight=rightDown
   oldForge=table.forgeTime>0; oldFrenzy=table.frenzyTime>0; oldMulti=table.multiActive
+  oldOverdrive=table.overdriveTime>0; oldOverdriveWins=table.overdriveWins
   oldCells=cells; oldJackpots=table.jackpots; oldRollovers=table.rolloverMask
   oldWaiting=table.waiting; oldBalls=table.balls
  End Method
@@ -212,7 +218,7 @@ Type TPinVisuals
    Local y:Float=TY+(rail.y1+(rail.y2-rail.y1)*phase)*SCALE
    Glow(x,y,0.65,68,183,255,0.35)
   Next
-  If table.frenzyTime>0 Then
+  If table.frenzyTime>0 Or table.overdriveTime>0 Then
    ' Background filaments connect the three powered cores without obscuring balls.
    For Local link:Int=0 Until 3
     Local a:TPinTarget=table.targets[link],b:TPinTarget=table.targets[(link+1) Mod 3]
@@ -222,7 +228,8 @@ Type TPinVisuals
      Local x:Float=a.x+(b.x-a.x)*t+Float(Sin(clock*370+n*71))*0.10*envelope
      Local y:Float=a.y+(b.y-a.y)*t+Float(Cos(clock*430+n*53))*0.10*envelope
      Paint(113,73,195,0.3); Line(px,py,x,y,3)
-     Paint(182,147,255,0.4); Line(px,py,x,y,1)
+     If table.overdriveTime>0 Then Paint(255,219,129,0.65) Else Paint(182,147,255,0.4)
+     Line(px,py,x,y,1)
      px=x; py=y
     Next
    Next
@@ -276,6 +283,19 @@ Type TPinVisuals
   If lit Then Paint(245,255,248,0.7); DrawOval(x-3,y-3,6,6)
   If table.frenzyTime>0 Then
    Paint(196,142,255,0.7); Ring(x,y,32+Float(Sin(clock*240))*2,1)
+  End If
+  If table.overdriveTime>0 Then
+   Paint(255,218,128,0.65); Ring(x,y,39,1)
+   For Local pip:Int=0 Until 3
+    Local angle:Float=-90+pip*120
+    Local px:Float=x+Cos(angle)*39,py:Float=y+Sin(angle)*39
+    If pip<table.overdriveHits[index] Then
+     Glow(px,py,0.65,255,225,145,0.9); Paint(255,245,200)
+    Else
+     Paint(103,85,48)
+    End If
+    DrawOval(px-3,py-3,6,6)
+   Next
   End If
   Local charge:Int=table.forgeCharge,segments:Int=3,spacing:Float=16
   If index=1 Then charge=table.multiCharge; segments=MULTI_CHARGE_HITS; spacing=8

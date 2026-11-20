@@ -348,3 +348,58 @@ For Local side:Int=0 Until 2
  Next
 Next
 Print "PASS both ends of both slingshots retain actual impact positions"
+
+' Overdrive banks distinct challenge cells and shares the swept centre switch.
+t=New TPinTable; t.waiting=False; t.saveTime=0
+t.forgeCells=2; t.frenzyCells=2
+Check(Not t.OverdriveReady(),"Overdrive must require all three cell types")
+t.multiCells=2; t.frenzyCharge=3
+t.previousX=5.6; t.previousY=9; t.ball.SetXForm(New b2Vec2.Create(5.6,12),0)
+t.UpdateModes(False)
+Check(t.overdriveTime=30 And t.overdriveStarts=1 And t.frenzyCharge=3 And t.frenzyTime=0,"Overdrive activation priority or cell spending")
+t.UpdateModes(False)
+Check(t.overdriveStarts=1,"Overdrive spent cells twice")
+t.ReleaseExtraBall(); t.extraPreviousX=5.6; t.extraPreviousY=9
+t.extraBall.SetXForm(New b2Vec2.Create(5.6,12),0)
+t.UpdateExtraObjectives()
+Check(t.overdriveTime=30,"Extra-ball objectives advanced Overdrive timer")
+t.UpdateModes()
+Check(Abs(t.overdriveTime-(30-PHYSICS_DT))<0.00001,"Overdrive timer must advance once per physics step")
+' The base award remains triple even while the usual double surge is active.
+t.ball.SetXForm(New b2Vec2.Create(6,12),0); t.extraBall.SetXForm(New b2Vec2.Create(8,12),0)
+t.surge=10; t.score=0
+Local driveHit:TPinTarget=New TPinTarget
+driveHit.index=0; driveHit.body=t.ball; driveHit.nx=1
+driveHit.pending=True; t.events=[driveHit]; t.Tick(False,False)
+Check(t.score=300 And t.overdriveHits[0]=1,"Overdrive bumper multiplier must replace surge")
+driveHit=New TPinTarget; driveHit.index=3; driveHit.body=t.extraBall; driveHit.nx=1
+driveHit.pending=True; t.events=[driveHit]; t.Tick(False,False)
+Check(t.score=450,"Overdrive extra-ball sling multiplier")
+For Local i:Int=0 Until 8
+ t.HitCore(0)
+Next
+Check(t.overdriveHits[0]=3 And t.overdriveWins=0,"One core cannot complete Overdrive")
+For Local i:Int=0 Until 3
+ t.HitCore(1); t.HitCore(2)
+Next
+Check(t.overdriveWins=1 And t.overdriveTime=0 And t.score=10450,"Overdrive completion reward")
+t.HitCore(2); Check(t.score=10450,"Overdrive reward repeated")
+Check(t.OverdriveReady(),"Remaining cell set must arm another Overdrive")
+' A fresh entry can spend the next set; timeout does not refund it.
+t.frenzyInside=False; t.previousX=5.6; t.previousY=9
+t.ball.SetXForm(New b2Vec2.Create(5.6,12),0); t.UpdateModes(False)
+Check(t.overdriveStarts=2 And t.overdriveHits[0]=0,"Replay must consume a fresh set and reset progress")
+t.overdriveTime=PHYSICS_DT; t.UpdateModes(); t.UpdateModes()
+Check(t.overdriveTime=0 And Not t.OverdriveReady(),"Overdrive timeout refunded cells")
+t.Free()
+For Local finalLife:Int=0 To 1
+ t=New TPinTable; t.waiting=False; t.saveTime=0; t.balls=1+finalLife
+ t.overdriveTime=20; t.multiActive=True; t.ReleaseExtraBall()
+ t.ball.SetXForm(New b2Vec2.Create(6,22),0); t.extraBall.SetXForm(New b2Vec2.Create(6,12),0)
+ t.Tick(False,False)
+ Check(t.overdriveTime>0 And Not t.extraBall,"Overdrive ended when a surviving ball remained")
+ t.ball.SetXForm(New b2Vec2.Create(6,22),0); t.Tick(False,False)
+ Check(t.overdriveTime=0,"Final drain must end Overdrive, including game over")
+ t.Free()
+Next
+Print "PASS Overdrive qualification, spending, scoring, completion, replay, timers and drains"

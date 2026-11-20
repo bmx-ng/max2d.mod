@@ -69,12 +69,23 @@ Type TPinTable
  Field frenzyCharge:Int,frenzyHits:Int,frenzyCells:Int,frenzyInside:Int
  Field frenzyTime:Float,frenzyFlash:Float
  Field multiCharge:Int,multiHits:Int,multiCells:Int,multiInside:Int,multiActive:Int,multiPending:Int
+ Field overdriveTime:Float,overdriveFlash:Float
+ Field overdriveStarts:Int,overdriveWins:Int,overdriveHits:Int[3]
  Field multiFlash:Float
  Field extraRolloverInside:Int[3],extraJackpotInside:Int,extraForgeInside:Int,extraFrenzyInside:Int,extraMultiInside:Int
  Method IsBall:Int(body:b2Body)
   Return body=ball Or (extraBall And body=extraBall)
  End Method
+ Method OverdriveReady:Int()
+  Return overdriveTime=0 And forgeCells>overdriveStarts And frenzyCells>overdriveStarts And multiCells>overdriveStarts
+ End Method
  Method HitCore(index:Int)
+  If overdriveTime>0 Then
+   overdriveHits[index]=Min(3,overdriveHits[index]+1)
+   If overdriveHits[0]=3 And overdriveHits[1]=3 And overdriveHits[2]=3 Then
+    score:+10000; overdriveWins:+1; overdriveTime=0; overdriveFlash=4
+   End If
+  End If
   If index=0 And forgeTime=0 And forgeCharge<3 Then forgeCharge:+1
   If index=2 And frenzyTime=0 And frenzyCharge<3 Then frenzyCharge:+1
   If index=1 And Not multiActive And multiCharge<MULTI_CHARGE_HITS Then multiCharge:+1
@@ -89,13 +100,17 @@ Type TPinTable
  End Method
  Method UpdateModes(advance:Int=True)
   If advance Then
+   overdriveTime=Max(0,overdriveTime-PHYSICS_DT)
+   overdriveFlash=Max(0,overdriveFlash-PHYSICS_DT)
    frenzyTime=Max(0,frenzyTime-PHYSICS_DT)
    frenzyFlash=Max(0,frenzyFlash-PHYSICS_DT); multiFlash=Max(0,multiFlash-PHYSICS_DT)
   End If
   If waiting Or gameOver Then Return
   Local p:b2Vec2=ball.GetPosition()
   Local inside:Int=(p.GetX()-5.6)^2+(p.GetY()-11)^2<0.8^2
-  If frenzyCharge=3 And frenzyTime=0 And Not frenzyInside And Crossed(5.6,11,0.8) Then
+  If OverdriveReady() And Not frenzyInside And Crossed(5.6,11,0.8) Then
+   overdriveStarts:+1; overdriveTime=30; overdriveHits=New Int[3]; overdriveFlash=0
+  Else If overdriveTime=0 And frenzyCharge=3 And frenzyTime=0 And Not frenzyInside And Crossed(5.6,11,0.8) Then
    frenzyCharge=0; frenzyHits=0; frenzyTime=25
   End If
   frenzyInside=inside
@@ -286,7 +301,7 @@ Type TPinTable
  End Method
  Method Spawn()
   If extraBall Then world.DestroyBody(extraBall); extraBall=Null
-  multiActive=False; multiPending=False; frenzyTime=0
+  multiActive=False; multiPending=False; frenzyTime=0; overdriveTime=0
   frenzyInside=False; multiInside=False
 
   SetGate(False)
@@ -381,10 +396,15 @@ Type TPinTable
       HitForge(t.index-5)
       Continue
      End If
+     Local driving:Int=overdriveTime>0
      If t.index<3 Then HitCore(t.index)
      Local award:Int=100
      If t.index>=3 Then award=50
-     If surge>0 Then award:*2
+     If driving Then
+      award:*3
+     Else If surge>0 Then
+      award:*2
+     End If
      score:+award
      If t.index<3 Then litMask=litMask | (1 Shl t.index)
      If litMask=7 Then litMask=0; surge=10; surges:+1; score:+500
@@ -436,7 +456,7 @@ Type TPinTable
      Spawn(); Launch(); saveTime=0
     Else
      balls:-1
-     If balls=0 Then gameOver=True; frenzyTime=0; forgeTime=0; multiActive=False Else Spawn()
+     If balls=0 Then gameOver=True; overdriveTime=0; frenzyTime=0; forgeTime=0; multiActive=False Else Spawn()
     End If
    Else If Not extraBall And p.GetX()>10.8 And p.GetY()>18 And speed<1 Then
     ' A weak launch may return to the shooter lane without losing a ball.
