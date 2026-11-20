@@ -9,11 +9,12 @@ End Type
 Type TPinControls Extends TVirtualJoystick
  Field suspended:Int
  Method New()
-  For Local i:Int=0 Until 4
+  For Local i:Int=0 Until 5
    AddButton()
   Next
   buttons[2]=New TPinRectButton
   buttons[3]=New TPinRectButton
+  buttons[4]=New TPinRectButton
   SetStickEnabled(False)
  End Method
  Method OnEvent(event:TEvent) Override
@@ -26,8 +27,10 @@ Type TPinControls Extends TVirtualJoystick
   SetButton(1,ox+405*scale,oy+776*scale,34*scale)
   SetButton(2,ox+745*scale,oy+640*scale,48*scale)
   SetButton(3,ox+745*scale,oy+747*scale,25*scale)
+  SetButton(4,ox+884*scale,oy+313*scale,15*scale)
   Local button:TPinRectButton=TPinRectButton(buttons[2])
   button.halfWidth=175*scale; button.halfHeight=50*scale
   button=TPinRectButton(buttons[3]); button.halfWidth=175*scale; button.halfHeight=25*scale
+  button=TPinRectButton(buttons[4]); button.halfWidth=41*scale; button.halfHeight=13*scale
  End Method
 End Type

@@ -19,8 +19,10 @@ c.TouchUp(3)
 Check(Not c.ButtonDown(2),"Launcher releases")
 Check(c.TouchDown(4,910,760),"Pause rectangle edge")
 Check(c.ButtonHit(3)=1,"Pause hit")
+Check(c.TouchDown(8,884,313),"Sound toggle touch")
+Check(c.ButtonHit(4)=1 And c.ButtonHit(4)=0,"Sound toggle fires once")
 c.CancelTouches()
-For Local i:Int=0 Until 4
+For Local i:Int=0 Until 5
  Check(Not c.ButtonDown(i),"Cancel clears held input")
 Next
 c.Layout(2000,1640)

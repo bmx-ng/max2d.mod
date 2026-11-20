@@ -9,6 +9,7 @@ Import Max2D.SDL3GPUEffects
 Import Physics.Box2D
 Import Max2D.ScalableFont
 Import Max2D.VirtualJoystick
+Import SDL3.SDL3AudioAudio
 Import BRL.StandardIO
 Import BRL.FileSystem
 Import BRL.PNGLoader
@@ -18,10 +19,13 @@ Import "macos_input.m"
 ?
 Include "physics.bmx"
 Include "input.bmx"
+Include "sound.bmx"
+Include "visuals.bmx"
 
 Const WIDTH:Int=1000,HEIGHT:Int=820,SCALE:Float=34,TX:Float=80,TY:Float=42
 Global table:TPinTable=New TPinTable
 Global controls:TPinControls
+Global audio:TPinSound,visuals:TPinVisuals
 Global bloom:TMax2DBloom,halo:TMax2DShadow
 Global staticLight:TRenderImage,lightSource:TRenderImage
 Global paused:Int,leftDown:Int,rightDown:Int,launchDown:Int
@@ -56,6 +60,8 @@ End If
 controls=New TPinControls
 controls.SetStickEnabled(False)
 SetupLights()
+audio=New TPinSound
+visuals=New TPinVisuals
 Local previous:Int=MilliSecs()
 While Not AppTerminate()
  Local now:Int=MilliSecs(),dt:Float=Min(0.05,Float(now-previous)/1000.0)
@@ -67,15 +73,19 @@ While Not AppTerminate()
  Local launchPressed:Int=KeyHit(KEY_SPACE) Or KeyHit(KEY_DOWN) Or launchHit
  Local pauseHit:Int=KeyHit(KEY_ESCAPE) Or KeyHit(KEY_P) Or controls.ButtonHit(3)
  If controls.suspended Then paused=True; controls.suspended=False; accumulator=0; previousLaunch=False; table.charge=0
+ Local soundHit:Int=KeyHit(KEY_M) Or controls.ButtonHit(4)
+ If paused Then audio.Silence()
  Local restart:Int=KeyHit(KEY_R)
  If inside And mouseTap Then
+  If mouseX>=843 And mouseX<=925 And mouseY>=300 And mouseY<=326 Then soundHit=True
   If mouseX>570 And mouseX<920 And mouseY>722 And mouseY<772 Then pauseHit=True
   If table.gameOver And mouseX>570 And mouseX<920 And mouseY>590 And mouseY<690 Then restart=True
   If mouseX>570 And mouseX<920 And mouseY>590 And mouseY<690 Then launchPressed=True
  End If
+ If soundHit Then audio.Toggle()
  If pauseHit Then paused=Not paused; controls.CancelTouches(); previousLaunch=False; accumulator=0; table.charge=0
  If restart Or (table.gameOver And (KeyHit(KEY_ENTER) Or launchHit)) Then
-  table.Free(); table=New TPinTable; paused=False; accumulator=0; previousLaunch=False; trailCount=0
+  visuals.Reset(); audio.Silence(); table.Free(); table=New TPinTable; paused=False; accumulator=0; previousLaunch=False; trailCount=0
  End If
  leftDown=KeyDown(KEY_LEFT) Or KeyDown(KEY_A) Or KeyDown(KEY_LSHIFT) Or controls.ButtonDown(0) Or KeyHit(KEY_LEFT) Or KeyHit(KEY_A) Or KeyHit(KEY_LSHIFT) Or controls.ButtonHit(0)
  rightDown=KeyDown(KEY_RIGHT) Or KeyDown(KEY_D) Or KeyDown(KEY_RSHIFT) Or controls.ButtonDown(1) Or KeyHit(KEY_RIGHT) Or KeyHit(KEY_D) Or KeyHit(KEY_RSHIFT) Or controls.ButtonHit(1)
@@ -124,8 +134,10 @@ While Not AppTerminate()
  End If
  previousLaunch=launchDown
  renderAlpha=Float(accumulator/PHYSICS_DT)
- SetClsColor(6,10,22); Cls
+ visuals.Update(dt)
+ visuals.BeginScene()
  DrawTable()
+ visuals.EndScene()
  DrawInterface()
  Flip
  frames:+1
@@ -139,6 +151,8 @@ While Not AppTerminate()
 Wend
 If testModes And (Not sawMultiball Or Not sawFrenzy Or Not sawTogether) Then Throw "Mode rendering smoke test did not activate both modes"
 If testMode Then Print "PASS: Flux runtime, "+testSteps+" physics steps, "+table.hits+" hits, score "+table.score+", peak speed "+table.maxSpeed
+audio.Silence()
+visuals.Release()
 controls.Free()
 If bloom Then bloom.Release()
 If halo Then halo.Release()
@@ -197,20 +211,7 @@ Function LayoutControls()
  controls.Layout(w,h)
 End Function
 Function DrawTable()
- ' Rounded-looking cabinet layers and a quiet technical playfield.
- Paint(12,19,37); DrawRect(85,45,420,702)
- Paint(22,34,52); DrawRect(82,42,420,3)
- Paint(18,32,49)
- For Local y:Int=2 To 19
-  Line(1,y,12,y,1)
- Next
- For Local x:Int=1 To 12
-  Line(x,1,x,20,1)
- Next
- Paint(27,49,65); Ring(TX+5.6*SCALE,TY+7*SCALE,125)
- Paint(23,39,58); Ring(TX+5.6*SCALE,TY+7*SCALE,143)
- Text("F L U X",203,490,1.45,41,72,88)
- Text("ENERGY REACTOR",198,530,0.6,49,82,97)
+ visuals.DrawDeck()
  For Local rail:TPinRail=EachIn table.rails
   Paint(2,5,14,0.8); Line(rail.x1+0.09,rail.y1+0.16,rail.x2+0.09,rail.y2+0.16,11)
   If rail.active Then Paint(119,48,92) Else Paint(35,83,104)
@@ -223,32 +224,7 @@ Function DrawTable()
  If table.gateClosed Then Line(10.5,4,12,3.4,5) Else Line(12,2.6,12,4,5)
  If staticLight Then Paint(255,255,255,0.6); SetBlend(LIGHTBLEND); DrawImage(staticLight,0,0); SetBlend(ALPHABLEND)
  For Local i:Int=0 Until 3
-  Local t:TPinTarget=table.targets[i],x:Float=TX+t.x*SCALE,y:Float=TY+t.y*SCALE
-  Local lit:Int=table.litMask & (1 Shl i)
-  Glow(x,y,2.5,54,225,210,0.3+t.flash)
-  Paint(2,5,14,0.7); DrawOval(x-26,y-21,52,52)
-  Paint(37,84,101); DrawOval(x-25,y-25,50,50)
-  Paint(82,196,197); Ring(x,y,24,2)
-  Paint(16,40,56); DrawOval(x-19,y-19,38,38)
-  If lit Or t.flash>0 Then Paint(214,255,213) Else Paint(76,160,169)
-  DrawOval(x-9,y-9,18,18)
-  Paint(118,239,217,0.8); Ring(x,y,14)
-  If i>0 Then
-   Local charge:Int=table.frenzyCharge
-   Local segments:Int=3,spacing:Float=16
-   If i=1 Then charge=table.multiCharge; segments=MULTI_CHARGE_HITS; spacing=8
-   For Local segment:Int=0 Until segments
-    If segment<charge Then Paint(168,172,255) Else Paint(67,79,91)
-    DrawRect(x-22+segment*spacing,y+34,spacing-3,5)
-   Next
-  End If
-  If table.frenzyTime>0 Then
-   Paint(174,143,255,0.65); Ring(x,y,31+Float(Sin(clockTime*300))*3,2)
-  End If
-  If t.flash>0 Then
-
-   Paint(133,255,226,t.flash*2); Ring(x,y,28+(0.45-t.flash)*100)
-  End If
+  visuals.DrawCore(i)
  Next
  For Local i:Int=0 Until 3
   Local x:Float=TX+(3.4+i*2.2)*SCALE,y:Float=TY+2.5*SCALE
@@ -311,10 +287,6 @@ Function DrawTable()
  End If
  Ring(forgeX,forgeY,22,2)
  Text("FORGE",forgeX-23,forgeY-7,0.55,226,181,128)
- For Local i:Int=0 Until 3
-  If i<table.forgeCharge Then Paint(255,189,88) Else Paint(67,79,91)
-  DrawRect(TX+3.3*SCALE-22+i*16,TY+5*SCALE+32,12,5)
- Next
  If table.forgeTime>0 Then
   Paint(255,195,109,Float(0.5+Sin(clockTime*240)*0.25))
   Line(3.5,9.2,2.5,8.8,2); Line(2.5,8.8,2.9,8.6,2)
@@ -330,14 +302,23 @@ Function DrawTable()
   Local vx:Float=Cos(angle)*1.05*SCALE,vy:Float=Sin(angle)*1.05*SCALE
   Paint(0,0,0,0.6); SetLineWidth(11); DrawLine(x-vx+3,y-vy+6,x+vx+3,y+vy+6)
   Paint(190,205,215); DrawLine(x-vx,y-vy,x+vx,y+vy)
+  DrawOval(x-vx-5,y-vy-5,10,10); DrawOval(x+vx-5,y+vy-5,10,10)
   If held Then Paint(252,194,121) Else Paint(105,158,183)
   SetLineWidth(4); DrawLine(x-vx,y-vy,x+vx,y+vy); SetLineWidth(1)
   Local anchor:Float=3.4
   If i=1 Then anchor=8.4
   Paint(232,242,246); DrawOval(TX+anchor*SCALE-5,TY+17*SCALE-5,10,10)
+  visuals.Bolt(TX+anchor*SCALE,TY+17*SCALE)
  Next
  For Local n:Int=0 Until trailCount
   Local idx:Int=(trailHead-1-n+36) Mod 36,fade:Float=1-Float(n)/36
+  If n<trailCount-1 Then
+   Local nextIdx:Int=(idx-1+36) Mod 36
+   If Abs(trailX[idx]-trailX[nextIdx])+Abs(trailY[idx]-trailY[nextIdx])<2 Then
+    Paint(90,195,255,fade*fade*0.28); Line(trailX[idx],trailY[idx],trailX[nextIdx],trailY[nextIdx],7*fade)
+    Paint(192,239,255,fade*fade*0.65); Line(trailX[idx],trailY[idx],trailX[nextIdx],trailY[nextIdx],2*fade)
+   End If
+  End If
   Paint(94,211,238,fade*fade*0.22); DrawOval(TX+trailX[idx]*SCALE-4*fade,TY+trailY[idx]*SCALE-4*fade,8*fade,8*fade)
  Next
  If Not table.gameOver Then
@@ -375,6 +356,7 @@ Function DrawFlipperButton(x:Float,y:Float,label:String,held:Int)
  Text(label,x-7,y-12,1.1)
 End Function
 Function DrawInterface()
+ visuals.DrawConsole()
  Text("F L U X",565,64,2.8,229,243,250)
  Text("P I N B A L L",570,132,1,88,203,210)
  Text("POWER THE REACTOR",570,186,0.72,124,158,182)
@@ -458,7 +440,7 @@ Function DrawInterface()
  Paint(16,30,45); DrawRect(570,722,350,50)
  If paused Then Text("RESUME",592,737,0.9) Else Text("PAUSE",592,737,0.9)
  Text("P / Esc",820,739,0.7,109,153,177)
- Text("A/D or arrows: flip | Hold Space: launch",570,792,0.65,116,151,175)
+ Text("A/D: flip | Space: launch | M: sound",570,792,0.65,116,151,175)
 End Function
 
 ?osx

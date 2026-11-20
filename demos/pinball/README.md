@@ -75,6 +75,7 @@ copied into this binding without adapting their units and API.
 | Launch | Hold Space or Down, then release | Hold/release the charge panel |
 | Pause / resume | P or Escape | Tap Pause / Resume |
 | New game | R; Enter after game over | Tap the game-over panel |
+| Sound effects | M | Tap SFX ON/OFF |
 | Quit | Window close | Window close |
 
 Both flippers support simultaneous touches. Each captures its finger until
@@ -114,7 +115,7 @@ again to put it back into play.
   virtual controls with rectangular action buttons.
 
 This is an arcade physics prototype. It does not model airborne balls, elevated
-ramps, real-machine rubber calibration, sound or a saved high score.
+ramps, real-machine rubber calibration or a saved high score.
 Those can follow once the table feel has been tried and tuned. The geometric
 artwork is drawn directly in BlitzMax; there are no external assets.
 
@@ -137,7 +138,7 @@ Forge charging, activation, target collisions, timeout, safe gate closure and dr
 Frenzy/Multiball charging, activation, completion and expiry, simultaneous contacts,
 second-ball switches, Forge clearance, all drain orders, persistent rewards,
 and a deterministic two-minute simulation with repeated strokes.
-Input checks cover independent fingers, launcher/pause hit regions, release,
+Input checks cover independent fingers, launcher/pause/mute hit regions, release,
 DPI scaling and letterbox offsets.
 
 A console build can automate a twelve-second rendered session:
@@ -164,3 +165,29 @@ The implementation is written for this demo. Useful background references:
 - [Vector Pinball](https://github.com/dozingcat/Vector-Pinball): a complete example
   of Box2D-based pinball and motor-driven flippers.
 - [Phaser Box2D pinball example](https://samme.github.io/phaser-examples-mirror/box2d/pinball.html)
+
+## Reactor presentation and sound
+
+The presentation is procedural BlitzMax artwork: machined core housings, etched
+circuit panels, glass highlights, animated plasma, rail light chases, tapered
+ball trails, impact sparks, shockwaves and power-cell celebrations. Frenzy adds
+energy filaments between cores; the Forge glows with rising embers; Multiball
+has orbiting blue lights and a distinct second-ball halo.
+
+`visuals.bmx` uses graded distortion followed by a texture mask in reusable
+`TMax2DEffectBuffers`, cached outline and inner-shadow effects for the core
+inserts, cached shadow halos, and a dynamic bright-pass/blur/bloom pass over the
+playfield. The interface is composited afterwards to keep text clear. The scene
+uses up to 2x resolution on high-DPI displays. Particles and shockwaves use fixed
+pools, and effect render images are prepared once and released on shutdown.
+Unavailable effects fall back to simpler rendering.
+
+`sound.bmx` synthesizes eight short cues at startup: core hits, slingshots,
+flippers, launch, mode start, completion, drain and rollovers. SDL3 plays these
+through a bounded twelve-voice pool with stereo placement and conservative
+volume. Press **M** or tap **SFX ON/OFF** to mute; pausing silences current cues.
+The game still runs if an audio device is unavailable. No music is bundled yet;
+the cues leave space for the separately generated soundtrack.
+
+The effects pass and both game modes were smoke-tested on macOS with Metal and
+OpenGL, and the mute touch region is covered by the input checks.
