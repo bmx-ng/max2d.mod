@@ -192,6 +192,24 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			helper:+sampling
 		End If
 		WriteTextFile(output+"/"+name+"."+ext,head.Replace("@COUNT@",String(count))+helper+tail)
+		If lang="hlsl" Then
+			Local nativeCode:String=(head.Replace("@COUNT@",String(count))+helper+tail).Replace(", space3", "").Replace(", space2", "")
+			nativeCode=nativeCode.Replace("colour: TEXCOORD0", "colour: COLOR0").Replace("uv: TEXCOORD1", "uv: TEXCOORD0")
+			WriteTextFile(output+"/"+name+".d3d11.hlsl",nativeCode)
+			Local legacy:String=nativeCode.Replace("cbuffer Modes : register(b0) { float4 mode; };", "float4 mode : register(c0);")
+			legacy=legacy.Replace("cbuffer Parameters : register(b1) { float4 p["+count+"]; };", "float4 p["+count+"] : register(c1);~nfloat4 sourceScale : register(c11);~nfloat4 mapScale : register(c12);")
+			legacy=legacy.Replace("Texture2D image : register(t0);~nSamplerState sampleState : register(s0);", "sampler2D image : register(s0);")
+			legacy=legacy.Replace("Texture2D secondImage : register(t1);~nSamplerState secondState : register(s1);", "sampler2D secondImage : register(s1);")
+			legacy=legacy.Replace("float4 position: SV_Position; ", "").Replace("SV_Target0", "COLOR0").Replace("colour: COLOR0", "colour: TEXCOORD1")
+			legacy=legacy.Replace("float2 lo=floor(pixel), weight=pixel-lo;", "float2 lo=floor(pixel), weight=pixel-lo;~n        weight=lerp(weight,float2(0,0),step(weight,float2(0.000001,0.000001)));~n        weight=lerp(weight,float2(1,1),step(float2(0.999999,0.999999),weight));")
+			legacy=legacy.Replace("image.Sample(sampleState,input.uv)", "tex2D(image,input.uv*sourceScale.xy)")
+			legacy=legacy.Replace("image.Load(int3(q,0))", "tex2Dlod(image,float4((q+0.5)*sourceScale.zw,0,0))")
+			legacy=legacy.Replace("secondImage.Load(int3(q,0))", "tex2Dlod(secondImage,float4((q+0.5)*mapScale.zw,0,0))")
+			legacy=legacy.Replace("float2 uv: TEXCOORD0;", "float2 uv: TEXCOORD0; float2 screen:TEXCOORD2;")
+			legacy=legacy.Replace("m2dEffectMain(Output input): COLOR0 {", "m2dEffectMain(Output input,float2 pixel:VPOS): COLOR0 {~ninput.uv+=ddx(input.uv)*(pixel.x-input.screen.x)+ddy(input.uv)*(pixel.y-input.screen.y);")
+			If abi=1 Then legacy=legacy.Replace("float4 m2dEffectMain",D3D9_COLOUR_SAMPLE+"float4 m2dEffectMain").Replace("tex2D(image,input.uv*sourceScale.xy)","sourceColour(input.uv)")
+			WriteTextFile(output+"/"+name+".d3d9.hlsl",legacy)
+		End If
 		If lang="glsl" Then
 			Local desktopHelper:String=helper, desktopTail:String=TAIL_gl120, desktopHead:String=HEAD_gl120
 			If abi>=2 Then
@@ -220,6 +238,9 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	Local source:String=BMX_WRAPPER.Replace("@PREFIX@",prefix).Replace("@NAME@",name).Replace("@FACTORY@",factory)
 	source=source.Replace("@NAMES@",", ".Join(names)).Replace("@KINDS@",", ".Join(kinds)).Replace("@ARGUMENTS@",", ".Join(arguments))
 	Local abiArgument:String=", "+abi+", "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
+	For Local asset:Int=4 Until 6
+		abiArgument:+", "+factory+"Data("+factory+"Asset("+asset+"), "+factory+"Size("+asset+"))"
+	Next
 	source=source.Replace("@ABI_ARGUMENT@",abiArgument)
 	WriteTextFile(output+"/"+name+".bmx",source)
 End Function
@@ -228,7 +249,7 @@ Function EmbedPackage(manifest:String, output:String)
 	Local root:TJSONObject=ReadManifest(manifest)
 	Local name:String=root.GetString("name"), factory:String=root.GetString("factory")
 	Local text:String="/* Generated shader assets. */~n"
-	Local extensions:String[]=["metal","frag.spv","dxbc","glsl"]
+	Local extensions:String[]=["metal","frag.spv","dxbc","glsl","d3d11.dxbc","d3d9.bin"]
 	Local sizes:String[]=New String[extensions.Length]
 	For Local i:Int=0 Until extensions.Length
 		Local blob:TBank=LoadBank(output+"/"+name+"."+extensions[i])

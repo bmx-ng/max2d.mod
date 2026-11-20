@@ -150,3 +150,13 @@ soft thresholds and returning to cached bloom. Eight focused OpenGL examples
 and both the SDL gallery and linear HDR scene also built. The effect parity
 sweep passed 98 selected checks across macOS, Windows and Ubuntu; see
 [package validation](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
+
+## Native Direct3D and framebuffer captures
+
+Build the same gallery with `-ud max2d_d3d9` or `-ud max2d_d3d11` on Windows.
+Both pages use the native optional effects provider. Float formats must be supported
+by the device; window presentation remains SDR.
+
+Pass `--capture-dir <directory>` to render all eighteen selections at a fixed
+animation time, save `effect-00.png` through `effect-17.png` from the framebuffer,
+and exit. This also works with the OpenGL and SDL GPU gallery builds.

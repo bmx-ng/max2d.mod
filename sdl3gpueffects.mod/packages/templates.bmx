@@ -93,10 +93,10 @@ Public
 """
 
 Const C_ASSET_FOOTER:String = """
-static const unsigned char *assets[] = {asset0,asset1,asset2,asset3};
+static const unsigned char *assets[] = {asset0,asset1,asset2,asset3,asset4,asset5};
 static const int sizes[] = {@SIZES@};
-const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<4?assets[i]:0; }
-int @FACTORY@Size(int i) { return i>=0 && i<4?sizes[i]:0; }
+const unsigned char *@FACTORY@Asset(int i) { return i>=0 && i<6?assets[i]:0; }
+int @FACTORY@Size(int i) { return i>=0 && i<6?sizes[i]:0; }
 
 """
 
@@ -175,6 +175,23 @@ vec4 m2dTexel(vec2 pixel, vec2 texelSize) {
 vec2 uv=(pixel+0.5)*texelSize;
 if(sourceTarget!=0) uv.y=1.0-uv.y;
 return texture2D(image,uv);
+}
+
+"""
+
+' D3D9 hardware filtering can lose precision even at float texel centres.
+Const D3D9_COLOUR_SAMPLE:String = """
+float4 sourceMode : register(c13); // filtered, floating-point storage
+float4 sourceTap(float2 pixel) {
+ return tex2Dlod(image,float4((clamp(pixel,0,sourceScale.xy/sourceScale.zw-1)+0.5)*sourceScale.zw,0,0));
+}
+float4 sourceColour(float2 uv) {
+ if(sourceMode.y==0) return tex2D(image,uv*sourceScale.xy);
+ float2 pixel=uv*sourceScale.xy/sourceScale.zw-0.5;
+ if(sourceMode.x==0) return sourceTap(floor(pixel+0.5));
+ float2 base=floor(pixel), f=frac(pixel);
+ f=lerp(f,0,step(f,0.000001)); f=lerp(f,1,step(0.999999,f));
+ return lerp(lerp(sourceTap(base),sourceTap(base+float2(1,0)),f.x),lerp(sourceTap(base+float2(0,1)),sourceTap(base+1),f.x),f.y);
 }
 
 """

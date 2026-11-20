@@ -1,7 +1,7 @@
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import displacement_assets.c alongside your application imports.
 Function CreateDisplacementPackage:TMax2DShaderPackage()
-	Return TMax2DShaderPackage.Create("displacement", ["amount"], [MAX2D_PARAMETER_FLOAT4], CreateDisplacementPackageData(CreateDisplacementPackageAsset(0), CreateDisplacementPackageSize(0)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(1), CreateDisplacementPackageSize(1)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(2), CreateDisplacementPackageSize(2)), 4, CreateDisplacementPackageData(CreateDisplacementPackageAsset(3), CreateDisplacementPackageSize(3)))
+	Return TMax2DShaderPackage.Create("displacement", ["amount"], [MAX2D_PARAMETER_FLOAT4], CreateDisplacementPackageData(CreateDisplacementPackageAsset(0), CreateDisplacementPackageSize(0)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(1), CreateDisplacementPackageSize(1)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(2), CreateDisplacementPackageSize(2)), 4, CreateDisplacementPackageData(CreateDisplacementPackageAsset(3), CreateDisplacementPackageSize(3)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(4), CreateDisplacementPackageSize(4)), CreateDisplacementPackageData(CreateDisplacementPackageAsset(5), CreateDisplacementPackageSize(5)))
 End Function
 Private
 Extern "C"

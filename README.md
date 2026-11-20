@@ -19,10 +19,11 @@ choose a backend without rewriting your scene code.
 
 [Custom shader packages](docs/shader-packages.md) provide typed parameters,
 colour matrices, waves, ripples, displacement, dissolve and transformed/shared
-texture masks on SDL GPU and OpenGL.
+texture masks on SDL GPU, OpenGL and native Direct3D9/Direct3D11.
 
-Native Direct3D built-in effects are available through `Max2D.D3D11Effects` and
-`Max2D.D3D9Effects`: colour effects, blur, outlines, bloom and reusable shadows.
+Native Direct3D effects are available through `Max2D.D3D11Effects` and
+`Max2D.D3D9Effects`: colour effects, blur, outlines, bloom, reusable shadows and shader-package ABI 1–4.
+Both native backends support float composition when the device supports the format.
 See the [D3D11](docs/d3d11.md#optional-image-effects) and
 [D3D9](docs/d3d9.md#optional-image-effects) guides for requirements and current limits.
 
@@ -212,7 +213,7 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
-| `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
+| `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in and packaged image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
 | `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by `SDL3GPUEffects` and `GLEffects`; use a renderer provider to draw. |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |

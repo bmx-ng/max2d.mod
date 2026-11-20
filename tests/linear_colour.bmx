@@ -1,4 +1,8 @@
 SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
@@ -8,7 +12,7 @@ Import Max2D.GLEffects
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
 Import Max2D.D3D11Effects
-?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d11 And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import Max2D.Effects
@@ -49,7 +53,7 @@ Try
 	Check(rejected And output.GetWhiteLevel() = 1, "invalid white level rejected atomically")
 	For Local lifetime:Int = 0 Until 2
 		Graphics(300, 80)
-?max2d_gl Or max2d_d3d11
+?max2d_gl Or max2d_d3d11 Or max2d_d3d9
 		Check(Max2DSupportsImageEffect(output), "OpenGL linear output required")
 ?
 		If Not Max2DSupportsImageEffect(output) Then

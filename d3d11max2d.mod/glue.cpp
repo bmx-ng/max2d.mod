@@ -1,5 +1,7 @@
 #include <windows.h>
 #include <map>
+#include <string>
+#include <max2d.mod/shadereffects.mod/package.h>
 #include <max2d.mod/core.mod/blend.h>
 #include <d3d11.h>
 #include <d3d10.h>
@@ -12,13 +14,19 @@
 #include <limits>
 extern const unsigned char m2d11_vertex_shader[],m2d11_pixel_shader[];
 extern const size_t m2d11_vertex_shader_size,m2d11_pixel_shader_size;
+struct M2D11Texture;
+struct M2D11Package { ID3D11PixelShader *shader; int slots,abi; };
 struct M2D11 {
  ID3D11Device *device;ID3D11DeviceContext *context;
  ID3D11VertexShader *vs;ID3D11PixelShader *ps;ID3D11InputLayout *layout;
  std::map<const void *,ID3D11PixelShader *> effects;
  ID3D11PixelShader *effect;
  float effectParameters[4];
- ID3D11Buffer *vertices,*settings;UINT capacity;
+ std::map<std::string,M2D11Package> packages;
+ M2D11Package *package;
+ M2D11Texture *second;
+ float packageValues[40];
+ ID3D11Buffer *vertices,*settings,*packageModes,*packageParameters;UINT capacity;
  std::map<int,ID3D11BlendState *> customBlends;
  ID3D11BlendState *blends[5];ID3D11SamplerState *samplers[2];
  ID3D11RasterizerState *raster;ID3D11DepthStencilState *depth;
@@ -44,8 +52,9 @@ const char *m2d11_error(){return errorText;}
 void m2d11_close(M2D11 *c){
  if(!c)return;
  c->context->ClearState();
+ for(auto &entry:c->packages) release(entry.second.shader);
  for(auto &entry:c->effects) release(entry.second);
- release(c->vs);release(c->ps);release(c->layout);release(c->vertices);release(c->settings);
+ release(c->vs);release(c->ps);release(c->layout);release(c->vertices);release(c->settings);release(c->packageModes);release(c->packageParameters);
  for(auto &entry:c->customBlends)release(entry.second);
  for(auto &s:c->blends)release(s);for(auto &s:c->samplers)release(s);
  release(c->raster);release(c->depth);delete c;
@@ -119,9 +128,33 @@ void *m2d11_create_image_effect(M2D11 *c,const void *code,size_t size) {
  c->effects[code]=shader;
  return shader;
 }
+void *m2d11_package_shader(M2D11 *c,M2DPackage *p) {
+ if(!c||!p||!p->d3d11)return nullptr;
+ auto found=c->packages.find(p->key);
+ if(found!=c->packages.end())return &found->second;
+ // Package-only uniform buffers are allocated once, on first use.
+ D3D11_BUFFER_DESC buffer={};buffer.ByteWidth=16;buffer.Usage=D3D11_USAGE_DYNAMIC;
+ buffer.BindFlags=D3D11_BIND_CONSTANT_BUFFER;buffer.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
+ if(!c->packageModes&&!check(c->device->CreateBuffer(&buffer,nullptr,&c->packageModes),"Create package modes"))return nullptr;
+ buffer.ByteWidth=160;
+ if(!c->packageParameters&&!check(c->device->CreateBuffer(&buffer,nullptr,&c->packageParameters),"Create package parameters"))return nullptr;
+ ID3D11PixelShader *shader=nullptr;
+ if(!check(c->device->CreatePixelShader(p->d3d11,p->d3d11Size,nullptr,&shader),"Create package shader"))return nullptr;
+ M2D11Package entry={shader,p->slots,p->abi};
+ return &c->packages.emplace(p->key,entry).first->second;
+}
+void m2d11_select_package_effect(M2D11 *c,M2D11Package *p,const float *values,M2D11Texture *second) {
+ c->package=p;c->effect=p->shader;c->second=second;
+ memcpy(c->packageValues,values,p->slots*16);
+ if(p->abi>=3) {
+  float *mode=c->packageValues+(p->slots-1)*4;
+  mode[0]=second&&second->coverage?1.f:0.f;
+  mode[1]=second&&(second->target||second->mipmapped)?1.f:0.f;
+ }
+}
 void m2d11_select_image_effect(M2D11 *c,ID3D11PixelShader *shader,float x,float y,float z,float w) {
  if(!c) return;
- c->effect=shader;
+ c->package=nullptr;c->second=nullptr;c->effect=shader;
  c->effectParameters[0]=x;c->effectParameters[1]=y;c->effectParameters[2]=z;c->effectParameters[3]=w;
 }
 void m2d11_texture_size(M2D11 *c,int *width,int *height) {
@@ -257,15 +290,27 @@ static int draw(M2D11 *c,ID3D11RenderTargetView *target,M2D11Texture *t,int blen
  UINT stride=32,offset=0;ctx->IASetVertexBuffers(0,1,&c->vertices,&stride,&offset);ctx->IASetInputLayout(c->layout);ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
  ctx->VSSetShader(c->vs,nullptr,0);ctx->PSSetShader(!pixels&&c->effect?c->effect:c->ps,nullptr,0);ctx->GSSetShader(nullptr,nullptr,0);ctx->HSSetShader(nullptr,nullptr,0);ctx->DSSetShader(nullptr,nullptr,0);
  ctx->VSSetConstantBuffers(0,1,&c->settings);ctx->PSSetConstantBuffers(0,1,&c->settings);
+ if(c->package&&!pixels) {
+  float mode[]={t&&t->coverage?1.f:0.f,settings[6],settings[5],settings[7]};
+  if(!check(ctx->Map(c->packageModes,0,D3D11_MAP_WRITE_DISCARD,0,&mapped),"Map package modes"))return 0;
+  memcpy(mapped.pData,mode,sizeof(mode));ctx->Unmap(c->packageModes,0);
+  if(!check(ctx->Map(c->packageParameters,0,D3D11_MAP_WRITE_DISCARD,0,&mapped),"Map package parameters"))return 0;
+  memcpy(mapped.pData,c->packageValues,sizeof(c->packageValues));ctx->Unmap(c->packageParameters,0);
+  ID3D11Buffer *buffers[]={c->packageModes,c->packageParameters};ctx->PSSetConstantBuffers(0,2,buffers);
+ }
  // Unbind the previous source before making it a destination, and bind the
  // new destination before sampling a texture that was previously a target.
- ID3D11ShaderResourceView *empty=nullptr;ctx->PSSetShaderResources(0,1,&empty);
+ ID3D11ShaderResourceView *empty[2]={};ctx->PSSetShaderResources(0,2,empty);
  ctx->OMSetRenderTargets(1,&target,nullptr);
  int generated=0;
  if(t&&t->mipmapped&&t->mipDirty){
   ctx->GenerateMips(t->view);t->mipDirty=0;generated=1;
  }
  ID3D11ShaderResourceView *image=t?t->view:nullptr;ctx->PSSetShaderResources(0,1,&image);ctx->PSSetSamplers(0,1,&c->samplers[t?t->filtered:0]);
+ M2D11Texture *second=c->package&&!pixels?c->second:nullptr;
+ if(second&&second->mipmapped&&second->mipDirty){ctx->GenerateMips(second->view);second->mipDirty=0;++generated;}
+ ID3D11ShaderResourceView *map=second?second->view:nullptr;ctx->PSSetShaderResources(1,1,&map);
+ ctx->PSSetSamplers(1,1,&c->samplers[second?second->filtered:0]);
  ctx->OMSetBlendState(blend<=5?c->blends[blend-1]:c->customBlends[blend],nullptr,0xffffffff);ctx->OMSetDepthStencilState(c->depth,0);
  D3D11_VIEWPORT viewport={0,0,(float)c->width,(float)c->height,0,1};ctx->RSSetViewports(1,&viewport);ctx->RSSetState(c->raster);ctx->RSSetScissorRects(1,&c->clip);
  ctx->Draw(count,0);return check(c->device->GetDeviceRemovedReason(),"Draw triangles")?1+generated:0;

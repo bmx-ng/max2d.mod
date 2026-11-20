@@ -15,3 +15,8 @@ The tool uses `d3dcompiler_47.dll` at build time and emits `ps_3_0` bytecode.
 Commit the HLSL and regenerated arrays together. Each native graphics context
 creates and owns its effect shaders lazily. The provider does not compile shaders
 at application runtime.
+
+Float tint is supplied through TEXCOORD1. TEXCOORD2 carries the transformed
+screen position; VPOS and texture-coordinate derivatives correct interpolation
+at the actual pixel centre. Float colour taps and kernel taps use explicit
+base-level filtering with only floating-point epsilon handling at exact centres.

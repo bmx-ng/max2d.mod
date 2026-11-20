@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <max2d.mod/shadereffects.mod/package.h>
 extern void *m2d_gpu_image_effect_sized(void *,const char *,const SDL_GPUShaderCreateInfo *,int);
+// SDL DXBC has its own binding contract; never select the native D3D assets.
 void *m2d_package_shader(void *context,SDL_GPUDevice *device,M2DPackage *p) {
 	SDL_GPUShaderCreateInfo info={0};
 	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT; info.num_samplers=p->samplers; info.num_uniform_buffers=2;

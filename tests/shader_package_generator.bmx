@@ -21,11 +21,11 @@ Try
 		Local output:String=scratch+"/"+name
 		GeneratePackage(manifest,output)
 		Local extensions:String[]=["metal","frag","hlsl","bmx"]
-		extensions=extensions+["glsl"]
+		extensions=extensions+["glsl","d3d11.hlsl","d3d9.hlsl"]
 		For Local ext:String=EachIn extensions
 			Check(LoadText(output+"/"+name+"."+ext)=LoadText(directory+"/"+name+"."+ext),"Reproducible "+name+"."+ext)
 		Next
-		For Local ext:String=EachIn ["frag.spv","dxbc"]
+		For Local ext:String=EachIn ["frag.spv","dxbc","d3d11.dxbc","d3d9.bin"]
 			Check(CopyFile(directory+"/"+name+"."+ext,output+"/"+name+"."+ext),"Copy compiled fixture")
 		Next
 		EmbedPackage(manifest,output)

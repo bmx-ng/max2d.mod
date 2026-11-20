@@ -13,7 +13,7 @@ Interface ID3DCompilerBlob Extends IUnknown_
 End Interface
 End Extern
 
-Function CompileDXBC(sourcePath:String, outputPath:String)
+Function CompileDXBC(sourcePath:String, outputPath:String, profile:String)
 	Local library:Byte Ptr=LoadLibraryA("d3dcompiler_47.dll")
 	If Not library Then Throw "Cannot load d3dcompiler_47.dll"
 	Local code:ID3DCompilerBlob, errors:ID3DCompilerBlob
@@ -23,7 +23,7 @@ Function CompileDXBC(sourcePath:String, outputPath:String)
 		If Not compile Then Throw "D3DCompile is unavailable"
 		Local source:TBank=LoadBank(sourcePath)
 		If Not source Then Throw "Cannot read: "+sourcePath
-		Local name:Byte Ptr=sourcePath.ToUTF8String(), entry:Byte Ptr="m2dEffectMain".ToCString(), target:Byte Ptr="ps_5_1".ToCString()
+		Local name:Byte Ptr=sourcePath.ToUTF8String(), entry:Byte Ptr="m2dEffectMain".ToCString(), target:Byte Ptr=profile.ToCString()
 		Local result:Int
 		Try
 			result=compile(source.Buf(),Size_T(source.Size()),name,Null,Null,entry,target,$8000,0,code,errors)
@@ -48,9 +48,12 @@ End Function
 ChangeDir(LaunchDir)
 
 Try
-	If AppArgs.Length<>3 Then Throw "Usage: compile_dxbc input.hlsl output.dxbc"
+	If AppArgs.Length<3 Or AppArgs.Length>4 Then Throw "Usage: compile_dxbc input.hlsl output.dxbc [ps_5_1|ps_4_0|ps_3_0]"
+	Local profile:String="ps_5_1"
+	If AppArgs.Length=4 Then profile=AppArgs[3]
+	If profile<>"ps_5_1" And profile<>"ps_4_0" And profile<>"ps_3_0" Then Throw "Unsupported shader profile"
 ?win32
-	CompileDXBC(AppArgs[1],AppArgs[2])
+	CompileDXBC(AppArgs[1],AppArgs[2],profile)
 ?Not win32
 	Throw "DXBC compilation requires Windows and d3dcompiler_47.dll"
 ?

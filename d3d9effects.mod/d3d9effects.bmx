@@ -8,7 +8,7 @@ Module Max2D.D3D9Effects
 ModuleInfo "Version: 0.01"
 ModuleInfo "License: zlib/libpng"
 
-Import Max2D.Effects
+Import Max2D.ShaderEffects
 Import Max2D.D3D9Max2D
 ?win32
 Import "effect_shaders.cpp"
@@ -17,7 +17,7 @@ Private
 
 Type TD3D9ImageEffectBackend Extends TMax2DImageEffectBackend
 	Method Handles:Int(context:TMax2DContext,effect:TMax2DImageEffect) Override
-		Return TD3D9Max2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null Or TMax2DBrightPassEffect(effect)<>Null Or TMax2DToneMapEffect(effect)<>Null Or TMax2DLinearOutputEffect(effect)<>Null)
+		Return TD3D9Max2DContext(context)<>Null And (TMax2DShaderEffect(effect)<>Null Or TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null Or TMax2DBrightPassEffect(effect)<>Null Or TMax2DToneMapEffect(effect)<>Null Or TMax2DLinearOutputEffect(effect)<>Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics,effect:TMax2DImageEffect) Override
@@ -37,6 +37,7 @@ Type TD3D9ImageEffectBackend Extends TMax2DImageEffectBackend
 	Method GetShader:Byte Ptr(context:TD3D9Max2DContext,effect:TMax2DImageEffect)
 		context.CheckOpen()
 		context.Activate()
+		If TMax2DShaderEffect(effect) Then Return TMax2DShaderEffect(effect).NativeShader(context)
 		Local kind:Int
 		If TMax2DColorizeEffect(effect) Then kind=1
 		If TMax2DBlurEffect(effect) Then kind=2
@@ -50,6 +51,10 @@ Type TD3D9ImageEffectBackend Extends TMax2DImageEffectBackend
 	End Method
 
 	Method DrawMany(canvas:TMax2DGraphics,image:TImage,effect:TMax2DImageEffect,positions:Float[],x:Float,y:Float,frame:Int)
+		If TMax2DShaderEffect(effect) Then
+			TMax2DShaderEffect(effect).DrawNative(canvas,image,positions,x,y,frame)
+			Return
+		End If
 		If TMax2DOutlineEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: outline requires a render-image source"
 		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TD3D9Max2DContext=TD3D9Max2DContext(canvas.context)
@@ -106,4 +111,32 @@ End Extern
 
 RegisterMax2DImageEffectBackend(New TD3D9ImageEffectBackend)
 
+
+Private
+Type TD3D9ShaderPackageBackend Extends TMax2DShaderPackageBackend
+ Method Handles:Int(context:TMax2DContext) Override
+  Return TD3D9Max2DContext(context)<>Null
+ End Method
+ Method Shader:Byte Ptr(context:TMax2DContext,package:Byte Ptr) Override
+  Local nativeContext:TD3D9Max2DContext=TD3D9Max2DContext(context)
+  context.CheckOpen()
+  context.Activate()
+
+  Return m2d9_package_shader(nativeContext.native,package)
+ End Method
+ Method SelectShader(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame) Override
+  Local nativeContext:TD3D9Max2DContext=TD3D9Max2DContext(context)
+  If second And second=context.target Then Throw "Max2D package: cannot sample the destination as second texture"
+  If second Then nativeContext.Upload(TD3D9ImageFrame(second))
+  m2d9_select_package_effect(nativeContext.native,shader,values,nativeContext.NativeFrame(second))
+ End Method
+ Method ClearShader(context:TMax2DContext) Override
+  m2d9_select_image_effect(TD3D9Max2DContext(context).native,Null,0,0,0,0)
+ End Method
+End Type
+Extern "C"
+ Function m2d9_package_shader:Byte Ptr(context:Byte Ptr,package:Byte Ptr)
+ Function m2d9_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr)
+End Extern
+RegisterShaderPackageBackend(New TD3D9ShaderPackageBackend)
 ?

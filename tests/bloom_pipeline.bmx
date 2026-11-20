@@ -50,9 +50,6 @@ Try
 			Print "bloom shader unsupported"
 			Exit
 		End If
-?max2d_d3d9
-		bloom.SetThreshold(0.05)
-?
 		bloom.Prepare(32, 32, 2, effectTestBloomFormat)
 		rejected = False
 		Try
@@ -65,28 +62,13 @@ Try
 		For Local y:Int = 14 Until 18
 			For Local x:Int = 14 Until 18
 				Local offset:Int = (y*32+x)*4
-?max2d_d3d9
-				values[offset] = 0.8; values[offset+1] = 0.4; values[offset+2] = 0.2; values[offset+3] = 0.5
-?Not max2d_d3d9
 				values[offset] = 8; values[offset+1] = 4; values[offset+2] = 2; values[offset+3] = 0.5
-?
 			Next
 		Next
 		Local bytes:Byte[] = New Byte[values.Length*4]
 		MemCopy(bytes, values, Size_T(bytes.Length))
 		Local data:TTextureData=TTextureData.Create([TTextureLevel.Create(32, 32, PF_RGBA32F, bytes)])
-?max2d_d3d9
-		Local bitmap:TPixmap=CreatePixmap(32,32,PF_RGBA8888)
-		For Local y:Int=0 Until 32
-			For Local x:Int=0 Until 32
-				Local i:Int=(y*32+x)*4
-				bitmap.WritePixel(x,y,(Int(values[i+3]*255+0.5) Shl 24) | (Int(values[i]*255+0.5) Shl 16) | (Int(values[i+1]*255+0.5) Shl 8) | Int(values[i+2]*255+0.5))
-			Next
-		Next
-		Local image:TImage=LoadImage(bitmap,0)
-?Not max2d_d3d9
 		Local image:TImage=LoadImage(data,0)
-?
 		Local source:TRenderImage = CreateRenderImage(32, 32, FILTEREDIMAGE, effectTestBloomFormat)
 		SetRenderImage(source)
 		SetBlend(SOLIDBLEND)

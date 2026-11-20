@@ -1,15 +1,21 @@
 SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?
 
 AppTitle = "Max2D linear artwork and HDR bloom"
 Graphics(1000, 540)
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
 Local hdrSupported:Int = context.SupportsHDROutput()
 If hdrSupported And context.HDRHeadroom() > 1 Then context.SetHDROutput(True)
@@ -87,7 +93,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	If KeyHit(KEY_UP) Then change = 0.25
 	If change Then tone.SetExposure(Float(Max(0.25, Min(4.0, tone.GetExposure()+change))))
 	If KeyHit(KEY_SPACE) Then enabled = Not enabled
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 	If KeyHit(KEY_H) And hdrSupported Then context.SetHDROutput(Not context.HDROutput())
 	hdrEnabled=context.HDROutput()
 	headroom=context.HDRHeadroom()
@@ -128,7 +134,7 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	End If
 ?max2d_gl
 	DrawText("OpenGL SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 	DrawText("H: HDR/SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
 ?
 	DrawText("Threshold: "+bloom.GetThreshold()+" | Exposure: "+tone.GetExposure()+" | Bloom intensity: "+bloom.GetIntensity(), 25, 505)

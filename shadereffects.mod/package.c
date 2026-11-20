@@ -38,12 +38,26 @@ static int valid_dxbc(const unsigned char *p,int n) {
 	}
 	return 1;
 }
+/* D3D9 CreatePixelShader has no byte-count argument. Walk the token stream
+   before passing it to the driver so no instruction/comment runs past storage. */
+static int valid_d3d9(const unsigned char *p,int n) {
+ if(!n) return 1;
+ if(!p || n<8 || n%4 || word(p)!=0xffff0300) return 0;
+ for(int offset=4;offset<n;) {
+  uint32_t token=word(p+offset), opcode=token&0xffff;
+  if(opcode==0xffff) return token==0x0000ffff && offset==n-4;
+  uint32_t operands=opcode==0xfffe?(token>>16)&0x7fff:(token>>24)&15;
+  if(operands>(uint32_t)(n-offset-4)/4) return 0;
+  offset+=4+(int)operands*4;
+ }
+ return 0;
+}
 void m2d_package_free(M2DPackage *p) {
 	if(!p) return;
-	free(p->metal); free(p->spirv); free(p->dxbc); free(p->glsl); free(p);
+	free(p->metal); free(p->spirv); free(p->dxbc); free(p->glsl); free(p->d3d11); free(p->d3d9); free(p);
 }
-void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *spirv,int ns,const unsigned char *dxbc,int nd,int slots,int abi,const unsigned char *glsl,int ng) {
-	if((abi!=1 && abi!=2 && abi!=3 && abi!=4) || slots<1 || slots>(abi>=3?3:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || ng<0 || ng>4194304 || !(nm||ns||nd||ng)) {
+void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *spirv,int ns,const unsigned char *dxbc,int nd,int slots,int abi,const unsigned char *glsl,int ng,const unsigned char *d3d11,int n11,const unsigned char *d3d9,int n9) {
+	if((abi!=1 && abi!=2 && abi!=3 && abi!=4) || slots<1 || slots>(abi>=3?3:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || ng<0 || ng>4194304 || n11<0 || n11>4194304 || n9<0 || n9>4194304 || !(nm||ns||nd||ng||n11||n9)) {
 		package_fail("Max2D package: invalid ABI/schema/assets (%d, %d, %d/%d/%d bytes)",abi,slots,nm,ns,nd); return NULL;
 	}
 	if(!valid_spirv(spirv,ns)) { package_fail("Max2D package: malformed SPIR-V (%d bytes)",ns); return NULL; }
@@ -52,12 +66,16 @@ void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *
 		package_fail("Max2D package: embedded zero in Metal source"); return NULL;
 	}
 	if(ng && (!glsl || memchr(glsl,0,(size_t)ng))) { package_fail("Max2D package: invalid GLSL source or ABI"); return NULL; }
+	if(!valid_dxbc(d3d11,n11)) { package_fail("Max2D package: malformed native D3D11 DXBC"); return NULL; }
+	if(!valid_d3d9(d3d9,n9)) { package_fail("Max2D package: malformed native D3D9 ps_3_0 bytecode"); return NULL; }
 	M2DPackage *p=calloc(1,sizeof(*p));
 	if(!p) goto oom;
 	if(nm) { p->metal=malloc((size_t)nm+1); if(!p->metal) goto oom; memcpy(p->metal,metal,(size_t)nm); p->metal[nm]=0; p->metalSize=(size_t)nm+1; }
 	if(ns) { p->spirv=malloc((size_t)ns); if(!p->spirv) goto oom; memcpy(p->spirv,spirv,(size_t)ns); p->spirvSize=ns; }
 	if(nd) { p->dxbc=malloc((size_t)nd); if(!p->dxbc) goto oom; memcpy(p->dxbc,dxbc,(size_t)nd); p->dxbcSize=nd; }
 	if(ng) { p->glsl=malloc((size_t)ng+1); if(!p->glsl) goto oom; memcpy(p->glsl,glsl,(size_t)ng); p->glsl[ng]=0; }
+	if(n11) { p->d3d11=malloc(n11); if(!p->d3d11) goto oom; memcpy(p->d3d11,d3d11,n11); p->d3d11Size=n11; }
+	if(n9) { p->d3d9=malloc(n9); if(!p->d3d9) goto oom; memcpy(p->d3d9,d3d9,n9); p->d3d9Size=n9; }
 	p->abi=abi;
 	p->samplers=abi>=3?2:1;
 	p->slots=slots+(abi==4?7:abi==3?5:abi==2?2:0);

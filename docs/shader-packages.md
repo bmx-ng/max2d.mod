@@ -1,13 +1,44 @@
 # Custom shader packages
 
 Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU, or
-`Max2D.GLEffects` for ABI 1–4 packages on OpenGL. Both import the shared
+`Max2D.GLEffects` for OpenGL, `Max2D.D3D9Effects` for native Direct3D9 or
+`Max2D.D3D11Effects` for native Direct3D11. All support ABI 1–4 and import the shared
 `Max2D.ShaderEffects` API; existing SDL imports and package factories remain valid.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
 coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
 independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
 Software SDL reports packages unsupported. OpenGL supports ABI 1–4 packages with desktop GLSL assets. Always query `Max2DSupportsImageEffect` before use.
+
+## Native Direct3D assets
+
+The generator also writes `.d3d11.hlsl` and `.d3d9.hlsl`. On Windows, build the
+BlitzMax `compile_dxbc.bmx` tool and compile these with the matching profile:
+
+```
+compile_dxbc.exe colormatrix/colormatrix.d3d11.hlsl colormatrix/colormatrix.d3d11.dxbc ps_4_0
+compile_dxbc.exe colormatrix/colormatrix.d3d9.hlsl colormatrix/colormatrix.d3d9.bin ps_3_0
+```
+
+Then run the existing embedder. Generated wrappers include all six assets.
+`TMax2DShaderPackage.Create(..., abiVersion, glsl, d3d11, d3d9)` adds two optional
+trailing byte arrays; existing calls remain valid. A package may omit any backend
+asset, in which case that backend reports it unsupported. SDL DXBC uses its own
+binding contract and cannot be substituted for the native D3D11 asset.
+
+D3D11 binds modes at pixel buffer b0, parameters at b1, and source/map at t0/t1.
+D3D9 binds modes at c0, parameter slots at c1–c10, allocation scales at c11/c12,
+and source filtering information at c13. Generated D3D9 shaders receive float tint
+through TEXCOORD1, logical image UV through TEXCOORD0, and screen coordinates
+through TEXCOORD2 for pixel-centre interpolation correction. Keep these wrapper
+contracts intact when customizing generated source. Coordinate/map packages use
+point taps at mip zero and implement requested filtering within the selected view.
+
+Native caches belong to the graphics context and copy package identities. Closing
+or replacing a D3D11 device recreates shaders as needed; D3D9 shader objects survive
+presentation resets. Drawing rejects destination feedback before submitting pixels
+and restores ordinary drawing after success or an exception. No runtime shader
+compiler is loaded by applications.
 
 ## Colour matrix
 
@@ -316,7 +347,7 @@ mask for complementary normal and inverted reveals. Press M to preview the map.
 
 ## Package API
 
-`TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1)`
+`TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1,glsl=Null,d3d11=Null,d3d9=Null)`
 copies the schema and shader bytes. Names must be unique identifiers. Declare
 one to eight `MAX2D_PARAMETER_FLOAT` or `MAX2D_PARAMETER_FLOAT4` parameters
 for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
@@ -368,7 +399,8 @@ glslc -O colormatrix/colormatrix.frag -o colormatrix/colormatrix.frag.spv
 On Windows, build and run the BlitzMax DXBC compiler tool. It calls
 `D3DCompile` in `d3dcompiler_47.dll` directly through a BlitzMax binding; no C++
 helper is required. It prints compiler diagnostics and exits nonzero on failure.
-The target remains `m2dEffectMain`, pixel shader 5.1, optimization level 3.
+The entry point is `m2dEffectMain`, with optimization level 3. The default profile
+is `ps_5_1` for SDL; pass `ps_4_0` or `ps_3_0` for the native assets.
 
 ```text
 bmk makeapp -r -t console -o compile_dxbc compile_dxbc.bmx

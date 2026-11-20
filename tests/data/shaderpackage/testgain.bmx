@@ -1,7 +1,7 @@
 ' Generated package wrapper. Run embed after compiling shader assets.
 ' Import testgain_assets.c alongside your application imports.
 Function CreateTestGainPackage:TMax2DShaderPackage()
-	Return TMax2DShaderPackage.Create("testgain", ["gain", "bias"], [MAX2D_PARAMETER_FLOAT, MAX2D_PARAMETER_FLOAT4], CreateTestGainPackageData(CreateTestGainPackageAsset(0), CreateTestGainPackageSize(0)), CreateTestGainPackageData(CreateTestGainPackageAsset(1), CreateTestGainPackageSize(1)), CreateTestGainPackageData(CreateTestGainPackageAsset(2), CreateTestGainPackageSize(2)), 1, CreateTestGainPackageData(CreateTestGainPackageAsset(3), CreateTestGainPackageSize(3)))
+	Return TMax2DShaderPackage.Create("testgain", ["gain", "bias"], [MAX2D_PARAMETER_FLOAT, MAX2D_PARAMETER_FLOAT4], CreateTestGainPackageData(CreateTestGainPackageAsset(0), CreateTestGainPackageSize(0)), CreateTestGainPackageData(CreateTestGainPackageAsset(1), CreateTestGainPackageSize(1)), CreateTestGainPackageData(CreateTestGainPackageAsset(2), CreateTestGainPackageSize(2)), 1, CreateTestGainPackageData(CreateTestGainPackageAsset(3), CreateTestGainPackageSize(3)), CreateTestGainPackageData(CreateTestGainPackageAsset(4), CreateTestGainPackageSize(4)), CreateTestGainPackageData(CreateTestGainPackageAsset(5), CreateTestGainPackageSize(5)))
 End Function
 Private
 Extern "C"

@@ -83,6 +83,7 @@ void *m2d_gl_create_image_effect(M2DGL *c,const void *key,const char *source,int
     return p;
 }
 /* Package cache keys are copied: asset lifetime is independent of contexts. */
+// Native Direct3D assets share the package owner; this adapter uses only GLSL.
 void *m2d_gl_package_shader(M2DGL *c,const M2DPackage *package) {
     if(!package->glsl) {fail("No OpenGL asset for this package ABI");return NULL;}
     for(M2DGLProgram *p=c->effects;p;p=p->next)

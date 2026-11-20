@@ -1,12 +1,19 @@
 SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_sdlgpu And Not max2d_gl
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 Framework Max2D.SDL3RenderMax2D
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 Import Max2D.SDL3GPUEffects
 ?
 Import BRL.StandardIO
@@ -24,14 +31,14 @@ Function GLPackage:TMax2DShaderEffect(source:String)
 	Return CreateShaderEffect(TMax2DShaderPackage.Create("same name",["unused"],[MAX2D_PARAMETER_FLOAT],Null,Null,Null,1,bytes))
 End Function
 ?
-?Not max2d_sdlgpu And Not max2d_gl
+?Not max2d_sdlgpu And Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
 ?
 Try
 	Local package:TMax2DShaderPackage = CreateTestGainPackage()
 	Local custom:TMax2DShaderEffect = CreateShaderEffect(package)
 	custom.SetFloat("gain",1)
-	For Local invalid:Int = 0 Until 7
+	For Local invalid:Int = 0 Until 10
 		Local rejected:Int
 		Try
 			Select invalid
@@ -49,6 +56,12 @@ Try
 					TMax2DShaderPackage.Create("bad",["x"],[99],Null,Null,Null)
 				Case 6
 					TMax2DShaderPackage.Create("bad",["x"],[1],[Byte(32)],Null,Null,99)
+				Case 7
+					TMax2DShaderPackage.Create("bad",["x"],[1],Null,Null,Null,1,Null,[Byte(1),2,3,4])
+				Case 8
+					TMax2DShaderPackage.Create("bad",["x"],[1],Null,Null,Null,1,Null,Null,[Byte(1),2,3,4])
+				Case 9
+					TMax2DShaderPackage.Create("truncated instruction",["x"],[1],Null,Null,Null,1,Null,Null,[Byte(0),3,255,255,1,0,0,2,255,255,0,0])
 			End Select
 		Catch error:Object
 			rejected = True
@@ -66,8 +79,8 @@ Try
 	MemCopy(bytes,pixels,Size_T(bytes.Length))
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64,64)
-?max2d_gl
-		Check(Max2DSupportsImageEffect(matrix),"OpenGL colour packages supported")
+?max2d_gl Or max2d_d3d9 Or max2d_d3d11
+		Check(Max2DSupportsImageEffect(matrix),"Native colour packages supported")
 ?
 		If Not Max2DSupportsImageEffect(matrix) Then
 			Check(Not Max2DSupportsImageEffect(custom),"unregistered context rejects packages")
@@ -168,6 +181,27 @@ Try
 		identities=ReadRenderTextureData(output)
 		identityPixels=Float Ptr(identities.Level().Data())
 		Check(Abs(identityPixels[0]-1)<0.0001 And Abs(identityPixels[13]-1)<0.0001,"rejected package draws leave target unchanged")
+?
+?max2d_d3d9 Or max2d_d3d11
+        Local sameName:TMax2DShaderEffect=CreateShaderEffect(TMax2DShaderPackage.Create("colormatrix",["gain","bias"],[1,4],Null,Null,Null,1,Null,CreateTestGainPackageData(CreateTestGainPackageAsset(4),CreateTestGainPackageSize(4)),CreateTestGainPackageData(CreateTestGainPackageAsset(5),CreateTestGainPackageSize(5))))
+        sameName.SetFloat("gain",2)
+        SetRenderImage(output);SetColor(255,255,255);SetAlpha(1)
+        DrawImageEffect(image,matrix,0,0)
+        DrawImageEffect(image,sameName,3,0)
+        Local identity:TTextureData=ReadRenderTextureData(output)
+        Local identityPixels:Float Ptr=Float Ptr(identity.Level().Data())
+        Check(Abs(identityPixels[0]-0.48)<0.0001 And Abs(identityPixels[12]-0.4)<0.0001,"Same-name native packages keep independent shaders")
+        Local missing:TMax2DShaderEffect=CreateShaderEffect(TMax2DShaderPackage.Create("missing native",["gain","bias"],[1,4],CreateTestGainPackageData(CreateTestGainPackageAsset(0),CreateTestGainPackageSize(0)),Null,Null))
+        Check(Not Max2DSupportsImageEffect(missing),"Missing native asset reports unsupported")
+        Local rejected:Int
+        Try
+            DrawImageEffect(image,missing,0,0)
+        Catch error:Object
+            rejected=True
+        End Try
+        Check(rejected,"Missing native asset draw rejected")
+        identity=ReadRenderTextureData(output);identityPixels=Float Ptr(identity.Level().Data())
+        Check(Abs(identityPixels[0]-0.48)<0.0001,"Rejected native draw preserves destination")
 ?
 		' Force the retained large-uniform arena to grow while draws are queued.
 		Local wide:TRenderImage = CreateRenderImage(300,1,0,PF_RGBA32F)

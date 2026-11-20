@@ -1,11 +1,29 @@
 SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
 ?max2d_gl
 Framework Max2D.GLMax2D
 Import Max2D.GLEffects
-?Not max2d_gl
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
 Framework Max2D.SDL3GPUMax2D
 Import Max2D.SDL3GPUEffects
 ?
+
+Import BRL.PNGLoader
+Import BRL.FileSystem
+Import BRL.StandardIO
+
+' Optional deterministic framebuffer captures for backend validation.
+Local captureDirectory:String
+If AppArgs.Length=3 And AppArgs[1]="--capture-dir" Then
+ captureDirectory=AppArgs[2]
+ If Not CreateDir(captureDirectory,True) Then Throw "Cannot create gallery capture directory"
+End If
+Local captureIndex:Int,captureFrames:Int
 
 AppTitle = "Max2D effects gallery"
 Graphics(1000, 620)
@@ -142,6 +160,9 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Next
 	If KeyHit(KEY_SPACE) Then paused = Not paused
 	If Not paused Then time :+ Float(Min(elapsed,100))*0.001
+	If captureDirectory Then
+		selected=captureIndex;page=selected/9;time=2;paused=True
+	End If
 	wave.SetFloat("time",time); graded.SetFloat("time",time)
 	Local progress:Float = 0.5-0.5*Cos(time*45)
 	dissolve.SetFloat("progress",progress)
@@ -260,7 +281,17 @@ While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
 	Else
 		DrawText("Effects operate on the combined source layer.",30,500)
 	End If
+	If captureDirectory Then
+		captureFrames:+1
+		If captureFrames=2 Then
+			Local number:String="0"+captureIndex
+			Local path:String=captureDirectory+"/effect-"+number[number.Length-2..]+".png"
+			If Not SavePixmapPNG(GrabPixmap(0,0,NativeResolutionWidth(),NativeResolutionHeight()),path) Then Throw "Gallery capture failed"
+			captureIndex:+1;captureFrames=0
+		End If
+	End If
 	Flip
+	If captureDirectory And captureIndex=names.Length Then Exit
 Wend
 SetRenderImage(Null)
 buffers.Release(); shadow.Release(); inner.Release(); bloom.Release()
@@ -268,3 +299,4 @@ For Local effect:TMax2DInnerShadow = EachIn individual
 	effect.Release()
 Next
 EndGraphics
+If captureDirectory Then Print "effects_gallery capture passed: "+captureIndex+" effects"

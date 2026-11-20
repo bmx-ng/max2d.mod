@@ -34,9 +34,9 @@ Type TMax2DShaderPackage
 	Public
 	Rem
 	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
-	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. The optional glsl argument supplies desktop GLSL 1.20 for ABI 1–4. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
+	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. The optional glsl argument supplies desktop GLSL 1.20 for ABI 1–4; d3d11 and d3d9 supply native ps_4_0 DXBC and ps_3_0 bytecode. SDL DXBC uses a separate binding contract. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
 	End Rem
-	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1, glsl:Byte[] = Null)
+	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1, glsl:Byte[] = Null, d3d11:Byte[] = Null, d3d9:Byte[] = Null)
 		If name = "" Or parameterNames.Length < 1 Or parameterNames.Length > 8 Or parameterNames.Length <> parameterTypes.Length Then Throw "Max2D package: invalid name or schema size"
 		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 And abiVersion<>4 Then Throw "Max2D package: unsupported ABI version"
 		If abiVersion>=3 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
@@ -55,7 +55,7 @@ Type TMax2DShaderPackage
 		Next
 		Local package:TMax2DShaderPackage = New TMax2DShaderPackage
 		package.names = parameterNames[..]; package.kinds = parameterTypes[..]; package.label = name; package.version = abiVersion
-		package.native = m2d_package_create(metal, metal.Length, spirv, spirv.Length, dxbc, dxbc.Length, parameterNames.Length, abiVersion, glsl, glsl.Length)
+		package.native = m2d_package_create(metal, metal.Length, spirv, spirv.Length, dxbc, dxbc.Length, parameterNames.Length, abiVersion, glsl, glsl.Length, d3d11, d3d11.Length, d3d9, d3d9.Length)
 		If Not package.native Then Throw "Max2D package: " + String.FromUTF8String(m2d_package_error())
 		Return package
 	End Function
@@ -145,6 +145,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		Local context:TMax2DContext = canvas.context
 		Local backend:TMax2DShaderPackageBackend = FindShaderPackageBackend(context)
 		If Not backend Then Throw "Max2D package: no provider for this context"
+		context.Flush()
 		Local shader:Byte Ptr = NativeShader(context)
 		If Not shader Then Throw "Max2D package: shader asset unavailable or compilation failed"
 		If package.ABIVersion()>=2 Then
@@ -290,7 +291,7 @@ End Function
 
 Private
 Extern "C"
-	Function m2d_package_create:Byte Ptr(metal:Byte Ptr,nm:Int,spirv:Byte Ptr,ns:Int,dxbc:Byte Ptr,nd:Int,slots:Int,abi:Int,glsl:Byte Ptr,ng:Int)
+	Function m2d_package_create:Byte Ptr(metal:Byte Ptr,nm:Int,spirv:Byte Ptr,ns:Int,dxbc:Byte Ptr,nd:Int,slots:Int,abi:Int,glsl:Byte Ptr,ng:Int,d3d11:Byte Ptr,n11:Int,d3d9:Byte Ptr,n9:Int)
 	Function m2d_package_free(package:Byte Ptr)
 	Function m2d_package_error:Byte Ptr()
 End Extern

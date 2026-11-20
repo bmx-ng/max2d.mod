@@ -22,50 +22,84 @@ The [shader package guide](shader-packages.md) documents the current ABI contrac
 [HDR output](hdr-output.md) distinguishes float rendering, SDR presentation and
 actual HDR display output.
 
-### Effect parity: SDL GPU and OpenGL
+### Effect parity
 
-| Feature | SDL GPU | OpenGL + GLEffects |
-| --- | --- | --- |
-| Saturation, colourize, blur, outlines | Yes | Yes |
-| Bloom, tone mapping and linear output | Yes | Yes |
-| Retained buffers, layer chains, soft/inner shadows | Yes | Yes |
-| Colour and coordinate packages (ABI 1/2) | Yes | Yes |
-| Displacement, dissolve and texture masks (ABI 3/4) | Yes | Yes |
-| Transformed/shared maps and soft thresholds | Yes | Yes |
-| Complete effects gallery | Both pages | Both pages |
-| HDR window presentation | Capability-dependent | No; SDR presentation |
+| Feature | SDL GPU | OpenGL | Native D3D9 | Native D3D11 |
+| --- | --- | --- | --- | --- |
+| Saturation, colourize, blur, outlines | Yes | Yes | Yes | Yes |
+| Bloom, tone mapping and linear output | Yes | Yes | Yes | Yes |
+| Retained buffers, layer chains, soft/inner shadows | Yes | Yes | Yes | Yes |
+| Colour and coordinate packages (ABI 1/2) | Yes | Yes | Yes | Yes |
+| Displacement, dissolve and texture masks (ABI 3/4) | Yes | Yes | Yes | Yes |
+| Transformed/shared maps and soft thresholds | Yes | Yes | Yes | Yes |
+| Float composition | Device-dependent | Device-dependent | Device-dependent | Device-dependent |
+| Complete effects gallery | Both pages | Both pages | Both pages | Both pages |
+| HDR window presentation | Capability-dependent | SDR | SDR | SDR |
 
-OpenGL uses generated GLSL 1.20 assets. Both providers use the same public effect,
-parameter and buffer APIs. This is functional parity for the implemented effects;
-it does not assert matching performance or native display capabilities. All
-OpenGL changes remain within Max2D.
+Import the matching optional effects provider. All use the same public effect,
+parameter and buffer APIs. OpenGL uses generated GLSL 1.20, D3D9 uses ps_3_0,
+and native D3D11 uses ps_4_0 assets. This is functional parity for the implemented
+effects; it does not assert matching performance or native display capabilities.
+The rendering changes remain within Max2D.
 
-The completion sweep passed 98 selected checks across macOS, Windows and Ubuntu,
+The earlier OpenGL completion sweep passed 98 selected checks across macOS, Windows and Ubuntu,
 including 27 OpenGL suites per platform. The complete gallery and linear HDR
 scene were visually inspected on macOS. See [validation details](shader-packages.md#opengl-effect-parity-validation-2026-11-20).
 
 ### Native Direct3D effects
 
-`Max2D.D3D11Effects` and `Max2D.D3D9Effects` add the seven built-in effects and
-support the shared buffer, layer, bloom and shadow APIs. D3D11 supports float
-composition where the device advertises the formats. D3D9 currently uses RGBA8
-buffers and requires pixel shader 3.0 for effects (ordinary drawing still needs
-only shader 2.0). Both providers embed compiled shaders; their build tools are
-BlitzMax programs.
+`Max2D.D3D11Effects` and `Max2D.D3D9Effects` support the seven built-in effects,
+shared buffers/layer/bloom/shadow pipelines, and custom shader-package ABI 1–4.
+Both support RGBA16F/RGBA32F composition where the device advertises the requested
+format and flags. D3D9 requires pixel shader 3.0 for effects and float storage;
+ordinary RGBA8 drawing retains its shader 2.0 requirement. Both providers embed
+compiled shaders; their build tools are BlitzMax programs.
 
-Custom shader packages and HDR window presentation remain outstanding on these
-native providers. SDL GPU's Direct3D bytecode is a separate backend contract.
-See the [D3D11](d3d11.md#optional-image-effects) and
+Native D3D9 and D3D11 use separate generated assets from SDL GPU's Direct3D
+contract. Native HDR window presentation remains unimplemented, matching the
+OpenGL provider's SDR presentation limitation. Float composition and tone mapping
+remain available. See the [D3D11](d3d11.md#optional-image-effects) and
 [D3D9](d3d9.md#optional-image-effects) guides.
 
-The first native Direct3D checkpoint passed **34 Windows checks**: 18 D3D11
+The earlier built-in native Direct3D checkpoint passed **34 Windows checks**: 18 D3D11
 (including real device replacement) and 16 D3D9 (including presentation resets
 and close/reopen), plus five affected OpenGL suites on macOS. D3D9 pipeline
-references use RGBA8 and account for bounded legacy filtering precision;
+references used RGBA8 and accounted for bounded legacy filtering precision;
 D3D11 retains the float/HDR references. Direct blur and outline pixel checks
 retain their original tolerances. Optional-provider checks pass on both backends.
 The two native shadow GUI examples also compile. VM desktop capture returned a
 black image, so this checkpoint does not claim visual desktop inspection.
+
+### Native parity completion — 2026-11-20
+
+The remaining OpenGL effect parity work is complete for both native providers:
+ABI 1–4 packages, generated native assets, and D3D9 float textures/targets with
+unclamped readback. D3D9 now carries float tint and corrects pixel-centre
+interpolation; its shared pipelines use the same float references as OpenGL and
+D3D11. Cached byte and float targets survive planned presentation-mode resets.
+
+The completion sweep passed **89 selected checks**:
+
+| Platform/backend | Checks |
+| --- | ---: |
+| Windows native D3D9 | 34 |
+| Windows native D3D11 | 29 |
+| macOS OpenGL | 9 |
+| macOS SDL GPU / Metal | 8 |
+| macOS software rejection paths | 8 |
+| Reproducible BlitzMax package generation | 1 |
+
+Coverage includes all package ABIs, typed parameters and asset validation,
+same-name cache isolation, warmed batches, atlas/edge/filter behaviour, coverage
+maps, source/map aliasing, mipmap restoration, feedback rejection, HDR/negative
+values, float clears and letterbox bars, bloom/shadow pipelines, planned resets,
+transient D3D9 loss, and real D3D11 device replacement.
+
+Both native GUI galleries rendered and captured all eighteen selections at a
+fixed animation time. Framebuffer captures were inspected, including HDR bloom
+and mapped masks. This avoids the earlier black VM desktop-capture limitation.
+Windows validation used x64 executables on the Parallels Windows 11 ARM64 VM;
+physical Windows GPUs remain untested. Native window presentation remains SDR.
 
 ### Deliberate limits and remaining work
 
@@ -75,9 +109,9 @@ black image, so this checkpoint does not claim visual desktop inspection.
 - Effects expose their passes and resource ownership. Retained buffers are
   available; a general memory-budgeted scratch pool and automatic effect graph
   are not implemented. Padding and result invalidation remain explicit.
-- Custom shader packages support ABI 1–4 on native SDL GPU and OpenGL through
-  their optional effect providers. OpenGL packages need desktop GLSL assets.
-  Native D3D9/D3D11 and SDL_Renderer report packages unsupported.
+- Custom shader packages support ABI 1–4 through the optional SDL GPU, OpenGL,
+  D3D9 and D3D11 providers. Each needs its matching asset. SDL_Renderer reports
+  packages unsupported.
   Fixed-function layer operations remain available where their exact blends work.
 - Metal and Windows/Ubuntu Vulkan have regression coverage. SDL GPU Direct3D bytecode
   compiles, but that backend’s Direct3D runtime validation remains outstanding.
@@ -290,8 +324,9 @@ intermediate surface. The existing growable draw/vertex buffers remain shared.
 
 The [built-in shader package](../sdl3gpueffects.mod/shaders/README.md) contains
 equivalent Metal, SPIR-V and shader-model 5.1 DXBC implementations. Only the
-optional module links those assets. Backends without a registered provider, including D3D9, D3D11 and SDL_Renderer,
-report this shader effect unsupported. OpenGL now supplies saturation and colourize
+optional module links those assets. Backends without a registered provider,
+including SDL_Renderer, report this shader effect unsupported. Native Direct3D
+providers use their separately compiled assets. OpenGL supplies saturation and colourize
 through the optional `Max2D.GLEffects` provider described below. The public API does not silently fall back to a CPU conversion.
 The saturation provider described here uses a fixed built-in shader. Custom
 colour, coordinate and two-texture shaders use the versioned package API below.
