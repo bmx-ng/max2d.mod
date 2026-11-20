@@ -18,7 +18,7 @@ choose a backend without rewriting your scene code.
 - [Examples and documentation](#examples-and-documentation)
 
 [Custom shader packages](docs/shader-packages.md) provide typed parameters,
-colour matrices, waves and ripples for SDL GPU.
+colour matrices on SDL GPU and OpenGL, plus waves and ripples for SDL GPU.
 
 The SDL3 GPU backend also offers opt-in [HDR display output](docs/hdr-output.md),
 with a live HDR/SDR comparison in `examples/hdr_output.bmx`.
@@ -206,6 +206,7 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
+| `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by `SDL3GPUEffects` and `GLEffects`; use a renderer provider to draw. |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |
 | `Max2D.RichText` | Optional inline markup, named styles and registered font variants over the paragraph API. |
@@ -365,6 +366,9 @@ with `LIGHTBLEND`; see the [interactive bloom example](examples/bloom_effects.bm
 per-channel Reinhard mapping and configurable gamma. The
 [HDR bloom example](examples/hdr_bloom.bmx) compares clipped input, tone mapping,
 and bloom accumulated before tone mapping.
+
+The [colour-matrix example](examples/color_matrix.bmx) shows contrast, brightness
+and sepia packages; add `-ud max2d_gl` to use OpenGL.
 
 The [combined distortion example](examples/graded_distortion.bmx) demonstrates
 waves and colour grading in one draw; see [shader packages](docs/shader-packages.md).

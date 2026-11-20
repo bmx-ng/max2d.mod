@@ -1,11 +1,15 @@
 # Custom shader packages
 
-Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU.
+Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU, or
+`Max2D.GLEffects` for ABI 1 colour packages on OpenGL. Both import the shared
+`Max2D.ShaderEffects` API; existing SDL imports and package factories remain valid.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
 coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
 independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
-Software SDL and OpenGL report these packages unsupported.
+Software SDL reports packages unsupported. OpenGL supports ABI 1 packages with
+a desktop GLSL asset; ABI 2–4 coordinate and secondary-map packages remain
+unsupported. Always query `Max2DSupportsImageEffect` before use.
 
 ## Colour matrix
 
@@ -386,7 +390,21 @@ SPIR-V, DXBC, BMX wrapper and `_assets.c` together in version control. C arrays
 embed the assets without runtime file access. No build-time shader compiler is
 linked into the application. Metal source is compiled by the system on use.
 
-All versions use image/sampler 0 and two uniform buffers: Max2D mode
+ABI 1 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
+`glsl` body, distinct from the Vulkan `.frag` source. The embedder includes it
+as asset 3; OpenGL compiles it on first use. It uses sampler `image`, the Max2D
+mode uniforms and a `vec4 p[]` parameter array. Keep colour bodies compatible
+with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1
+packages to add OpenGL support; their Metal/SPIR-V/DXBC assets need no changes.
+
+Direct callers may pass desktop GLSL bytes as the optional final argument to
+`TMax2DShaderPackage.Create(..., abiVersion, glsl)`. Existing calls remain valid.
+A GLSL-only ABI 1 package is allowed; missing renderer assets report unsupported.
+The shared module owns immutable assets and typed values, while each renderer
+registers its own adapter and owns compiled resources per context.
+`examples/color_matrix.bmx` accepts `-ud max2d_gl`.
+
+SDL GPU versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
 set 3; HLSL uses t0/s0 space2 and b0/b1 space3, shader model 5.1. Metal uses
 `m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3/4 adds image/sampler
@@ -400,10 +418,12 @@ backend shader/pipeline creation performs backend compatibility checks. These
 checks are **not shader reflection or a security sandbox**. Use trusted generated
 assets with the fixed wrapper ABI; arbitrary binaries can violate that contract.
 
-Ordinary draw records retain their previous size and do not allocate or copy
+On SDL GPU, ordinary draw records retain their previous size and do not allocate or copy
 package parameters. Built-in 16-byte uniforms remain inline. Larger package
 uniforms use a retained arena, allocated on first use and grown when needed.
 There are no per-draw parameter-array allocations after capacity is sufficient.
+OpenGL copies the parameter slots into retained context storage and uploads them
+when submitting the effect batch. Closing the context releases its shader cache.
 This preserves the ordinary drawing path; it is not a GPU performance claim.
 
 Tests cover typed validation, HDR/alpha matrix arithmetic, tint, ordinary and
@@ -520,3 +540,26 @@ and Ubuntu Vulkan, including two graphics lifetimes, both sprite paths, atlas
 and render-image maps, hard-cut equality, smooth coverage, inversion, tint, HDR,
 filtered transformed sampling and complete endpoints. Software rejection and
 package regeneration pass. DXBC is compiled; Direct3D runtime is not verified.
+
+## OpenGL colour-package validation (2026-11-20)
+
+33 selected checks passed for this tranche:
+
+- OpenGL on macOS, Windows and Ubuntu: `shader_packages`, `gl_effects`,
+  `gl_effects_optional` and `bloom_pipeline` (12 checks).
+- macOS: package generator reproduction and eight package suites each on Metal
+  and software SDL (17 checks). These cover colour, coordinates, combined
+  effects, two textures, texture/threshold masks, transforms and shared mapping.
+- Windows/Ubuntu Vulkan: `shader_packages` and `texture_transforms` (4 checks).
+
+OpenGL package assertions cover HDR and alpha arithmetic, tinted textures and
+render images, parameter snapshots, warmed batches, graphics recreation,
+same-name package identities, GLSL-only packages, compiler failures, missing
+assets and unsupported coordinate/map draws leaving the target unchanged.
+The Windows VM returns 0.99999994 for some unit float channels; comparisons use
+the same 0.0001 tolerance as the existing float-render checks.
+
+The macOS GUI colour-matrix example was built with `-t gui -ud max2d_gl`,
+opened and inspected. Contrast/brightness and sepia render correctly; resetting
+the matrix makes its image match the original. The package API and GL provider
+changes are contained in Max2D; BRL OpenGL code is unchanged.

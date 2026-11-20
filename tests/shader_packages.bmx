@@ -1,17 +1,30 @@
 SuperStrict
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
-?Not max2d_sdlgpu
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_sdlgpu And Not max2d_gl
 Framework Max2D.SDL3RenderMax2D
-?
+?Not max2d_gl
 Import Max2D.SDL3GPUEffects
+?
 Import BRL.StandardIO
 Import "data/shaderpackage/testgain_assets.c"
 Include "data/shaderpackage/testgain.bmx"
 Function Check(ok:Int, message:String)
 	If Not ok Then Throw message
 End Function
-?Not max2d_sdlgpu
+?max2d_gl
+Function GLPackage:TMax2DShaderEffect(source:String)
+	Local bytes:Byte[] = New Byte[source.Length]
+	For Local i:Int=0 Until source.Length
+		bytes[i]=source[i]
+	Next
+	Return CreateShaderEffect(TMax2DShaderPackage.Create("same name",["unused"],[MAX2D_PARAMETER_FLOAT],Null,Null,Null,1,bytes))
+End Function
+?
+?Not max2d_sdlgpu And Not max2d_gl
 SetGraphicsDriver(SDLRenderMax2DDriver(),0)
 ?
 Try
@@ -53,6 +66,9 @@ Try
 	MemCopy(bytes,pixels,Size_T(bytes.Length))
 	For Local lifetime:Int = 0 Until 2
 		Graphics(64,64)
+?max2d_gl
+		Check(Max2DSupportsImageEffect(matrix),"OpenGL colour packages supported")
+?
 		If Not Max2DSupportsImageEffect(matrix) Then
 			Check(Not Max2DSupportsImageEffect(custom),"unregistered context rejects packages")
 			Local image:TImage = CreateImage(3,1)
@@ -67,6 +83,14 @@ Try
 			Print "shader packages unsupported"
 			Exit
 		End If
+?max2d_gl
+		Local missing:TMax2DShaderEffect=CreateShaderEffect(TMax2DShaderPackage.Create("legacy",["gain","bias"],[1,4],CreateTestGainPackageData(CreateTestGainPackageAsset(0),CreateTestGainPackageSize(0)),Null,Null))
+		Local invalidGL:TMax2DShaderEffect=GLPackage("not valid GLSL")
+		Local unsupported:TMax2DShaderEffect[]=[missing,invalidGL,CreateDistortionEffect(),CreateDisplacementEffect(Null),CreateThresholdMaskEffect(Null)]
+		For Local effect:TMax2DShaderEffect=EachIn unsupported
+			Check(Not Max2DSupportsImageEffect(effect),"unsupported ABI, missing asset or compiler failure rejected")
+		Next
+?
 		Local image:TImage = LoadImage(TTextureData.Create([TTextureLevel.Create(3,1,PF_RGBA32F,bytes)]),0)
 		Local source:TRenderImage = CreateRenderImage(3,1,0,PF_RGBA32F)
 		Local output:TRenderImage = CreateRenderImage(6,1,0,PF_RGBA32F)
@@ -123,6 +147,28 @@ Try
 			p=Float Ptr(read.Level().Data())
 			Check(Abs(p[0]-0.2)<0.0001,"ordinary draw after error has no effect")
 		Next
+?max2d_gl
+		SetRenderImage(output)
+		Local red:TMax2DShaderEffect=GLPackage("#version 120~nvoid main(){gl_FragColor=vec4(1,0,0,1);}")
+		Local green:TMax2DShaderEffect=GLPackage("#version 120~nvoid main(){gl_FragColor=vec4(0,1,0,1);}")
+		DrawImageEffect(image,red,0,0)
+		DrawImageEffect(image,green,3,0)
+		Local identities:TTextureData=ReadRenderTextureData(output)
+		Local identityPixels:Float Ptr=Float Ptr(identities.Level().Data())
+		Check(Abs(identityPixels[0]-1)<0.0001 And Abs(identityPixels[1])<0.0001 And Abs(identityPixels[12])<0.0001 And Abs(identityPixels[13]-1)<0.0001,"same-name packages keep independent shaders: "+identityPixels[0]+", "+identityPixels[1]+", "+identityPixels[12]+", "+identityPixels[13])
+		For Local effect:TMax2DShaderEffect=EachIn unsupported
+			Local rejected:Int
+			Try
+				DrawImageEffect(image,effect,0,0)
+			Catch error:Object
+				rejected=True
+			End Try
+			Check(rejected,"unsupported package draw throws")
+		Next
+		identities=ReadRenderTextureData(output)
+		identityPixels=Float Ptr(identities.Level().Data())
+		Check(Abs(identityPixels[0]-1)<0.0001 And Abs(identityPixels[13]-1)<0.0001,"rejected package draws leave target unchanged")
+?
 		' Force the retained large-uniform arena to grow while draws are queued.
 		Local wide:TRenderImage = CreateRenderImage(300,1,0,PF_RGBA32F)
 		SetRenderImage(wide)

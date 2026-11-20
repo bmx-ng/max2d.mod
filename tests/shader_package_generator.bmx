@@ -20,7 +20,9 @@ Try
 		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
 		Local output:String=scratch+"/"+name
 		GeneratePackage(manifest,output)
-		For Local ext:String=EachIn ["metal","frag","hlsl","bmx"]
+		Local extensions:String[]=["metal","frag","hlsl","bmx"]
+		If parsed.GetInteger("abi")=1 Then extensions=extensions+["glsl"]
+		For Local ext:String=EachIn extensions
 			Check(LoadText(output+"/"+name+"."+ext)=LoadText(directory+"/"+name+"."+ext),"Reproducible "+name+"."+ext)
 		Next
 		For Local ext:String=EachIn ["frag.spv","dxbc"]

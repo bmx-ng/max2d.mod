@@ -192,6 +192,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			helper:+sampling
 		End If
 		WriteTextFile(output+"/"+name+"."+ext,head.Replace("@COUNT@",String(count))+helper+tail)
+		If abi=1 And lang="glsl" Then WriteTextFile(output+"/"+name+".glsl",HEAD_gl120.Replace("@COUNT@",String(count))+helper+TAIL_gl120)
 	Next
 	Local names:String[], kinds:String[], arguments:String[]
 	names=New String[params.Size()]; kinds=New String[params.Size()]; arguments=New String[3]
@@ -207,6 +208,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	source=source.Replace("@NAMES@",", ".Join(names)).Replace("@KINDS@",", ".Join(kinds)).Replace("@ARGUMENTS@",", ".Join(arguments))
 	Local abiArgument:String
 	If abi>=2 Then abiArgument=", "+abi
+	If abi=1 Then abiArgument=", 1, "+factory+"Data("+factory+"Asset(3), "+factory+"Size(3))"
 	source=source.Replace("@ABI_ARGUMENT@",abiArgument)
 	WriteTextFile(output+"/"+name+".bmx",source)
 End Function
@@ -215,8 +217,10 @@ Function EmbedPackage(manifest:String, output:String)
 	Local root:TJSONObject=ReadManifest(manifest)
 	Local name:String=root.GetString("name"), factory:String=root.GetString("factory")
 	Local text:String="/* Generated shader assets. */~n"
-	Local sizes:String[3], extensions:String[]=["metal","frag.spv","dxbc"]
-	For Local i:Int=0 Until 3
+	Local extensions:String[]=["metal","frag.spv","dxbc"]
+	If root.GetInteger("abi")=1 Then extensions=extensions+["glsl"]
+	Local sizes:String[]=New String[extensions.Length]
+	For Local i:Int=0 Until extensions.Length
 		Local blob:TBank=LoadBank(output+"/"+name+"."+extensions[i])
 		If Not blob Then Throw "Cannot read shader asset: "+extensions[i]
 		If blob.Size()<1 Or blob.Size()>4194304 Then Throw "Shader assets must contain 1 to 4194304 bytes"
@@ -228,6 +232,8 @@ Function EmbedPackage(manifest:String, output:String)
 		Next
 		text:+"~n};~n"
 	Next
-	text:+C_ASSET_FOOTER.Replace("@SIZES@",",".Join(sizes)).Replace("@FACTORY@",factory)
+	Local footer:String=C_ASSET_FOOTER
+	If extensions.Length=4 Then footer=footer.Replace("asset0,asset1,asset2","asset0,asset1,asset2,asset3").Replace("i<3","i<4")
+	text:+footer.Replace("@SIZES@",",".Join(sizes)).Replace("@FACTORY@",factory)
 	WriteTextFile(output+"/"+name+"_assets.c",text)
 End Function

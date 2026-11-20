@@ -1,14 +1,14 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects.
-about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Other shader effects remain unsupported.
+bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1 shader packages.
+about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation. Coordinate and two-texture shader packages remain unsupported.
 End Rem
 Module Max2D.GLEffects
 ModuleInfo "Version: 0.01"
 ModuleInfo "License: zlib/libpng"
 
-Import Max2D.Effects
+Import Max2D.ShaderEffects
 Import Max2D.GLMax2D
 
 Private
@@ -144,7 +144,7 @@ void main() {
 
 Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	Method Handles:Int(context:TMax2DContext,effect:TMax2DImageEffect) Override
-		Return TGLMax2DContext(context)<>Null And (TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null Or TMax2DBrightPassEffect(effect)<>Null Or TMax2DToneMapEffect(effect)<>Null Or TMax2DLinearOutputEffect(effect)<>Null)
+		Return TGLMax2DContext(context)<>Null And (TMax2DShaderEffect(effect)<>Null Or TMax2DSaturationEffect(effect)<>Null Or TMax2DColorizeEffect(effect)<>Null Or TMax2DBlurEffect(effect)<>Null Or TMax2DOutlineEffect(effect)<>Null Or TMax2DBrightPassEffect(effect)<>Null Or TMax2DToneMapEffect(effect)<>Null Or TMax2DLinearOutputEffect(effect)<>Null)
 	End Method
 
 	Method Supports:Int(canvas:TMax2DGraphics,effect:TMax2DImageEffect) Override
@@ -164,6 +164,7 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	Method GetShader:Byte Ptr(context:TGLMax2DContext,effect:TMax2DImageEffect)
 		context.CheckOpen()
 		context.Activate()
+		If TMax2DShaderEffect(effect) Then Return TMax2DShaderEffect(effect).NativeShader(context)
 		Local key:Byte Ptr=Varptr saturationKey
 		If TMax2DColorizeEffect(effect) Then key=Varptr colorizeKey
 		If TMax2DBlurEffect(effect) Then key=Varptr blurKey
@@ -191,6 +192,10 @@ Type TGLImageEffectBackend Extends TMax2DImageEffectBackend
 	End Method
 
 	Method DrawMany(canvas:TMax2DGraphics,image:TImage,effect:TMax2DImageEffect,positions:Float[],x:Float,y:Float,frame:Int)
+		If TMax2DShaderEffect(effect) Then
+			TMax2DShaderEffect(effect).DrawNative(canvas,image,positions,x,y,frame)
+			Return
+		End If
 		If TMax2DOutlineEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: outline requires a render-image source"
 		If TMax2DBlurEffect(effect) And Not TRenderImage(image) Then Throw "Max2D Effects: blur requires a premultiplied render-image source"
 		Local context:TGLMax2DContext=TGLMax2DContext(canvas.context)
@@ -246,3 +251,27 @@ Extern "C"
 End Extern
 
 RegisterMax2DImageEffectBackend(New TGLImageEffectBackend)
+
+
+Private
+Type TGLShaderPackageBackend Extends TMax2DShaderPackageBackend
+	Method Handles:Int(context:TMax2DContext) Override
+		Return TGLMax2DContext(context)<>Null
+	End Method
+	Method Shader:Byte Ptr(context:TMax2DContext,package:Byte Ptr) Override
+		context.Activate()
+		Return m2d_gl_package_shader(TGLMax2DContext(context).native,package)
+	End Method
+	Method SelectShader(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame) Override
+		If second Then Throw "Max2D OpenGL: two-texture packages are not supported"
+		m2d_gl_select_package_effect(TGLMax2DContext(context).native,shader,values)
+	End Method
+	Method ClearShader(context:TMax2DContext) Override
+		m2d_gl_select_image_effect(TGLMax2DContext(context).native,Null,0,0,0,0)
+	End Method
+End Type
+Extern "C"
+	Function m2d_gl_package_shader:Byte Ptr(context:Byte Ptr,package:Byte Ptr)
+	Function m2d_gl_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr)
+End Extern
+RegisterShaderPackageBackend(New TGLShaderPackageBackend)

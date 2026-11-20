@@ -1,4 +1,5 @@
 #include <max2d.mod/core.mod/blend.h>
+#include <max2d.mod/shadereffects.mod/package.h>
 /* Desktop GL 2.1 / GLSL 1.20, with EXT framebuffer objects. */
 #include "pub.mod/glew.mod/GL/glew.h"
 #include <stdlib.h>
@@ -13,12 +14,14 @@ typedef struct M2DGLProgram {
     GLuint program;
     GLint coverage, transform, textured, source_target, source_premult, premultiply, mask, parameters;
     const void *key;
-    int base_level_only;
+    int base_level_only, user_slots;
+    char *package_key;
+    GLint user_parameters;
     struct M2DGLProgram *next;
 } M2DGLProgram;
 typedef struct {
     M2DGLProgram base, *effects, *effect;
-    float effect_parameters[4];
+    float effect_parameters[40];
     GLuint buffer, white;
     int width,height,clip[4];
     float sx,sy,ox,oy;
@@ -76,6 +79,26 @@ void *m2d_gl_create_image_effect(M2DGL *c,const void *key,const char *source,int
     p->key=key;p->base_level_only=base_level_only;p->next=c->effects;c->effects=p;
     return p;
 }
+/* Package cache keys are copied: asset lifetime is independent of contexts. */
+void *m2d_gl_package_shader(M2DGL *c,const M2DPackage *package) {
+    if(package->abi!=1 || !package->glsl) {fail("No OpenGL asset for this package ABI");return NULL;}
+    for(M2DGLProgram *p=c->effects;p;p=p->next)
+        if(p->package_key && !strcmp(p->package_key,package->key)) return p;
+    M2DGLProgram *p=calloc(1,sizeof(*p));
+    if(!p) {fail("Out of memory");return NULL;}
+    if(!program_init(p,(const char *)package->glsl)) {free(p);return NULL;}
+    p->package_key=malloc(strlen(package->key)+1);
+    if(!p->package_key) {glDeleteProgram(p->program);free(p);fail("Out of memory");return NULL;}
+    strcpy(p->package_key,package->key);
+    p->user_slots=package->slots;
+    p->user_parameters=glGetUniformLocation(p->program,"p[0]");
+    p->next=c->effects;c->effects=p;
+    return p;
+}
+void m2d_gl_select_package_effect(M2DGL *c,M2DGLProgram *p,const float *values) {
+    c->effect=p;
+    memcpy(c->effect_parameters,values,(size_t)p->user_slots*4*sizeof(float));
+}
 void m2d_gl_select_image_effect(M2DGL *c,M2DGLProgram *p,float x,float y,float z,float w) {
     c->effect=p;
     c->effect_parameters[0]=x;c->effect_parameters[1]=y;c->effect_parameters[2]=z;c->effect_parameters[3]=w;
@@ -86,7 +109,7 @@ void m2d_gl_close(M2DGL *c) {
     if(c->buffer) glDeleteBuffers(1,&c->buffer);
     while(c->effects) {
         M2DGLProgram *p=c->effects;c->effects=p->next;
-        glDeleteProgram(p->program);free(p);
+        glDeleteProgram(p->program);free(p->package_key);free(p);
     }
     if(c->base.program) glDeleteProgram(c->base.program);
     free(c);
@@ -296,7 +319,10 @@ int m2d_gl_blend(int mode) {
 int m2d_gl_submit(M2DGL *c,M2DGLFrame *dest,M2DGLFrame *f,int blend,const float *v,int count) {
     M2DGLProgram *p=c->effect?c->effect:&c->base;
     glUseProgram(p->program);
-    if(c->effect) glUniform4fv(p->parameters,1,c->effect_parameters);
+    if(c->effect) {
+        if(p->user_slots) glUniform4fv(p->user_parameters,p->user_slots,c->effect_parameters);
+        else glUniform4fv(p->parameters,1,c->effect_parameters);
+    }
     glDisable(GL_DEPTH_TEST);glDisable(GL_STENCIL_TEST);glDisable(GL_CULL_FACE);glDisable(GL_ALPHA_TEST);
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
     glUniform4f(p->transform,2*c->sx/c->width,-2*c->sy/c->height,2*c->ox/c->width-1,1-2*c->oy/c->height);

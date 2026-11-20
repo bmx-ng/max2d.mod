@@ -200,3 +200,15 @@ mode-list semantics and startup-exclusive paths are unchanged.
 The borderless regression also passes on Linux ARM64 GNOME/Xwayland with VM
 acceleration. Its native helper independently checks the fullscreen property and
 RandR monitor bounds, and checks that the original sizing hints return on exit.
+
+## Colour shader packages
+
+Import `Max2D.GLEffects` for ABI 1 packages with desktop GLSL assets, including
+`CreateColorMatrixEffect`. The shared `Max2D.ShaderEffects` module owns package
+schemas and parameters. Contexts cache compiled programs by package identity;
+closing a context releases them. Existing packages need regeneration/embedding
+to include the GLSL 1.20 asset. ABI 2–4 remain unsupported.
+
+Build `examples/color_matrix.bmx` with `-ud max2d_gl` for the interactive
+original/contrast/sepia comparison. See [shader packages](shader-packages.md)
+for generation and support checks. This implementation is confined to Max2D.
