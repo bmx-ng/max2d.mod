@@ -311,6 +311,7 @@ Build examples from your SDK directory, for example:
 
 | Example | Explore |
 | --- | --- |
+| [composition_helpers.bmx](examples/composition_helpers.bmx) | Padded capture, resolution scaling and retained effect chains; see [the guide](docs/composition-helpers.md). |
 | [effects_quickstart.bmx](examples/effects_quickstart.bmx) | Direct effects, a retained chain and a cached shadow without assets. |
 | [gl_hello.bmx](examples/gl_hello.bmx) | OpenGL drawing with virtual and native coordinates. |
 | [sdl_gpu_hello.bmx](examples/sdl_gpu_hello.bmx) | The direct SDL GPU backend. |

@@ -284,10 +284,16 @@ backend-specific tests such as `hdr_output`, which always uses SDL GPU.
 | Area | Tests |
 | --- | --- |
 | Built-in effects | `image_effects`, `blur_effects`, `colorize_effects`, `outline_effects`, `bloom_effects`, `hdr_bloom` |
-| Layer processing and ownership | `layer_effects`, `inverse_layer_masks`, `layer_effect_chain`, `scaled_blur`, `effect_buffers` |
+| Layer processing and ownership | `layer_effects`, `inverse_layer_masks`, `layer_effect_chain`, `scaled_blur`, `effect_buffers`, `composition_helpers` |
 | Cached helpers | `bloom_pipeline`, `shadow_pipeline`, `inner_shadow` |
 | Packages and maps | `shader_packages`, `coordinate_effects`, `combined_effects`, `two_texture_effects`, `texture_mask_effects`, `texture_transforms`, `shared_texture_mapping`, `threshold_mask_effects` |
 | Colour and display | `linear_colour`, `hdr_output` (SDL GPU only) |
+
+`composition_helpers` checks asymmetric padding, resolution scaling, capture
+restoration on exceptions, retained chain results and warm buffer reuse. Use
+the same backend flags as `effect_buffers`; shader stages are checked when a
+provider is present, and capture/copy behaviour is also tested without one.
+
 
 These tests cover pixels, state restoration, aliases, context lifetime and warm
 resource/submission counts. They do not measure physical HDR brightness or GPU

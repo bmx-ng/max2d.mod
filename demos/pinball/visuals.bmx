@@ -9,11 +9,12 @@ Type TPinWave
 End Type
 
 Type TPinVisuals
-    Field deck:TRenderImage, housing:TRenderImage, plasma:TRenderImage, mask:TRenderImage, scene:TRenderImage
+    Field deck:TRenderImage, housing:TRenderImage, plasma:TRenderImage, mask:TRenderImage
     Field plasmaResult:TRenderImage, outlineImage:TRenderImage
-    Field plasmaBuffers:TMax2DEffectBuffers, outlineBuffers:TMax2DEffectBuffers
+    Field plasmaChain:TMax2DEffectChain, outlineChain:TMax2DEffectChain
+    Field scene:TMax2DEffectLayer
+    Field sceneCapture:TMax2DStateScope
     Field distortion:TMax2DShaderEffect, textureMask:TMax2DShaderEffect
-    Field plasmaChain:TMax2DImageEffect[]
     Field inner:TMax2DInnerShadow, liveBloom:TMax2DBloom
     Field sparks:TPinSpark[256], waves:TPinWave[12], sparkHead:Int, waveHead:Int
     Field oldOverdrive:Int, oldOverdriveWins:Int
@@ -117,9 +118,8 @@ Type TPinVisuals
             textureMask = CreateTextureMaskEffect(mask)
             plasmaSupported = Max2DSupportsImageEffect(distortion) And Max2DSupportsImageEffect(textureMask)
             If plasmaSupported Then
-                plasmaBuffers = New TMax2DEffectBuffers
-                plasmaBuffers.Prepare(128, 128, 2)
-                plasmaChain = [TMax2DImageEffect(distortion), TMax2DImageEffect(textureMask)]
+                plasmaChain = CreateEffectChain([TMax2DImageEffect(distortion), TMax2DImageEffect(textureMask)])
+                plasmaChain.Prepare(128, 128)
             End If
 
             If Max2DSupportsLayerInverseAlpha() And Max2DSupportsImageEffect(CreateBlurEffect()) Then
@@ -129,15 +129,16 @@ Type TPinVisuals
             End If
 
             If Max2DSupportsImageEffect(CreateOutlineEffect()) Then
-                outlineBuffers = New TMax2DEffectBuffers
-                outlineBuffers.Prepare(128, 128, 1)
-                outlineImage = outlineBuffers.ApplyChain(mask, 0, [TMax2DImageEffect(CreateOutlineEffect(3))])
+                outlineChain = CreateEffectChain([TMax2DImageEffect(CreateOutlineEffect(3))])
+                outlineChain.Prepare(128, 128)
+                outlineImage = outlineChain.Update(mask)
             End If
 
             sceneSupported = Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateBlurEffect())
             If sceneSupported Then
                 sceneScale = Min(2, Max(1, NativeResolutionWidth() / WIDTH))
-                scene = CreateRenderImage(UInt(WIDTH * sceneScale), UInt(HEIGHT * sceneScale), FILTEREDIMAGE)
+                scene = New TMax2DEffectLayer
+                scene.Prepare(WIDTH, HEIGHT, 0, 0, 0, 0, sceneScale)
                 liveBloom = CreateBloom(0.72, Float(9 * sceneScale), 0.42)
                 liveBloom.Prepare(WIDTH * sceneScale, HEIGHT * sceneScale, 3, PF_RGBA8888)
             End If
@@ -302,12 +303,11 @@ Type TPinVisuals
             distortion.SetFloat("time", clock * 1.5)
             If table.frenzyTime > 0 Then distortion.SetFloat4("gradeTint", 1, 0.85, 1, 1) Else distortion.SetFloat4("gradeTint", 1, 1, 1, 1)
 
-            plasmaResult = plasmaBuffers.ApplyChain(plasma, 0, plasmaChain)
+            plasmaResult = plasmaChain.Update(plasma)
         End If
 
         If sceneSupported Then
-            SetRenderImage(scene)
-            SetVirtualResolution(WIDTH, HEIGHT)
+            sceneCapture = scene.Capture(False)
         End If
 
         SetClsColor(5, 9, 18)
@@ -317,13 +317,11 @@ Type TPinVisuals
     Method EndScene()
         DrawParticles()
         If sceneSupported Then
-            SetRenderImage(Null)
-            Local result:TRenderImage = liveBloom.Update(scene)
+            sceneCapture.Close()
+            Local result:TRenderImage = liveBloom.Update(scene.Image())
             Paint(255, 255, 255)
             SetBlend(SOLIDBLEND)
-            SetScale(1.0 / sceneScale, 1.0 / sceneScale)
-            DrawImage(result, 0, 0)
-            SetScale(1, 1)
+            scene.Draw(0, 0, result)
             SetBlend(ALPHABLEND)
         End If
     End Method
@@ -550,12 +548,13 @@ Type TPinVisuals
     End Method
 
     Method Release()
-        If plasmaBuffers Then
-            plasmaBuffers.Release()
+        If sceneCapture Then sceneCapture.Close()
+        If plasmaChain Then
+            plasmaChain.Release()
         End If
 
-        If outlineBuffers Then
-            outlineBuffers.Release()
+        If outlineChain Then
+            outlineChain.Release()
         End If
 
         If inner Then
@@ -583,7 +582,7 @@ Type TPinVisuals
         End If
 
         If scene Then
-            scene.ReleaseFrames()
+            scene.Release()
         End If
     End Method
 End Type
