@@ -6,7 +6,7 @@ Max2D drawing. There are three useful starting points:
 | What you need | Use | When work happens |
 | --- | --- | --- |
 | Change one image as it is drawn | `DrawImageEffect(image, effect, x, y)` | One effect draw per call; no intermediate image. |
-| Process a group through several effects | Draw the group into a layer, then `buffers.ApplyChain(source, 0, chain)` | One pass per effect into retained images. |
+| Process a group through several effects | Draw the group into a layer, then `chain.Update(source)` | One pass per effect into retained images. |
 | Reuse bloom or a shadow | `Prepare`, `Update(source)`, then draw `Result()` | Rebuild only when source pixels or settings change. |
 
 For a hard rectangular clip, use `IntersectViewport` in a drawing-state scope.
@@ -96,11 +96,10 @@ Local horizontal:TMax2DBlurEffect = CreateBlurEffect(4, True)
 Local vertical:TMax2DBlurEffect = CreateBlurEffect(4, False)
 If Not Max2DSupportsImageEffect(grayscale) Then Throw "Import an effects provider supported by this graphics context"
 
-' A retained two-image owner handles the alternating outputs of this chain.
-Local chain:TMax2DImageEffect[] = [TMax2DImageEffect(horizontal), TMax2DImageEffect(vertical), TMax2DImageEffect(tint)]
-Local buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
-buffers.Prepare(layerWidth, layerHeight)
-Local softened:TRenderImage = buffers.ApplyChain(source, 0, chain)
+' The retained chain chooses and reuses its own output and scratch images.
+Local chain:TMax2DEffectChain = CreateEffectChain([TMax2DImageEffect(horizontal), TMax2DImageEffect(vertical), TMax2DImageEffect(tint)])
+chain.Prepare(layerWidth, layerHeight)
+Local softened:TRenderImage = chain.Update(source)
 
 ' Cached helpers own their intermediate images. Update only when needed.
 Local shadow:TMax2DShadow = CreateShadow(8)
@@ -134,7 +133,7 @@ Wend
 ' Borrowed results expire here; select a separate target before releasing.
 SetRenderImage(Null)
 shadow.Release()
-buffers.Release()
+chain.Release()
 source.ReleaseFrames()
 EndGraphics
 If testMode Then Print "PASS effects quickstart"
@@ -236,3 +235,6 @@ separate SDL GPU context support. See [HDR and colour handling](hdr-output.md).
 - [Shader packages](shader-packages.md): colour matrices, distortion, displacement,
   dissolve, transformed masks, typed parameters and custom shader authoring.
 - [Effects gallery](effects-gallery.md): side-by-side visual comparisons.
+
+For padded capture, resolution scaling and automatic chain scratch storage, see
+[Composition helpers](composition-helpers.md).

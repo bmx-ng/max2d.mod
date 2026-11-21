@@ -12,6 +12,7 @@ explains the individual operations, their bounds and their costs.
 | Single or repeated image effects | `DrawImageEffect`, `DrawImageEffectBatch` |
 | Ordered effects on a layer | `ApplyLayerEffects` |
 | Wide blur | `TMax2DScaledBlur` |
+| Padded capture and retained chains | [Composition helpers](composition-helpers.md) |
 | Retained intermediate storage | [TMax2DEffectBuffers](effect-buffers.md) |
 | Cached inner shadows | [TMax2DInnerShadow](inner-shadows.md) |
 | Cached soft shadows | [TMax2DShadow](shadows.md) |

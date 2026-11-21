@@ -213,3 +213,7 @@ a dedicated condensed display font and engraved shadow. macOS uses DIN
 Condensed Bold, Windows tries Bahnschrift, and Linux tries DejaVu Sans Condensed
 Bold; unavailable fonts fall back to the interface font. Label heights and width
 limits remain consistent across these choices. The font files are not bundled.
+
+The plasma and outline use retained effect chains. Scene bloom captures through
+a resolution-scaled effect layer; see [Composition helpers](../../docs/composition-helpers.md)
+for the same APIs in an asset-free example.

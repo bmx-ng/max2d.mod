@@ -35,11 +35,10 @@ Local horizontal:TMax2DBlurEffect = CreateBlurEffect(4, True)
 Local vertical:TMax2DBlurEffect = CreateBlurEffect(4, False)
 If Not Max2DSupportsImageEffect(grayscale) Then Throw "Import an effects provider supported by this graphics context"
 
-' A retained two-image owner handles the alternating outputs of this chain.
-Local chain:TMax2DImageEffect[] = [TMax2DImageEffect(horizontal), TMax2DImageEffect(vertical), TMax2DImageEffect(tint)]
-Local buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
-buffers.Prepare(layerWidth, layerHeight)
-Local softened:TRenderImage = buffers.ApplyChain(source, 0, chain)
+' The retained chain chooses and reuses its own output and scratch images.
+Local chain:TMax2DEffectChain = CreateEffectChain([TMax2DImageEffect(horizontal), TMax2DImageEffect(vertical), TMax2DImageEffect(tint)])
+chain.Prepare(layerWidth, layerHeight)
+Local softened:TRenderImage = chain.Update(source)
 
 ' Cached helpers own their intermediate images. Update only when needed.
 Local shadow:TMax2DShadow = CreateShadow(8)
@@ -73,7 +72,7 @@ Wend
 ' Borrowed results expire here; select a separate target before releasing.
 SetRenderImage(Null)
 shadow.Release()
-buffers.Release()
+chain.Release()
 source.ReleaseFrames()
 EndGraphics
 If testMode Then Print "PASS effects quickstart"
