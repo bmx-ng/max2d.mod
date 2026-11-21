@@ -1,11 +1,14 @@
 SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+?
 ?max2d_sdlgpu
 Framework Max2D.SDL3GPUMax2D
 ?max2d_gl
 Framework Max2D.GLMax2D
 ?max2d_d3d11
 Framework Max2D.D3D11Max2D
-?Not max2d_gl And Not max2d_d3d11 And Not max2d_sdlgpu
+?Not max2d_gl And Not max2d_d3d11 And Not max2d_sdlgpu And Not max2d_d3d9
 Framework Max2D.SDL3RenderMax2D
 ?
 Import BRL.StandardIO
@@ -51,6 +54,13 @@ Try
 		Local data:TTextureData=ReadRenderTextureData(target)
 		Check(data.Format()=PF_RGBA32F,"Float readback representation")
 		Near(Channel(data,0,0,3),0,"New target is transparent")
+		SetVirtualResolution(4,8,VIRTUAL_LETTERBOX);SetVirtualBarColor(32,64,96)
+		SetClsColor(100,150,200,0.125);Cls
+		data=ReadRenderTextureData(target)
+		Near(Channel(data,0,0,1),Float(64.0/255),"Float clear fills letterbox bars")
+		Near(Channel(data,0,0,3),1,"Letterbox bars remain opaque")
+		Near(Channel(data,3,0,3),0.125,"Float content clear preserves fractional alpha")
+		SetVirtualResolution(8,8);SetVirtualBarColor(0,0,0);SetClsColor(0,0,0,0);Cls
 		SetBlend(SOLIDBLEND)
 		DrawImage(source,0,0)
 		data=ReadRenderTextureData(target)
@@ -106,7 +116,7 @@ Try
 		SetRenderImage(Null)
 		Print "Float target format "+format+" passed"
 	Next
-?max2d_gl Or max2d_d3d11 Or max2d_sdlgpu
+?max2d_gl Or max2d_d3d11 Or max2d_sdlgpu Or max2d_d3d9
 	Check(supported>0,"Test device supports a floating-point render target")
 ?
 	EndGraphics()

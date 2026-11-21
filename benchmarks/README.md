@@ -105,3 +105,50 @@ or display-state change; implausibly short VSync intervals still require review.
 
 See the [initial macOS comparison](../docs/native-gpu-performance.md) for results,
 raw captures and the presentation-pacing limits of this test.
+
+## Image effects
+
+Build `image_effects.bmx` with the SDK's `bmk makeapp -r -t console` and run
+the resulting executable with an optional measured-frame count (default 120,
+minimum 100). It requires native SDL GPU and the optional SDL3GPUEffects module.
+Keep its window visible. Each case warms for 30 frames and uses `Flip(0)`.
+
+The CSV compares a cached layer, that layer drawn through saturation, and a layer
+redrawn and alpha-masked before saturation, at 128 and 512 pixels square. It also
+compares two-pass blur rebuilt every frame against drawing its cached output. It records
+CPU draw/whole-frame means, whole-frame p95, geometry submissions, texture creation,
+pixel uploads, readbacks and logical RGBA retained-image bytes. Blur cases retain
+the layer, mask and two outputs (four images); other cases retain two. Memory excludes
+driver alignment, the window backing surface and shared geometry buffers. The
+timings are CPU wall-clock intervals, not GPU timestamps; compositor pacing can
+dominate even with `Flip(0)`. See [effects and masking](../docs/effects-and-masking.md)
+for the operations and their batching limits.
+
+## Scaled blur
+
+Build `scaled_blur.bmx` with the native SDL GPU backend. It prints CSV for 256²
+and 512² layers at full, half and quarter resolution, rebuilding or drawing cached
+outputs. Each case has 20 warm-up and 60 measured frames. Radii are 4, 8 and 16
+respectively, so these cases demonstrate wider effects rather than equal output.
+`retained_bytes` counts source, destination, reduction levels and scratch at
+RGBA8 size. Counters include the final display draw. Timings measure CPU
+whole-frame duration, including presentation; they are not GPU timings or proof
+of a speedup. Run with the window visible and without another local graphics test.
+
+## Cached effects
+
+`cached_effects.bmx` compares source-only, cached and rebuilt soft shadows, inner
+shadows and bloom at 128² and 512² with RGBA16F buffers. Optional arguments are
+measured frames (default/minimum 100) and repetitions (default 2). Every case has
+30 warm-up frames, and alternate repetitions reverse case order. It checks the
+expected steady-state submission counts and zero texture churn/readback. Keep
+its window visible. See the [gallery and benchmark guide](../docs/effects-gallery.md)
+for scene definitions, memory accounting and timing limitations.
+
+Reference CPU captures are available for [image effects](../docs/effects-macos-smoke.csv),
+[small blur](../docs/blur-macos-smoke.csv), scaled blur on
+[macOS](../docs/scaled-blur-macos-smoke.csv),
+[Windows](../docs/scaled-blur-windows-smoke.csv) and
+[Linux](../docs/scaled-blur-linux-smoke.csv), and
+[cached helpers](../docs/cached-effects-macos.csv). Treat these as sample data
+for the documented workloads, not cross-device GPU performance guarantees.

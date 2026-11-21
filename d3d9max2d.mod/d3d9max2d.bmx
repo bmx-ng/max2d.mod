@@ -27,6 +27,10 @@ Type TD3D9ImageFrame Extends TImageFrame
 	bbdoc: CPU pixels waiting to be uploaded to the Direct3D texture.
 	End Rem
 	Field pending:TPixmap
+	Rem
+	bbdoc: Immutable floating-point data retained while the device is unavailable.
+	End Rem
+	Field pendingStorage:TTextureData
 
 	Rem
 	bbdoc: Native retained texture snapshot used for device-loss recovery.
@@ -41,6 +45,7 @@ Type TD3D9ImageFrame Extends TImageFrame
   m2d9_destroy(native)
   native=Null
   pending=Null
+  pendingStorage=Null
   m2d9_release_snapshot(snapshot);snapshot=Null
  End Method
 
@@ -50,6 +55,10 @@ Rem
 bbdoc: Max2D rendering context implemented with Direct3D 9.
 End Rem
 Type TD3D9Max2DContext Extends TMax2DContext
+
+ Private
+ Field presentationSync:Int=True
+ Public
 
 	Rem
 	bbdoc: Opaque backend resource handle; managed by the owning graphics context.
@@ -97,7 +106,10 @@ Type TD3D9Max2DContext Extends TMax2DContext
 	Method Upload:Int(frame:TD3D9ImageFrame)
 		If Not Ready() Then Return False
 		If Not frame.native Then
-			frame.native=m2d9_create(native,frame.width,frame.height,frame.flags,frame.target)
+			Local bits:Int
+			If frame.pixelFormat=PF_RGBA16F Then bits=16
+			If frame.pixelFormat=PF_RGBA32F Then bits=32
+			frame.native=m2d9_create(native,frame.width,frame.height,frame.flags,frame.target,bits)
 			If Not frame.native And Not Ready() Then Return False
 			Require(frame.native<>Null)
 		End If
@@ -105,6 +117,11 @@ Type TD3D9Max2DContext Extends TMax2DContext
 			Require(m2d9_restore(native,frame.native,frame.snapshot))
 			m2d9_release_snapshot(frame.snapshot)
 			frame.snapshot=Null
+		End If
+		If frame.pendingStorage Then
+			Local level:TTextureLevel=frame.pendingStorage.Level()
+			Require(m2d9_update_float(frame.native,level.Data(),level.Pitch()))
+			frame.pendingStorage=Null
 		End If
 		If frame.pending Then
 			Local p:TPixmap=frame.pending
@@ -128,9 +145,42 @@ Type TD3D9Max2DContext Extends TMax2DContext
    Return False
   End If
   If sync<0 Then sync=1
-  Local result:Int=D3D9GraphicsDriver().Flip(sync)
+  sync=sync<>0
+  Local result:Int
+  Try
+   If sync<>presentationSync And Ready() Then SnapshotTargets()
+   presentationSync=sync
+   result=D3D9GraphicsDriver().Flip(sync)
+  Finally
+   ' A completed reset clears native handles; keep those snapshots for lazy restore.
+   If Ready() Then DiscardLiveSnapshots()
+  End Try
   If Not result And Not Ready() Then Delay(10)
   Return result
+ End Method
+
+ Rem
+ bbdoc: Retains exact target contents before a planned device reset.
+ End Rem
+ Method SnapshotTargets()
+  For Local frame:TD3D9ImageFrame=EachIn frames
+   If frame.target And frame.native And Not frame.snapshot Then
+    frame.snapshot=m2d9_snapshot(native,frame.native)
+    Require(frame.snapshot<>Null)
+   End If
+  Next
+ End Method
+
+ Rem
+ bbdoc: Drops snapshots whose native target survived a cancelled reset.
+ End Rem
+ Method DiscardLiveSnapshots()
+  For Local frame:TD3D9ImageFrame=EachIn frames
+   If frame.native And frame.snapshot Then
+    m2d9_release_snapshot(frame.snapshot)
+    frame.snapshot=Null
+   End If
+  Next
  End Method
 
 	Rem
@@ -144,6 +194,67 @@ Type TD3D9Max2DContext Extends TMax2DContext
   Activate()
   Local frame:TD3D9ImageFrame=New TD3D9ImageFrame
   Return frame
+ End Method
+
+ Rem
+ bbdoc: Allocates a logical image frame retaining its requested float storage format.
+ End Rem
+ Method NativeCreateFormat:TImageFrame(width:Int,height:Int,flags:Int,target:Int,pixelFormat:Int) Override
+  Local frame:TD3D9ImageFrame=TD3D9ImageFrame(NativeCreate(width,height,flags,target))
+  If pixelFormat=PF_RGBA16F Or pixelFormat=PF_RGBA32F Then frame.pixelFormat=pixelFormat
+  Return frame
+ End Method
+
+ Rem
+ bbdoc: Checks format and filtering support without silently reducing float precision.
+ End Rem
+ Method TextureFormatSupport:ETextureFormatSupport(pixelFormat:Int,flags:Int) Override
+  If pixelFormat<>PF_RGBA16F And pixelFormat<>PF_RGBA32F Then Return Super.TextureFormatSupport(pixelFormat,flags)
+  If Not SupportsImageFlags(flags) Or (flags & MIPMAPPEDIMAGE) Then Return ETextureFormatSupport.Unsupported
+  Local bits:Int=16
+  If pixelFormat=PF_RGBA32F Then bits=32
+  If m2d9_float_supported(native,bits,flags & FILTEREDIMAGE,False) Then Return ETextureFormatSupport.Native
+  Return ETextureFormatSupport.Unsupported
+ End Method
+
+ Rem
+ bbdoc: Checks render-target format, filtering and post-shader blending capabilities.
+ End Rem
+ Method SupportsRenderImageFormat:Int(width:Int,height:Int,flags:Int,pixelFormat:Int) Override
+  If pixelFormat=PF_RGBA8888 Then Return SupportsRenderImage(width,height,flags)
+  If pixelFormat<>PF_RGBA16F And pixelFormat<>PF_RGBA32F Then Return False
+  If (flags & MIPMAPPEDIMAGE) Or Not SupportsRenderImage(width,height,flags) Then Return False
+  Local bits:Int=16
+  If pixelFormat=PF_RGBA32F Then bits=32
+  Return m2d9_float_supported(native,bits,flags & FILTEREDIMAGE,True)
+ End Method
+
+ Rem
+ bbdoc: Uploads immutable float data, retaining it while the device is unavailable.
+ End Rem
+ Method NativeUpdateTexture(frame:TImageFrame,data:TTextureData) Override
+  If data.Format()<>PF_RGBA16F And data.Format()<>PF_RGBA32F Then
+   Super.NativeUpdateTexture(frame,data)
+   Return
+  End If
+  Activate()
+  Local f:TD3D9ImageFrame=TD3D9ImageFrame(frame)
+  f.pendingStorage=data
+  Upload(f)
+ End Method
+
+ Rem
+ bbdoc: Reads straight floating-point render-target pixels without clamping their range.
+ End Rem
+ Method NativeReadTexture:TTextureData(frame:TImageFrame) Override
+  If frame.pixelFormat=PF_RGBA8888 Then Return Super.NativeReadTexture(frame)
+  Activate()
+  If Not Ready() Or Not Upload(TD3D9ImageFrame(frame)) Then Throw "Max2D D3D9: float readback unavailable"
+  Local size:Long=GetPixelFormatInfo(PF_RGBA32F).StorageSize(frame.width,frame.height)
+  If size>$7fffffff Then Throw "Max2D: floating-point readback exceeds byte-array size limit"
+  Local bytes:Byte[]=New Byte[Int(size)]
+  Require(m2d9_read_float(native,TD3D9ImageFrame(frame).native,bytes))
+  Return TTextureData.Create([TTextureLevel.Create(frame.width,frame.height,PF_RGBA32F,bytes)])
  End Method
 
 	Rem
@@ -380,12 +491,7 @@ Type TD3D9Max2DContext Extends TMax2DContext
   End If
   If Not g.SupportsFullscreen() Or Not Ready() Then Throw "Max2D D3D9: window/device unavailable for window change"
   Try
-   For Local frame:TD3D9ImageFrame=EachIn frames
-    If frame.target And frame.native And Not frame.snapshot Then
-     frame.snapshot=m2d9_snapshot(native,frame.native)
-     Require(frame.snapshot<>Null)
-    End If
-   Next
+   SnapshotTargets()
    If mode=-1 Then
     g.Resize(width,height)
    Else If mode=MAX2D_FULLSCREEN Then
@@ -550,7 +656,10 @@ Extern "C"
  Function m2d9_open:Byte Ptr(device:IDirect3DDevice9)
  Function m2d9_close(context:Byte Ptr)
  Function m2d9_unbind(context:Byte Ptr)
- Function m2d9_create:Byte Ptr(context:Byte Ptr,width:Int,height:Int,flags:Int,target:Int)
+ Function m2d9_create:Byte Ptr(context:Byte Ptr,width:Int,height:Int,flags:Int,target:Int,bits:Int)
+ Function m2d9_float_supported:Int(context:Byte Ptr,bits:Int,filtered:Int,target:Int)
+ Function m2d9_update_float:Int(frame:Byte Ptr,pixels:Byte Ptr,pitch:Int)
+ Function m2d9_read_float:Int(context:Byte Ptr,frame:Byte Ptr,pixels:Byte Ptr)
  Function m2d9_destroy(frame:Byte Ptr)
  Function m2d9_update:Int(frame:Byte Ptr,pixels:Byte Ptr,pitch:Int,x:Int,y:Int,w:Int,h:Int)
  Function m2d9_submit:Int(context:Byte Ptr,target:Byte Ptr,frame:Byte Ptr,blend:Int,vertices:Float Ptr,count:Int)

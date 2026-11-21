@@ -1,0 +1,20 @@
+{
+  "abi": 1,
+  "name": "testgain",
+  "factory": "CreateTestGainPackage",
+  "parameters": [
+    {
+      "name": "gain",
+      "type": "float"
+    },
+    {
+      "name": "bias",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return c*gain + bias;",
+    "glsl": "return c*gain + bias;",
+    "hlsl": "return c*gain + bias;"
+  }
+}

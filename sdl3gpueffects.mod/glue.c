@@ -1,0 +1,208 @@
+/* Optional image-effect package adapter. zlib/libpng licence. */
+#include <SDL3/SDL.h>
+#include "shaders.h"
+#include "shaders_dxbc.h"
+#include "blur_dxbc.h"
+#include "colorize_dxbc.h"
+#include "outline_dxbc.h"
+#include "brightpass_dxbc.h"
+#include "tonemap_dxbc.h"
+#include "linearoutput_dxbc.h"
+
+extern void *m2d_gpu_image_effect(void *context,const char *key,const SDL_GPUShaderCreateInfo *info);
+
+void *m2d_saturation_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)saturation_metal;
+		info.code_size=sizeof(saturation_metal);
+		info.entrypoint="saturationMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=saturation_spv;
+		info.code_size=sizeof(saturation_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=saturation_dxbc;
+		info.code_size=sizeof(saturation_dxbc);
+		info.entrypoint="saturationMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible saturation shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.saturation.v1",&info);
+}
+
+void *m2d_blur_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)blur_metal;
+		info.code_size=sizeof(blur_metal);
+		info.entrypoint="blurMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=blur_spv;
+		info.code_size=sizeof(blur_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=blur_dxbc;
+		info.code_size=sizeof(blur_dxbc);
+		info.entrypoint="blurMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible blur shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.blur.v1",&info);
+}
+
+void *m2d_colorize_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)colorize_metal;
+		info.code_size=sizeof(colorize_metal);
+		info.entrypoint="colorizeMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=colorize_spv;
+		info.code_size=sizeof(colorize_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=colorize_dxbc;
+		info.code_size=sizeof(colorize_dxbc);
+		info.entrypoint="colorizeMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible colorize shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.colorize.v1",&info);
+}
+
+void *m2d_outline_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)outline_metal;
+		info.code_size=sizeof(outline_metal);
+		info.entrypoint="outlineMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=outline_spv;
+		info.code_size=sizeof(outline_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=outline_dxbc;
+		info.code_size=sizeof(outline_dxbc);
+		info.entrypoint="outlineMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible outline shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.outline.v1",&info);
+}
+
+void *m2d_brightpass_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)brightpass_metal;
+		info.code_size=sizeof(brightpass_metal);
+		info.entrypoint="brightpassMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=brightpass_spv;
+		info.code_size=sizeof(brightpass_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=brightpass_dxbc;
+		info.code_size=sizeof(brightpass_dxbc);
+		info.entrypoint="brightpassMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible brightpass shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.brightpass.v1",&info);
+}
+
+void *m2d_tonemap_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)tonemap_metal;
+		info.code_size=sizeof(tonemap_metal);
+		info.entrypoint="tonemapMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=tonemap_spv;
+		info.code_size=sizeof(tonemap_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=tonemap_dxbc;
+		info.code_size=sizeof(tonemap_dxbc);
+		info.entrypoint="tonemapMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible tonemap shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.tonemap.v1",&info);
+}
+
+void *m2d_linearoutput_shader(void *context,SDL_GPUDevice *device) {
+	SDL_GPUShaderCreateInfo info={0};
+	info.stage=SDL_GPU_SHADERSTAGE_FRAGMENT;
+	info.num_samplers=1;
+	info.num_uniform_buffers=2;
+	SDL_GPUShaderFormat formats=SDL_GetGPUShaderFormats(device);
+	if(formats & SDL_GPU_SHADERFORMAT_MSL) {
+		info.format=SDL_GPU_SHADERFORMAT_MSL;
+		info.code=(const Uint8 *)linearoutput_metal;
+		info.code_size=sizeof(linearoutput_metal);
+		info.entrypoint="linearoutputMain";
+	} else if(formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+		info.format=SDL_GPU_SHADERFORMAT_SPIRV;
+		info.code=linearoutput_spv;
+		info.code_size=sizeof(linearoutput_spv);
+		info.entrypoint="main";
+	} else if(formats & SDL_GPU_SHADERFORMAT_DXBC) {
+		info.format=SDL_GPU_SHADERFORMAT_DXBC;
+		info.code=linearoutput_dxbc;
+		info.code_size=sizeof(linearoutput_dxbc);
+		info.entrypoint="linearoutputMain";
+	} else {
+		SDL_SetError("Max2D Effects: no compatible linearoutput shader format");
+		return NULL;
+	}
+	return m2d_gpu_image_effect(context,"max2d.linearoutput.v1",&info);
+}

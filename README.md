@@ -12,6 +12,7 @@ choose a backend without rewriting your scene code.
 - [Get started](#get-started)
 - [Choose a backend](#choose-a-backend)
 - [What you can build](#what-you-can-build)
+- [Effects and group masks](#effects-and-group-masks)
 - [Optional modules](#optional-modules)
 - [Moving from BRL.Max2D](#moving-from-brlmax2d)
 - [Capabilities and limitations](#capabilities-and-limitations)
@@ -138,6 +139,19 @@ See [images and atlases](docs/drawing-guide.md), [atlas packages](docs/atlas-for
 [collisions](docs/collisions.md), [texture data](docs/texture-data.md),
 [mipmaps](docs/mipmaps.md) and [compressed textures](docs/compressed-textures.md).
 
+### Custom blending
+
+Use `SetBlend(SUBTRACTBLEND)` to darken the destination by the source colour
+multiplied by its alpha. Use `CreateBlendMode(...)` for custom colour and alpha
+factors and operations; its return value works with the ordinary `SetBlend`,
+`GetBlend` and drawing-state functions. Check `Max2DSupportsBlend` after opening
+graphics, because available combinations depend on the backend and device.
+
+See [Blending: recipes and backend support](docs/blending.md),
+[the blend gallery](examples/custom_blending.bmx) and
+[blending into a transparent image](examples/blend_render_image.bmx).
+
+
 ### Text and fonts
 
 Use `DrawText` for simple labels, or prepare reusable paragraph layouts with
@@ -166,6 +180,29 @@ link their native libraries. Fonts are supplied by your application.
 See [text layout and interaction](docs/text-layout.md) and
 [font loading and caches](docs/drawing-guide.md#fonts).
 
+### Effects and group masks
+
+Start with [Applying effects](docs/effects-quickstart.md): provider selection,
+a complete runnable example, and guidance on when to draw directly, build a
+layer chain, or cache a result. The API uses ordinary Max2D images, transforms,
+colour, alpha and blending.
+
+- **Direct effects:** saturation, colourize, colour matrices, distortion,
+  displacement, dissolve and texture masks.
+- **Layer effects:** ordered chains, blur, outlines, alpha masks and cutouts.
+- **Cached helpers:** reusable buffers, bloom, soft shadows and inner shadows.
+- **Colour and output:** linear artwork conversion, floating-point composition,
+  tone mapping and optional SDL GPU HDR display output.
+
+Shader providers are available for SDL GPU, OpenGL, native D3D9 and native D3D11.
+Import the provider matching your framework and query its capabilities.
+
+Continue with [effects and masking](docs/effects-and-masking.md),
+[shader packages](docs/shader-packages.md), or [HDR output](docs/hdr-output.md).
+Explore the [two-page gallery](docs/effects-gallery.md) for visual comparisons.
+[Flux Pinball](demos/pinball/README.md) and [Afterlight](demos/afterlight/README.md)
+show effects in playable applications.
+
 ### Tile-based games
 
 Create editable maps in code without an external editor, or load Tiled and LDtk
@@ -187,6 +224,10 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
+| `Max2D.Effects` | Shared effect descriptions, layer operations, buffer owners, bloom and shadows; no shader provider. |
+| `Max2D.SDL3GPUEffects` / `Max2D.GLEffects` | Built-in and packaged effects for SDL GPU / OpenGL. |
+| `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in and packaged image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
+| `Max2D.ShaderEffects` | Shared shader-package assets, parameters and factories. Imported by all four effects providers; use a matching provider to draw. |
 | `Max2D.Atlas` | Batch atlas construction using `BRL.RectPacker`. Runtime atlas allocation is already in Core. |
 | `Max2D.AtlasIO` | PNG/JSON atlas packages; uses `Image.PNG` and `Text.JSON`. |
 | `Max2D.RichText` | Optional inline markup, named styles and registered font variants over the paragraph API. |
@@ -201,6 +242,16 @@ The virtual joystick renders at native window resolution, independently of the
 game's virtual scene, and can use otherwise empty presentation bars. See the
 [virtual joystick guide](docs/virtual-joystick.md) and
 [example](examples/virtual_joystick.bmx).
+
+## MaxGUI canvases
+
+On macOS, Windows and Linux/X11, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
+also import `SDL3.SDL3MaxGUI`. MaxGUI keeps its native controls, input and event
+loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master/docs/maxgui.md)
+and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
+BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
+while native Wayland canvas attachment remains future work.
+
 
 ## Moving from BRL.Max2D
 
@@ -232,7 +283,7 @@ Some choices affect which backend or asset workflow you need:
   selected renderer and the available masking path; see [SDL3 masking](docs/sdl3-maskblend.md).
 - Packed atlases do not support mipmaps or rotated packing.
 - Scalable fonts do not provide automatic fallback, colour glyphs or vertical layout.
-- Attaching graphics to an existing native widget is not supported.
+- Native widget attachment is available for SDL3 MaxGUI canvases; see [MaxGUI canvases](#maxgui-canvases). Other backend/widget combinations are not supported.
 - `Max2D.D3D7Max2D` remains disabled pending hardware validation; D3D9 is the
   supported Direct3D minimum.
 
@@ -247,6 +298,11 @@ describe tested configurations and platform-specific limits.
 
 ## Examples and documentation
 
+For a complete playable project, try [Afterlight](demos/afterlight/README.md),
+a three-room greenhouse puzzle combining tilemaps, touch controls, text,
+masked layers, cached bloom and shadows. More complete applications live in
+[demos](demos/README.md).
+
 Build examples from your SDK directory, for example:
 
 ```sh
@@ -255,6 +311,7 @@ Build examples from your SDK directory, for example:
 
 | Example | Explore |
 | --- | --- |
+| [effects_quickstart.bmx](examples/effects_quickstart.bmx) | Direct effects, a retained chain and a cached shadow without assets. |
 | [gl_hello.bmx](examples/gl_hello.bmx) | OpenGL drawing with virtual and native coordinates. |
 | [sdl_gpu_hello.bmx](examples/sdl_gpu_hello.bmx) | The direct SDL GPU backend. |
 | [camera.bmx](examples/camera.bmx) | A moving, rotating view and minimap. |
@@ -279,24 +336,3 @@ measurements in [benchmarks](benchmarks/README.md).
 
 Max2D uses the [zlib/libpng licence](LICENSE). See [NOTICE.md](NOTICE.md) for
 third-party code and example asset credits.
-
-## MaxGUI canvases
-
-On macOS, Windows and Linux/X11, `Max2D.SDL3RenderMax2D` and `Max2D.SDL3GPUMax2D` support drawing into MaxGUI canvases when you
-also import `SDL3.SDL3MaxGUI`. MaxGUI keeps its native controls, input and event
-loop. See the [SDL3 canvas guide](https://github.com/bmx-ng/sdl3.mod/blob/master/docs/maxgui.md)
-and `sdl3.mod/sdl3maxgui.mod/examples/canvas.bmx` in your SDK. This requires
-BRL.System 1.31. On Linux, launch with `GDK_BACKEND=x11`; XWayland is supported,
-while native Wayland canvas attachment remains future work.
-
-### Custom blending
-
-Use `SetBlend(SUBTRACTBLEND)` to darken the destination by the source colour
-multiplied by its alpha. Use `CreateBlendMode(...)` for custom colour and alpha
-factors and operations; its return value works with the ordinary `SetBlend`,
-`GetBlend` and drawing-state functions. Check `Max2DSupportsBlend` after opening
-graphics, because available combinations depend on the backend and device.
-
-See [Blending: recipes and backend support](docs/blending.md),
-[the blend gallery](examples/custom_blending.bmx) and
-[blending into a transparent image](examples/blend_render_image.bmx).

@@ -1,0 +1,41 @@
+{
+  "abi": 2,
+  "name": "graded_distortion",
+  "factory": "CreateGradedDistortionPackage",
+  "parameters": [
+    {
+      "name": "time",
+      "type": "float"
+    },
+    {
+      "name": "strength",
+      "type": "float"
+    },
+    {
+      "name": "frequency",
+      "type": "float"
+    },
+    {
+      "name": "ripple",
+      "type": "float"
+    },
+    {
+      "name": "grade",
+      "type": "float4"
+    },
+    {
+      "name": "gradeTint",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "float2 displacement=float2(0,0);\nif (ripple > 0.5) {\n    float2 delta=uv-float2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=float2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;",
+    "glsl": "vec2 displacement=vec2(0,0);\nif (ripple > 0.5) {\n    vec2 delta=uv-vec2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=vec2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;",
+    "hlsl": "float2 displacement=float2(0,0);\nif (ripple > 0.5) {\n    float2 delta=uv-float2(0.5,0.5);\n    float distance=length(delta);\n    displacement=delta/max(distance,0.00001)*sin(distance*frequency-time)*strength;\n} else {\n    displacement=float2(sin(uv.y*frequency+time)*strength,sin(uv.x*frequency*0.7-time)*strength*0.3);\n}\nreturn uv+displacement;"
+  },
+  "colourBodies": {
+    "metal": "float luminance=dot(c.rgb,float3(0.2126,0.7152,0.0722));\nfloat3 rgb=mix(float3(luminance,luminance,luminance),c.rgb,grade.x)*grade.y;\nrgb=((rgb-0.5)*grade.z+0.5+grade.w)*gradeTint.rgb;\nreturn float4(rgb,c.a*gradeTint.a);",
+    "glsl": "float luminance=dot(c.rgb,vec3(0.2126,0.7152,0.0722));\nvec3 rgb=mix(vec3(luminance,luminance,luminance),c.rgb,grade.x)*grade.y;\nrgb=((rgb-0.5)*grade.z+0.5+grade.w)*gradeTint.rgb;\nreturn vec4(rgb,c.a*gradeTint.a);",
+    "hlsl": "float luminance=dot(c.rgb,float3(0.2126,0.7152,0.0722));\nfloat3 rgb=lerp(float3(luminance,luminance,luminance),c.rgb,grade.x)*grade.y;\nrgb=((rgb-0.5)*grade.z+0.5+grade.w)*gradeTint.rgb;\nreturn float4(rgb,c.a*gradeTint.a);"
+  }
+}

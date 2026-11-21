@@ -56,10 +56,11 @@ Try
  p=ReadRenderImage(source)
  Check(Abs(((p.ReadPixel(0,0) Shr 24)&255)-128)<=1,"Clear alpha")
  Check(Abs(((p.ReadPixel(0,0) Shr 16)&255)-40)<=1,"Premultiplied clear/readback")
+ Local retained:Int=p.ReadPixel(0,0)
  SetRenderImage(Null)
  Flip(0)
  p=ReadRenderImage(source)
- Check(p.ReadPixel(0,0)=0,"Reset clears render image contents")
+ Check(p.ReadPixel(0,0)=retained,"Presentation reset retains render image contents")
  SetRenderImage(source)
  SetClsColor(0,255,255,1);Cls
  SetRenderImage(Null)

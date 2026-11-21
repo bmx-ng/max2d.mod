@@ -1,0 +1,144 @@
+SuperStrict
+?max2d_d3d9
+Framework Max2D.D3D9Max2D
+Import Max2D.D3D9Effects
+?max2d_d3d11
+Framework Max2D.D3D11Max2D
+Import Max2D.D3D11Effects
+?max2d_gl
+Framework Max2D.GLMax2D
+Import Max2D.GLEffects
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
+Framework Max2D.SDL3GPUMax2D
+Import Max2D.SDL3GPUEffects
+?
+
+AppTitle = "Max2D linear artwork and HDR bloom"
+Graphics(1000, 540)
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
+Local context:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
+Local hdrSupported:Int = context.SupportsHDROutput()
+If hdrSupported And context.HDRHeadroom() > 1 Then context.SetHDROutput(True)
+Local hdrEnabled:Int=context.HDROutput()
+?max2d_gl
+Local hdrEnabled:Int
+?
+Local headroom:Float=1
+Local tone:TMax2DLinearOutputEffect = CreateLinearOutputEffect(hdrEnabled)
+Local bloom:TMax2DBloom = CreateBloom(1.5, 12)
+Local supported:Int = Max2DSupportsImageEffect(tone) And Max2DSupportsImageEffect(CreateBrightPassEffect()) And Max2DSupportsImageEffect(CreateBlurEffect()) And Max2DSupportsRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F) And Max2DTextureFormatSupport(PF_RGBA32F, 0) <> ETextureFormatSupport.Unsupported
+Local source:TRenderImage, composite:TRenderImage
+Local dirty:Int = True, enabled:Int = True
+If supported Then
+	source = CreateRenderImage(160, 128, FILTEREDIMAGE, PF_RGBA16F)
+	bloom.Prepare(160, 128, 2)
+	' Ordinary sRGB artwork is decoded once before filtering or composition.
+	Local artwork:TPixmap = CreatePixmap(160, 128, PF_RGBA8888)
+	For Local y:Int = 0 Until 128
+		For Local x:Int = 0 Until 160
+			Local pixel:Int = $ff26344c
+			If y > 95 And x > 12 And x < 148 Then
+				pixel = $ff4080b0
+				If (x/12+y/12) Mod 2 Then pixel = $ffc08050
+			End If
+			artwork.WritePixel(x, y, pixel)
+		Next
+	Next
+	Local linear:TTextureData = SRGBPixmapToLinearTextureData(artwork)
+	Local decoded:Float Ptr = Float Ptr(linear.Level().Data())
+	' Add emitters with energy above white to the decoded artwork.
+	Local values:Float[] = New Float[160*128*4]
+	For Local y:Int = 0 Until 128
+		For Local x:Int = 0 Until 160
+			Local offset:Int = (y*160+x)*4
+			Local r:Float = decoded[offset], g:Float = decoded[offset+1], b:Float = decoded[offset+2]
+			If x >= 24 And x < 136 And y >= 40 And y < 104 Then
+				r = 0.06; g = 0.1; b = 0.18
+			End If
+			If (x-50)*(x-50)+(y-42)*(y-42) < 14*14 Then
+				r = 4; g = 3; b = 1
+			End If
+			If x >= 88 And x < 120 And y >= 31 And y < 44 Then
+				r = 1; g = 3; b = 5
+			End If
+			If (x >= 76 And x < 81 And y >= 62 And y < 91) Or (x >= 64 And x < 93 And y >= 74 And y < 79) Then
+				r = 8; g = 8; b = 8
+			End If
+			If x >= 38 And x < 51 And y >= 78 And y < 91 Then
+				r = 0.2; g = 0.08; b = 0.11
+			End If
+			Local index:Int = (y*160+x)*4
+			values[index] = r; values[index+1] = g; values[index+2] = b; values[index+3] = 1
+		Next
+	Next
+	Local bytes:Byte[] = New Byte[values.Length*4]
+	MemCopy(bytes, values, Size_T(bytes.Length))
+	Local image:TImage = LoadImage(TTextureData.Create([TTextureLevel.Create(160, 128, PF_RGBA32F, bytes)]), 0)
+	SetRenderImage(source)
+	SetBlend(SOLIDBLEND)
+	DrawImage(image, 0, 0)
+	SetRenderImage(Null)
+	SetBlend(ALPHABLEND)
+End If
+While Not KeyDown(KEY_ESCAPE) And Not AppTerminate()
+	Local change:Float
+	If KeyHit(KEY_LEFT) Then change = -0.25
+	If KeyHit(KEY_RIGHT) Then change = 0.25
+	If change Then
+		bloom.SetThreshold(Float(Max(0.0, Min(4.0, bloom.GetThreshold()+change))))
+		dirty = True
+	End If
+	change = 0
+	If KeyHit(KEY_DOWN) Then change = -0.25
+	If KeyHit(KEY_UP) Then change = 0.25
+	If change Then tone.SetExposure(Float(Max(0.25, Min(4.0, tone.GetExposure()+change))))
+	If KeyHit(KEY_SPACE) Then enabled = Not enabled
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
+	If KeyHit(KEY_H) And hdrSupported Then context.SetHDROutput(Not context.HDROutput())
+	hdrEnabled=context.HDROutput()
+	headroom=context.HDRHeadroom()
+	tone.SetHDR(hdrEnabled)
+	tone.SetWhiteLevel(context.SDRWhiteLevel())
+?
+	If KeyHit(KEY_I) Then
+		bloom.SetIntensity(Float((bloom.GetIntensity()+0.5) Mod 3))
+		dirty = True
+	End If
+	If supported And dirty Then
+		composite = bloom.Update(source)
+		dirty = False
+	End If
+	SetClsColor(0, 0, 0)
+	Cls
+	SetColor(255, 255, 255)
+	Local mode:String = "SDR tone mapping + sRGB encoding"
+	If hdrEnabled Then mode = "HDR display output"
+	DrawText(mode+" | Headroom: "+headroom+"x", 25, 25)
+	DrawText("Linear artwork + emitters", 25, 75)
+	Local bloomLabel:String = "With bloom"
+	If Not enabled Then bloomLabel = "Bloom disabled"
+	DrawText(bloomLabel, 525, 75)
+	If supported Then
+		SetBlend(SOLIDBLEND)
+		SetScale(2.7, 2.7)
+		DrawImageEffect(source, tone, 25, 110)
+		If enabled Then
+			DrawImageEffect(composite, tone, 525, 110)
+		Else
+			DrawImageEffect(source, tone, 525, 110)
+		End If
+		SetScale(1, 1)
+		SetBlend(ALPHABLEND)
+	Else
+		DrawText("Required floating-point images or shaders are unavailable.", 25, 115)
+	End If
+?max2d_gl
+	DrawText("OpenGL SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
+?Not max2d_gl And Not max2d_d3d9 And Not max2d_d3d11
+	DrawText("H: HDR/SDR | Space: bloom | I: intensity | Arrows: threshold/exposure | Escape: exit", 25, 475)
+?
+	DrawText("Threshold: "+bloom.GetThreshold()+" | Exposure: "+tone.GetExposure()+" | Bloom intensity: "+bloom.GetIntensity(), 25, 505)
+	Flip
+Wend
+bloom.Release()
+EndGraphics

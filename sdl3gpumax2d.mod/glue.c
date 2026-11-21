@@ -8,11 +8,21 @@
 #include "shaders_dxbc.h"
 
 typedef struct GPUContext GPUContext;
+typedef struct GPUImageEffect GPUImageEffect;
 typedef struct GPUBlendPipeline {
 	int blend,kind,compact;
 	SDL_GPUGraphicsPipeline *pipeline;
 	struct GPUBlendPipeline *next;
 } GPUBlendPipeline;
+struct GPUImageEffect {
+	GPUContext *owner;
+	char *key;
+	Uint32 parameterBytes;
+	int samplers;
+	SDL_GPUShader *fragment;
+	GPUBlendPipeline *pipelines;
+	GPUImageEffect *next;
+};
 typedef struct {
 	GPUContext *owner;
 	SDL_GPUTexture *texture;
@@ -26,16 +36,22 @@ typedef struct {
 	SDL_GPUGraphicsPipeline *pipeline;
 	SDL_Rect clip;
 	float transform[4];
+	GPUImageEffect *effect;
+	union { float small[4]; size_t offset; } effectParameters;
 } GPUDraw;
 struct GPUContext {
 	SDL_GPUDevice *device;
 	SDL_Window *window;
-	GPUFrame *backbuffer,*white;
+	GPUFrame *backbuffer,*white,*effectTexture;
 	SDL_GPUShader *vertex,*fragment,*compactVertex;
 	SDL_GPUGraphicsPipeline *pipelines[4][6];
 	SDL_GPUGraphicsPipeline *compactPipelines[4][6];
 	SDL_GPUSampler *samplers[2][32];
 	GPUBlendPipeline *customBlends;
+	GPUImageEffect *imageEffects,*selectedEffect;
+	float effectParameters[40];
+	unsigned char *effectData;
+	size_t effectDataCount,effectDataCapacity;
 	SDL_GPUBuffer *vertices;
 	SDL_GPUTransferBuffer *upload;
 	Uint32 bufferSize;
@@ -46,6 +62,8 @@ struct GPUContext {
 	float transform[4];
 	SDL_Rect clip;
 	int sync;
+	int windowKind;
+	SDL_GPUSwapchainComposition composition;
 };
 static int fail(const char *message) { SDL_SetError("Max2D SDL GPU: %s",message); return 0; }
 static int flush(GPUContext *c);
@@ -201,6 +219,19 @@ void m2d_gpu_close(GPUContext *c) {
 		SDL_WaitForGPUIdle(c->device);
 		release_frame(c->backbuffer);
 		release_frame(c->white);
+		while(c->imageEffects) {
+			GPUImageEffect *effect=c->imageEffects;
+			c->imageEffects=effect->next;
+			while(effect->pipelines) {
+				GPUBlendPipeline *entry=effect->pipelines;
+				effect->pipelines=entry->next;
+				SDL_ReleaseGPUGraphicsPipeline(c->device,entry->pipeline);
+				free(entry);
+			}
+			SDL_ReleaseGPUShader(c->device,effect->fragment);
+			free(effect->key);
+			free(effect);
+		}
 		while(c->customBlends) {
 			GPUBlendPipeline *entry=c->customBlends;
 			c->customBlends=entry->next;
@@ -224,6 +255,7 @@ void m2d_gpu_close(GPUContext *c) {
 	}
 	free(c->draws);
 	free(c->data);
+	free(c->effectData);
 	free(c);
 }
 static SDL_GPUShader *shader(GPUContext *c,int stage) {
@@ -252,7 +284,7 @@ static SDL_GPUShader *shader(GPUContext *c,int stage) {
 	}
 	return SDL_CreateGPUShader(c->device,&info);
 }
-static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compact,int blend) {
+static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compact,int blend,SDL_GPUShader *fragment) {
 	if(compact && !c->compactVertex) {
 		c->compactVertex=shader(c,2);
 		if(!c->compactVertex) return NULL;
@@ -282,7 +314,7 @@ static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compa
 	}
 	SDL_GPUGraphicsPipelineCreateInfo pipeline={0};
 	pipeline.vertex_shader=compact?c->compactVertex:c->vertex;
-	pipeline.fragment_shader=c->fragment;
+	pipeline.fragment_shader=fragment;
 	if(!compact) pipeline.vertex_input_state=(SDL_GPUVertexInputState){&buffer,1,attributes,3};
 	pipeline.primitive_type=SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 	pipeline.rasterizer_state.fill_mode=SDL_GPU_FILLMODE_FILL;
@@ -293,7 +325,7 @@ static SDL_GPUGraphicsPipeline *create_pipeline(GPUContext *c,int kind,int compa
 static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compact,int blend) {
 	if(blend>=1 && blend<=5) {
 		SDL_GPUGraphicsPipeline **p=compact?c->compactPipelines[kind]:c->pipelines[kind];
-		if(!p[blend]) p[blend]=create_pipeline(c,kind,compact,blend);
+		if(!p[blend]) p[blend]=create_pipeline(c,kind,compact,blend,c->fragment);
 		return p[blend];
 	}
 	M2DBlend spec;
@@ -306,13 +338,87 @@ static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compac
 	entry->blend=blend;
 	entry->kind=kind;
 	entry->compact=compact;
-	entry->pipeline=create_pipeline(c,kind,compact,blend);
+	entry->pipeline=create_pipeline(c,kind,compact,blend,c->fragment);
 	entry->next=c->customBlends;
 	c->customBlends=entry;
 	return entry->pipeline;
 }
+
+/* Optional modules supply shader packages. Native caches belong to this context;
+ * the ordinary drawing shader and its uniforms are unchanged. */
+void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info) {
+	for(GPUImageEffect *effect=c->imageEffects;effect;effect=effect->next)
+		if(strcmp(effect->key,key)==0) return effect;
+	if(info->stage!=SDL_GPU_SHADERSTAGE_FRAGMENT || (info->num_samplers!=1 && info->num_samplers!=2) ||
+		info->num_uniform_buffers!=2 || info->num_storage_buffers || info->num_storage_textures) {
+		fail("Invalid image effect shader layout");
+		return NULL;
+	}
+	GPUImageEffect *effect=calloc(1,sizeof(*effect));
+	if(!effect) { fail("Out of memory"); return NULL; }
+	effect->key=malloc(strlen(key)+1);
+	if(!effect->key) { free(effect); fail("Out of memory"); return NULL; }
+	strcpy(effect->key,key);
+	effect->fragment=SDL_CreateGPUShader(c->device,info);
+	if(!effect->fragment) { free(effect->key); free(effect); return NULL; }
+	effect->owner=c;
+	effect->parameterBytes=16;
+	effect->samplers=info->num_samplers;
+	effect->next=c->imageEffects;
+	c->imageEffects=effect;
+	return effect;
+}
+/* Packages use bounded float4 slots; built-ins retain 16-byte uniforms. */
+void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
+	if(bytes<16 || bytes>160 || bytes%16) { fail("Invalid effect parameter size"); return NULL; }
+	GPUImageEffect *effect=m2d_gpu_image_effect(c,key,info);
+	if(effect) effect->parameterBytes=(Uint32)bytes;
+	return effect;
+}
+void m2d_gpu_select_package_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters) {
+	c->selectedEffect=effect;
+	c->effectTexture=NULL;
+	if(effect) memcpy(c->effectParameters,parameters,effect->parameterBytes);
+}
+/* Two-texture packages snapshot their binding beside the large uniform block. */
+int m2d_gpu_select_texture_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters,GPUFrame *texture) {
+	if(!effect || effect->owner!=c || effect->samplers!=2 || effect->parameterBytes<96 || !texture || texture->owner!=c)
+		return fail("Invalid second effect texture");
+	m2d_gpu_select_package_effect(c,effect,parameters);
+	c->effectTexture=texture;
+	int slot=effect->parameterBytes/4-4;
+	c->effectParameters[slot]=(float)texture->coverage;
+	c->effectParameters[slot+1]=(float)(texture->target || (texture->automatic && !texture->coverage));
+	return 1;
+}
+static SDL_GPUGraphicsPipeline *image_effect_pipeline(GPUContext *c,GPUImageEffect *effect,int kind,int compact,int blend) {
+	if(!effect || effect->owner!=c) { fail("Invalid image effect owner"); return NULL; }
+	for(GPUBlendPipeline *entry=effect->pipelines;entry;entry=entry->next)
+		if(entry->kind==kind && entry->compact==compact && entry->blend==blend) return entry->pipeline;
+	GPUBlendPipeline *entry=calloc(1,sizeof(*entry));
+	if(!entry) { fail("Out of memory"); return NULL; }
+	entry->pipeline=create_pipeline(c,kind,compact,blend,effect->fragment);
+	if(!entry->pipeline) { free(entry); return NULL; }
+	entry->kind=kind;
+	entry->compact=compact;
+	entry->blend=blend;
+	entry->next=effect->pipelines;
+	effect->pipelines=entry;
+	return entry->pipeline;
+}
+int m2d_gpu_image_effect_support(GPUContext *c,GPUImageEffect *effect,GPUFrame *target,int blend,int compact) {
+	return image_effect_pipeline(c,effect,target?target->kind:c->windowKind,compact,blend)!=NULL;
+}
+void m2d_gpu_select_image_effect(GPUContext *c,GPUImageEffect *effect,float p0,float p1,float p2,float p3) {
+	c->selectedEffect=effect;
+	c->effectTexture=NULL;
+	c->effectParameters[0]=p0;
+	c->effectParameters[1]=p1;
+	c->effectParameters[2]=p2;
+	c->effectParameters[3]=p3;
+}
 int m2d_gpu_blend(GPUContext *c,int blend) {
-	return blend_pipeline(c,0,0,blend)!=NULL;
+	return blend_pipeline(c,c->windowKind,0,blend)!=NULL;
 }
 static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 	for(int blend=1;blend<=5;++blend) {
@@ -321,7 +427,7 @@ static int ensure_pipelines_mode(GPUContext *c,int kind,int compact) {
 	return 1;
 }
 static int ensure_pipelines(GPUContext *c,int kind) { return ensure_pipelines_mode(c,kind,0); }
-int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,0,1); }
+int m2d_gpu_compact_support(GPUContext *c) { return ensure_pipelines_mode(c,c->windowKind,1); }
 void *m2d_gpu_open_attached(SDL_Window *window, int (*claim)(SDL_GPUDevice *, SDL_Window *)) {
 	GPUContext *c=calloc(1,sizeof(*c));
 	if(!c) { fail("Out of memory"); return NULL; }
@@ -366,17 +472,51 @@ void m2d_gpu_destroy(GPUFrame *f) {
 	if(!flush(f->owner)) {
 		/* Queued, unsubmitted commands cannot outlive their source textures. */
 		f->owner->drawCount=0;
+		f->owner->effectDataCount=0;
 		f->owner->vertexCount=0;
 	}
 	release_frame(f);
 }
 static int ensure_backbuffer(GPUContext *c,int w,int h) {
-	if(c->backbuffer && c->backbuffer->width==w && c->backbuffer->height==h) return 1;
+	if(c->backbuffer && c->backbuffer->width==w && c->backbuffer->height==h && c->backbuffer->kind==c->windowKind) return 1;
 	if(!flush(c)) return 0;
-	GPUFrame *frame=create_frame(c,w,h,1,0,0,0,1);
+	GPUFrame *frame=create_frame(c,w,h,1,c->windowKind,0,0,1);
 	if(!frame) return 0;
 	release_frame(c->backbuffer);
 	c->backbuffer=frame;
+	return 1;
+}
+/* Extended linear output is opt-in. Values are linear sRGB, with 1 as reference
+ * white; existing image data and drawing colours are not implicitly decoded. */
+int m2d_gpu_hdr_support(GPUContext *c) {
+	return SDL_WindowSupportsGPUSwapchainComposition(c->device,c->window,SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR)
+		&& m2d_gpu_target_support(c,2);
+}
+int m2d_gpu_hdr(GPUContext *c) { return c->windowKind==2; }
+float m2d_gpu_hdr_headroom(GPUContext *c) {
+	return SDL_GetFloatProperty(SDL_GetWindowProperties(c->window),SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT,1.f);
+}
+float m2d_gpu_sdr_white(GPUContext *c) {
+	return SDL_GetFloatProperty(SDL_GetWindowProperties(c->window),SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT,1.f);
+}
+int m2d_gpu_set_hdr(GPUContext *c,int enabled) {
+	int kind=enabled?2:0;
+	if(kind==c->windowKind) return 1;
+	if(enabled && !m2d_gpu_hdr_support(c)) return fail("Extended linear HDR output is unsupported");
+	if(!ensure_pipelines(c,kind) || !ensure_pipelines_mode(c,kind,1) || !flush(c)) return 0;
+	int w,h;
+	if(!SDL_GetWindowSizeInPixels(c->window,&w,&h)) return 0;
+	if(w<1 || h<1) return fail("Cannot change HDR output for an empty window");
+	GPUFrame *frame=create_frame(c,w,h,1,kind,0,0,1);
+	if(!frame) return 0;
+	SDL_GPUSwapchainComposition composition=enabled?SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR:SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+	SDL_GPUPresentMode mode=c->sync?SDL_GPU_PRESENTMODE_VSYNC:SDL_GPU_PRESENTMODE_IMMEDIATE;
+	if(!SDL_WindowSupportsGPUPresentMode(c->device,c->window,mode)) mode=SDL_GPU_PRESENTMODE_VSYNC;
+	if(!SDL_SetGPUSwapchainParameters(c->device,c->window,composition,mode)) { release_frame(frame); return 0; }
+	release_frame(c->backbuffer);
+	c->backbuffer=frame;
+	c->windowKind=kind;
+	c->composition=composition;
 	return 1;
 }
 static int clampi(int n,int lo,int hi) { return n<lo?lo:n>hi?hi:n; }
@@ -394,9 +534,15 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 	return 1;
 }
 static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
+	if(c->selectedEffect && c->selectedEffect->samplers==2) {
+		if(!c->effectTexture || c->effectTexture->owner!=c) return fail("Missing second effect texture");
+		if(c->effectTexture==target) return fail("Effect texture cannot be the active render target");
+	}
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
-	SDL_GPUGraphicsPipeline *pipeline=blend_pipeline(c,target?target->kind:0,compact,blend);
+	SDL_GPUGraphicsPipeline *pipeline=c->selectedEffect?
+		image_effect_pipeline(c,c->selectedEffect,target?target->kind:c->windowKind,compact,blend):
+		blend_pipeline(c,target?target->kind:c->windowKind,compact,blend);
 	if(!pipeline) return 0;
 	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
 	int padding=compact?(c->vertexCount & 1):0;
@@ -419,12 +565,36 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 		c->data=data;
 		c->vertexCapacity=capacity;
 	}
+	/* Large package uniforms share a retained arena; ordinary draw records do not grow. */
+	if(c->selectedEffect && c->selectedEffect->parameterBytes>16) {
+		size_t needed=c->effectDataCount+c->selectedEffect->parameterBytes+(c->selectedEffect->samplers==2?16:0);
+		if(needed>c->effectDataCapacity) {
+			size_t capacity=c->effectDataCapacity?c->effectDataCapacity*2:4096;
+			if(capacity<needed) capacity=needed;
+			unsigned char *data=realloc(c->effectData,capacity);
+			if(!data) return fail("Out of memory");
+			c->effectData=data; c->effectDataCapacity=capacity;
+		}
+	}
 	if(padding) {
 		memset(c->data+(size_t)c->vertexCount*8,0,32);
 		++c->vertexCount;
 	}
 	GPUDraw *draw=&c->draws[c->drawCount++];
 	draw->pipeline=pipeline;
+	draw->effect=c->selectedEffect;
+	if(draw->effect) {
+		if(draw->effect->parameterBytes<=16) memcpy(draw->effectParameters.small,c->effectParameters,16);
+		else {
+			draw->effectParameters.offset=c->effectDataCount;
+			memcpy(c->effectData+c->effectDataCount,c->effectParameters,draw->effect->parameterBytes);
+			c->effectDataCount+=draw->effect->parameterBytes;
+			if(draw->effect->samplers==2) {
+				memcpy(c->effectData+c->effectDataCount,&c->effectTexture,sizeof(c->effectTexture));
+				c->effectDataCount+=16;
+			}
+		}
+	}
 	draw->compact=compact;
 	draw->destination=target;
 	draw->source=source;
@@ -529,6 +699,7 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
+		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,draw->effect->parameterBytes<=16?(void *)draw->effectParameters.small:(void *)(c->effectData+draw->effectParameters.offset),draw->effect->parameterBytes);
 		SDL_BindGPUGraphicsPipeline(pass,draw->pipeline);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
@@ -536,10 +707,17 @@ static int flush(GPUContext *c) {
 		else SDL_BindGPUVertexBuffers(pass,0,&buffer,1);
 		SDL_GPUTextureSamplerBinding sampler={image->texture,image->sampler};
 		SDL_BindGPUFragmentSamplers(pass,0,&sampler,1);
+		if(draw->effect && draw->effect->samplers==2) {
+			GPUFrame *texture;
+			memcpy(&texture,c->effectData+draw->effectParameters.offset+draw->effect->parameterBytes,sizeof(texture));
+			SDL_GPUTextureSamplerBinding second={texture->texture,texture->sampler};
+			SDL_BindGPUFragmentSamplers(pass,1,&second,1);
+		}
 		SDL_DrawGPUPrimitives(pass,draw->compact?draw->count*3:draw->count,1,draw->compact?draw->first*3:draw->first,0);
 	}
 	if(pass) SDL_EndGPURenderPass(pass);
 	c->drawCount=0;
+	c->effectDataCount=0;
 	c->vertexCount=0;
 	return SDL_SubmitGPUCommandBuffer(cmd);
 }
@@ -584,7 +762,7 @@ int m2d_gpu_present(GPUContext *c,int sync) {
 	if(sync!=c->sync) {
 		SDL_GPUPresentMode mode=sync?SDL_GPU_PRESENTMODE_VSYNC:SDL_GPU_PRESENTMODE_IMMEDIATE;
 		if(!SDL_WindowSupportsGPUPresentMode(c->device,c->window,mode)) mode=SDL_GPU_PRESENTMODE_VSYNC;
-		if(!SDL_SetGPUSwapchainParameters(c->device,c->window,SDL_GPU_SWAPCHAINCOMPOSITION_SDR,mode)) return 0;
+		if(!SDL_SetGPUSwapchainParameters(c->device,c->window,c->composition,mode)) return 0;
 		c->sync=sync;
 	}
 	SDL_GPUCommandBuffer *cmd=SDL_AcquireGPUCommandBuffer(c->device);
@@ -619,6 +797,7 @@ static int read_pixels(GPUContext *c,GPUFrame *frame,int x,int y,int w,int h,uns
 	if(!flush(c)) return 0;
 	GPUFrame *f=frame?frame:c->backbuffer;
 	if(!f || x<0 || y<0 || w>f->width || h>f->height || x>f->width-w || y>f->height-h) return fail("Read rectangle outside surface");
+	if(!frame && !floating && f->kind!=0) return fail("GrabPixmap cannot capture an HDR window; read a floating-point render image instead");
 	if(floating ? (f->kind!=2 && f->kind!=3) : f->kind!=0) return fail("Readback format mismatch");
 	int bpp=f->bytesPerUnit;
 	Uint64 row=((Uint64)w*bpp+255)&~(Uint64)255;
@@ -679,13 +858,15 @@ int m2d_gpu_read(GPUContext *c,GPUFrame *frame,int x,int y,int w,int h,unsigned 
 	return read_pixels(c,frame,x,y,w,h,pixels,pitch,0);
 }
 int m2d_gpu_read_float(GPUContext *c,GPUFrame *frame,unsigned char *pixels) {
-	return read_pixels(c,frame,0,0,frame->width,frame->height,pixels,frame->width*16,1);
+	GPUFrame *f=frame?frame:c->backbuffer;
+	if(!f) return fail("Window backbuffer is unavailable");
+	return read_pixels(c,frame,0,0,f->width,f->height,pixels,f->width*16,1);
 }
 
 /* Borrowed device and a scoped window overlay for native GPU integrations.
  * Callbacks are native C functions and must not throw or re-enter Max2D. */
 SDL_GPUDevice *m2d_gpu_device(GPUContext *c) { return c->device; }
-int m2d_gpu_window_format(void) { return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM; }
+int m2d_gpu_window_format(GPUContext *c) { return texture_format(c->windowKind); }
 int m2d_gpu_window_overlay(GPUContext *c,
 	void (*prepare)(void *, SDL_GPUCommandBuffer *),
 	void (*draw)(void *, SDL_GPUCommandBuffer *, SDL_GPURenderPass *), void *data) {

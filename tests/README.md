@@ -263,3 +263,46 @@ results, checks straight and premultiplied image sources, and exercises native
 SDL GPU textured sprites with compact submission both enabled and disabled.
 Unsupported custom equations are reported as skips; selecting unsupported
 `SUBTRACTBLEND` must throw. See [Blending](../docs/blending.md) for the public API.
+
+## Effects
+
+Build effects regressions as console applications from the SDK root, then run
+the resulting executable in a desktop session with a working graphics device:
+
+```sh
+./bin/bmk makeapp -r -t console -ud max2d_sdlgpu mod/max2d.mod/tests/effect_buffers.bmx
+./mod/max2d.mod/tests/effect_buffers
+```
+
+Use one backend flag: `max2d_sdlgpu`, `max2d_gl`, `max2d_d3d9` or
+`max2d_d3d11`. Native Direct3D requires Windows; use `bin\bmk.exe` and run the
+resulting `.exe`. The shared suites below default to SDL_Renderer without a
+backend flag, exercising unsupported-effect handling where applicable. Those
+passes do not imply software shader support. Check the source header for
+backend-specific tests such as `hdr_output`, which always uses SDL GPU.
+
+| Area | Tests |
+| --- | --- |
+| Built-in effects | `image_effects`, `blur_effects`, `colorize_effects`, `outline_effects`, `bloom_effects`, `hdr_bloom` |
+| Layer processing and ownership | `layer_effects`, `inverse_layer_masks`, `layer_effect_chain`, `scaled_blur`, `effect_buffers` |
+| Cached helpers | `bloom_pipeline`, `shadow_pipeline`, `inner_shadow` |
+| Packages and maps | `shader_packages`, `coordinate_effects`, `combined_effects`, `two_texture_effects`, `texture_mask_effects`, `texture_transforms`, `shared_texture_mapping`, `threshold_mask_effects` |
+| Colour and display | `linear_colour`, `hdr_output` (SDL GPU only) |
+
+These tests cover pixels, state restoration, aliases, context lifetime and warm
+resource/submission counts. They do not measure physical HDR brightness or GPU
+execution time. Use the [gallery](../docs/effects-gallery.md) for visual checks
+and the [benchmarks](../benchmarks/README.md) for repeatable CPU measurements.
+
+The package generator has a separate, graphics-free regression. From the
+repository root:
+
+```sh
+../../bin/bmk makeapp -r -t console -o shader_package_generator tests/shader_package_generator.bmx
+./shader_package_generator . /absolute/path/to/new-scratch-directory
+```
+
+The scratch directory must not already exist. The test regenerates the reference
+packages, compares their sources/wrappers/assets exactly, and rejects malformed
+manifests. After editing the wrapper template, run `generate` for each package;
+run `embed` when compiled asset data changes. See [package authoring](../docs/shader-packages.md#building-a-package).

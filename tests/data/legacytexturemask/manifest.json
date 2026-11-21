@@ -1,0 +1,25 @@
+{
+  "abi": 3,
+  "name": "legacytexturemask",
+  "factory": "CreateLegacyTextureMaskPackage",
+  "parameters": [
+    {
+      "name": "channels",
+      "type": "float4"
+    },
+    {
+      "name": "invert",
+      "type": "float"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float coverage=clamp(dot(m,channels),0.0,1.0);\nif(invert>0.5) coverage=1.0-coverage;\nreturn float4(c.rgb,c.a*coverage);",
+    "glsl": "float coverage=clamp(dot(m,channels),0.0,1.0);\nif(invert>0.5) coverage=1.0-coverage;\nreturn vec4(c.rgb,c.a*coverage);",
+    "hlsl": "float coverage=clamp(dot(m,channels),0.0,1.0);\nif(invert>0.5) coverage=1.0-coverage;\nreturn float4(c.rgb,c.a*coverage);"
+  }
+}

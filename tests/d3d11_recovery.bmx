@@ -1,6 +1,7 @@
 SuperStrict
 Framework Max2D.D3D11Max2D
 Import BRL.StandardIO
+Import Max2D.D3D11Effects
 ' Build with -ud d3d11_recovery_test. Only failure detection is injected;
 ' recovery destroys and replaces the real hardware device and swap chain.
 Function Check(ok:Int,message:String)
@@ -28,6 +29,12 @@ Try
 	Local raw:TImage=LoadImage(TTextureData.FromPixmap(coveragePixels),FILTEREDIMAGE)
 	DrawImage(raw,30,0)
 	FlushMax2D()
+ Local saturation:TMax2DSaturationEffect=CreateSaturationEffect(0)
+ Local grade:TMax2DShaderEffect=CreateColorMatrixEffect()
+ DrawImageEffect(image,grade,50,0)
+ DrawImageEffect(image,saturation,40,0)
+ Local grey:Int=Pixel(40,0)
+ Check(Abs((grey&255)-54)<=1 And Abs(((grey Shr 16)&255)-54)<=1,"Effect before device replacement")
  Local frame:TImageFrame=image.Frame()
  Local target:TRenderImage=CreateRenderImage(8,8,FILTEREDIMAGE|MIPMAPPEDIMAGE)
  SetRenderImage(target);SetClsColor(255,0,255,1);Cls
@@ -49,6 +56,12 @@ Try
 	SetBlend(SOLIDBLEND)
  DrawImage(target,10,0)
  Check(Pixel(12,2)=$00ff00,"Recovered target sampling")
+ DrawImageEffect(image,grade,50,0)
+ Check(Pixel(50,0)=$ff0000,"Package shader recreated after device replacement")
+ DrawImageEffect(image,saturation,40,0)
+ Check(Pixel(40,0)=grey,"Same effect description recreates its shader after replacement")
+ DrawImage(image,44,0)
+ Check(Pixel(44,0)=$ff0000,"Ordinary drawing restored after recovered effect")
 
  ' Edits after a failed replacement must be retained for a later successful retry.
  D3D11TestRemoved=True;D3D11TestRecreateFailure=True

@@ -1,0 +1,16 @@
+{
+  "abi": 4,
+  "name": "displacement",
+  "factory": "CreateDisplacementPackage",
+  "parameters": [
+    {
+      "name": "amount",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv+(m.rg*2.0-1.0)*amount.xy;",
+    "glsl": "return uv+(m.rg*2.0-1.0)*amount.xy;",
+    "hlsl": "return uv+(m.rg*2.0-1.0)*amount.xy;"
+  }
+}
