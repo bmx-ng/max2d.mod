@@ -1,0 +1,38 @@
+{
+  "abi": 2,
+  "name": "pointlight",
+  "factory": "CreatePointLightPackage",
+  "parameters": [
+    {
+      "name": "light",
+      "type": "float4"
+    },
+    {
+      "name": "colour",
+      "type": "float4"
+    },
+    {
+      "name": "shape",
+      "type": "float4"
+    },
+    {
+      "name": "basisX",
+      "type": "float4"
+    },
+    {
+      "name": "basisY",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float attenuation=1.0;\nif (shape.y>0.5) {\n float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\n float distanceFromLight=length((position-light.xy)/light.zw);\n attenuation=pow(max(0.0,1.0-distanceFromLight),shape.x);\n}\nreturn float4(c.rgb*colour.rgb*colour.a*attenuation,c.a);",
+    "glsl": "float attenuation=1.0;\nif (shape.y>0.5) {\n vec2 position=vec2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\n float distanceFromLight=length((position-light.xy)/light.zw);\n attenuation=pow(max(0.0,1.0-distanceFromLight),shape.x);\n}\nreturn vec4(c.rgb*colour.rgb*colour.a*attenuation,c.a);",
+    "hlsl": "float attenuation=1.0;\nif (shape.y>0.5) {\n float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\n float distanceFromLight=length((position-light.xy)/light.zw);\n attenuation=pow(max(0.0,1.0-distanceFromLight),shape.x);\n}\nreturn float4(c.rgb*colour.rgb*colour.a*attenuation,c.a);"
+  },
+  "colourUV": true
+}

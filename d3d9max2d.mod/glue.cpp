@@ -14,7 +14,7 @@
 extern const unsigned char m2d9_draw_shader[],m2d9_float_shader[];
 
 struct M2D9Texture;
-struct M2D9Package { IDirect3DPixelShader9 *shader; int slots,abi; };
+struct M2D9Package { IDirect3DPixelShader9 *shader; int slots,abi,samplers; };
 struct M2D9 {
     IDirect3DDevice9 *device;
     IDirect3DPixelShader9 *shader,*floatShader;
@@ -23,8 +23,9 @@ struct M2D9 {
     float effectParameters[4];
  std::map<std::string,M2D9Package> packages;
  M2D9Package *package;
- M2D9Texture *second;
- float packageValues[40];
+ M2D9Texture *auxiliary[4];
+ /* Native material capacity; public package limits are unchanged. */
+ float packageValues[M2D_NATIVE_PARAMETER_SLOTS*4];
     int effectBaseLevel;
     int mipmaps;
 	D3DCAPS9 caps;
@@ -97,27 +98,48 @@ void *m2d9_create_image_effect(M2D9 *c,const void *code,size_t size) {
 }
 void *m2d9_package_shader(M2D9 *c,M2DPackage *p) {
  if(!c||!p||!p->d3d9)return nullptr;
+ if(p->slots<1||p->slots>M2D_NATIVE_PARAMETER_SLOTS || p->samplers<1 || p->samplers>5 ||
+    (p->samplers>3 && p->abi!=M2D_NATIVE_MATERIAL_ABI) ||
+    (p->abi==M2D_NATIVE_MATERIAL_ABI && p->slots<p->samplers-1)) {
+  fail("Invalid native shader texture layout");return nullptr;
+ }
  if(c->caps.PixelShaderVersion<D3DPS_VERSION(3,0))return nullptr;
  auto found=c->packages.find(p->key);
  if(found!=c->packages.end())return &found->second;
  IDirect3DPixelShader9 *shader=nullptr;
  if(!check(c->device->CreatePixelShader((const DWORD *)p->d3d9,&shader),"Create package shader"))return nullptr;
- M2D9Package entry={shader,p->slots,p->abi};
+ M2D9Package entry={shader,p->slots,p->abi,p->samplers};
  return &c->packages.emplace(p->key,entry).first->second;
 }
-void m2d9_select_package_effect(M2D9 *c,M2D9Package *p,const float *values,M2D9Texture *second) {
- c->package=p;c->effect=p->shader;c->second=second;
+static void select_package(M2D9 *c,M2D9Package *p,const float *values,M2D9Texture **textures,int count) {
+ c->package=p;c->effect=p->shader;
  memcpy(c->packageValues,values,p->slots*16);
- if(p->abi>=3) {
-  float *mode=c->packageValues+(p->slots-1)*4;
+ int modes=p->abi==M2D_NATIVE_MATERIAL_ABI?p->samplers-1:
+     ((p->abi==5 || p->abi==M2D_NATIVE_LIGHTING_ABI)?2:(p->abi>=3?1:0));
+ for(int i=0;i<4;i++) {
+  M2D9Texture *texture=i<count?textures[i]:nullptr;
+  c->auxiliary[i]=texture;
+  if(i>=modes) continue;
+  float *mode=c->packageValues+(p->slots-modes+i)*4;
   mode[0]=0;
-  mode[1]=second&&(second->target||second->mipmapped)?1.f:0.f;
+  mode[1]=texture&&(texture->target||texture->mipmapped)?1.f:0.f;
  }
  c->effectBaseLevel=p->abi>=2;
 }
+int m2d9_select_texture_set(M2D9 *c,M2D9Package *p,const float *values,M2D9Texture **textures,int count) {
+ if(!p || !values || count<0 || count>4 || count!=p->samplers-1)
+  return fail("Texture count does not match native shader");
+ for(int i=0;i<count;i++) if(!textures[i]) return fail("Missing native effect texture");
+ select_package(c,p,values,textures,count);
+ return 1;
+}
+void m2d9_select_package_effect(M2D9 *c,M2D9Package *p,const float *values,M2D9Texture *second,M2D9Texture *third) {
+ M2D9Texture *textures[]={second,third};
+ select_package(c,p,values,textures,third?2:(second?1:0));
+}
 void m2d9_select_image_effect(M2D9 *c,IDirect3DPixelShader9 *shader,float x,float y,float z,float w,int baseLevelOnly) {
     if(!c) return;
-    c->package=nullptr;c->second=nullptr;c->effect=shader;c->effectBaseLevel=shader&&baseLevelOnly;
+    c->package=nullptr;memset(c->auxiliary,0,sizeof(c->auxiliary));c->effect=shader;c->effectBaseLevel=shader&&baseLevelOnly;
     c->effectParameters[0]=x;c->effectParameters[1]=y;c->effectParameters[2]=z;c->effectParameters[3]=w;
 }
 void m2d9_close(M2D9 *c) {if(c){for(auto &entry:c->packages)entry.second.shader->Release();for(auto &entry:c->effects) entry.second->Release();c->shader->Release();if(c->floatShader)c->floatShader->Release();c->device->Release();delete c;}}
@@ -217,14 +239,14 @@ int m2d9_update_float(M2D9Texture *t,const unsigned char *pixels,int pitch) {
 }
 // Release device-held target/texture bindings before releasing default-pool resources.
 void m2d9_unbind(M2D9 *c){
-    c->device->SetTexture(0,NULL);c->device->SetTexture(1,NULL);
+    c->device->SetTexture(0,NULL);c->device->SetTexture(1,NULL);c->device->SetTexture(2,NULL);
     IDirect3DSurface9 *back=NULL;
     if(SUCCEEDED(c->device->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,&back))){
         c->device->SetRenderTarget(0,back);back->Release();
     }
 }
 static int bindTarget(M2D9 *c,M2D9Texture *target){
-    if(!check(c->device->SetTexture(0,NULL),"Unbind sampler")||!check(c->device->SetTexture(1,NULL),"Unbind map sampler"))return 0;
+    for(int i=0;i<5;i++) if(!check(c->device->SetTexture(i,NULL),"Unbind sampler"))return 0;
     IDirect3DSurface9 *surface=NULL;
     HRESULT hr=target?target->texture->GetSurfaceLevel(0,&surface):c->device->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,&surface);
     if(!check(hr,"Get target surface"))return 0;
@@ -264,12 +286,12 @@ int m2d9_submit(M2D9 *c,M2D9Texture *dest,M2D9Texture *t,int blend,const float *
         TRY(d->SetPixelShaderConstantF(0,mode,1));
         TRY(d->SetPixelShaderConstantF(1,c->packageValues,c->package->slots));
         float info[]={t?float(t->filtered):0.f,t&&t->format!=D3DFMT_A8R8G8B8?1.f:0.f,0,0};
-        TRY(d->SetPixelShaderConstantF(13,info,1));
-        M2D9Texture *textures[]={t,c->second};
-        for(int i=0;i<2;++i) {
+        TRY(d->SetPixelShaderConstantF(c->package->abi==M2D_NATIVE_MATERIAL_ABI?c->package->slots+c->package->samplers+1:c->package->abi==M2D_NATIVE_LIGHTING_ABI?c->package->slots+4:(c->package->abi==5?20:13),info,1));
+        M2D9Texture *textures[]={t,c->auxiliary[0],c->auxiliary[1],c->auxiliary[2],c->auxiliary[3]};
+        for(int i=0;i<(c->package->abi==M2D_NATIVE_MATERIAL_ABI?c->package->samplers:((c->package->abi==5 || c->package->abi==M2D_NATIVE_LIGHTING_ABI)?3:2));++i) {
             M2D9Texture *tex=textures[i];
             float scale[4]={tex?float(tex->width)/tex->allocatedWidth:1.f,tex?float(tex->height)/tex->allocatedHeight:1.f,tex?1.f/tex->allocatedWidth:1.f,tex?1.f/tex->allocatedHeight:1.f};
-            TRY(d->SetPixelShaderConstantF(11+i,scale,1));
+            TRY(d->SetPixelShaderConstantF(((c->package->abi==M2D_NATIVE_LIGHTING_ABI || c->package->abi==M2D_NATIVE_MATERIAL_ABI)?c->package->slots+1:(c->package->abi==5?17:11))+i,scale,1));
         }
     } else if(c->effect) {
         float scale[4]={t?float(t->width)/t->allocatedWidth:1.f,t?float(t->height)/t->allocatedHeight:1.f,t?float(t->width):1.f,t?float(t->height):1.f};
@@ -322,15 +344,17 @@ int m2d9_submit(M2D9 *c,M2D9Texture *dest,M2D9Texture *t,int blend,const float *
     TRY(d->SetSamplerState(0,D3DSAMP_MIPFILTER,t&&t->mipmapped&&!c->effectBaseLevel&&!floatCopy&&!(c->effect&&t->format!=D3DFMT_A8R8G8B8)?(t->filtered?D3DTEXF_LINEAR:D3DTEXF_POINT):D3DTEXF_NONE));
     TRY(d->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP));TRY(d->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP));
     TRY(d->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE));
-    M2D9Texture *second=c->package?c->second:nullptr;
-    if(second&&second->mipDirty){second->texture->PreLoad();second->texture->GenerateMipSubLevels();second->mipDirty=0;++generated;}
-    TRY(d->SetTexture(1,second?second->texture:NULL));
-    TRY(d->SetSamplerState(1,D3DSAMP_MINFILTER,D3DTEXF_POINT));
-    TRY(d->SetSamplerState(1,D3DSAMP_MAGFILTER,D3DTEXF_POINT));
-    TRY(d->SetSamplerState(1,D3DSAMP_MIPFILTER,D3DTEXF_NONE));
-    TRY(d->SetSamplerState(1,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP));
-    TRY(d->SetSamplerState(1,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP));
-    TRY(d->SetSamplerState(1,D3DSAMP_SRGBTEXTURE,FALSE));
+    for(int i=0;i<4;i++) {
+        M2D9Texture *texture=c->package?c->auxiliary[i]:nullptr;
+        if(texture&&texture->mipDirty){texture->texture->PreLoad();texture->texture->GenerateMipSubLevels();texture->mipDirty=0;++generated;}
+        TRY(d->SetTexture(i+1,texture?texture->texture:NULL));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_MINFILTER,D3DTEXF_POINT));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_MAGFILTER,D3DTEXF_POINT));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_MIPFILTER,D3DTEXF_NONE));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP));
+        TRY(d->SetSamplerState(i+1,D3DSAMP_SRGBTEXTURE,FALSE));
+    }
     std::vector<M2D9Vertex> vertices(count);
     for(int i=0;i<count;++i,v+=8){M2D9Vertex &o=vertices[i];o.x=c->ox+v[0]*c->sx-0.5f;o.y=c->oy+v[1]*c->sy-0.5f;o.z=0;o.rhw=1;
         memcpy(o.color,v+2,4*sizeof(float));o.screen[0]=o.x;o.screen[1]=o.y;

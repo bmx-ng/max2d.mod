@@ -1,0 +1,5 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu,lighting_specular_contract,PASS,339 contract checks
+macOS arm64,gl,lighting_specular_contract,PASS,339 contract checks
+macOS arm64,sdlgpu,material_maps,PASS,121 material map checks
+macOS arm64,sdlgpu,lighting_mapped_ambient,PASS,724 mapped emission checks

@@ -21,7 +21,7 @@ End Rem
 Const MAX2D_PARAMETER_FLOAT4:Int = 4
 
 Rem
-bbdoc: Immutable colour (ABI 1), coordinate (ABI 2) or two-texture (ABI 3/4) shader package with optional renderer-specific assets.
+bbdoc: Immutable colour (ABI 1), coordinate (ABI 2) or two-texture (ABI 3/4) or three-texture (ABI 5) shader package with optional renderer-specific assets.
 about: Create with generated wrapper assets. Assets and schema are copied. Manifest/container validation is not shader reflection or a security boundary; backend support queries compile shaders and pipelines. Packages may outlive contexts, whose native resources are released on close.
 End Rem
 Type TMax2DShaderPackage
@@ -33,23 +33,24 @@ Type TMax2DShaderPackage
 	Field version:Int
 	Public
 	Rem
-	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
-	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. The optional glsl argument supplies desktop GLSL 1.20 for ABI 1–4; d3d11 and d3d9 supply native ps_4_0 DXBC and ps_3_0 bytecode. SDL DXBC uses a separate binding contract. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
+	bbdoc: Creates a package with typed parameters: one to eight for ABI 1, one to six for ABI 2, one to five for ABI 3, one to three for ABI 4, or one to eight for ABI 5.
+	about: Names must be unique identifiers. Assets may omit unsupported platforms, but at least one is required. Metal source uses m2dEffectMain; SPIR-V uses main; DXBC uses m2dEffectMain. The optional glsl argument supplies desktop GLSL 1.20 for ABI 1–5; d3d11 and d3d9 supply native ps_4_0 DXBC and ps_3_0 bytecode. SDL DXBC uses a separate binding contract. Use the package generator for the fixed sampling/alpha ABI. ABI 2 reserves two slots for source bounds and edge settings; ABI 3 reserves five for both images and second-image alpha interpretation; ABI 4 reserves seven, adding two map-transform rows. ABI 5 reserves eight for three image regions and two auxiliary alpha modes. Each asset is limited to 4 MiB. Invalid versions, schemas and malformed containers throw before graphics allocation. Display names do not determine native cache identity.
 	param: Display name for diagnostics; not a native cache key.
 	param: Unique, case-sensitive parameter identifiers in slot order.
 	param: Matching MAX2D_PARAMETER_FLOAT or MAX2D_PARAMETER_FLOAT4 entries.
 	param: Metal source bytes, or Null when omitted.
 	param: Compiled Vulkan SPIR-V bytes, or Null when omitted.
 	param: SDL GPU Direct3D bytecode, or Null when omitted; not the native D3D11 binding contract.
-	param: Fixed wrapper ABI version 1, 2, 3 or 4; defaults to one.
+	param: Fixed wrapper ABI version 1, 2, 3, 4 or 5; defaults to one.
 	param: Desktop GLSL 1.20 source bytes, or Null when omitted.
 	param: Native Direct3D11 ps_4_0 bytecode, or Null when omitted.
 	param: Native Direct3D9 ps_3_0 bytecode, or Null when omitted.
 	End Rem
 	Function Create:TMax2DShaderPackage(name:String, parameterNames:String[], parameterTypes:Int[], metal:Byte[], spirv:Byte[], dxbc:Byte[], abiVersion:Int = 1, glsl:Byte[] = Null, d3d11:Byte[] = Null, d3d9:Byte[] = Null)
 		If name = "" Or parameterNames.Length < 1 Or parameterNames.Length > 8 Or parameterNames.Length <> parameterTypes.Length Then Throw "Max2D package: invalid name or schema size"
-		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 And abiVersion<>4 Then Throw "Max2D package: unsupported ABI version"
-		If abiVersion>=3 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
+		If abiVersion<>1 And abiVersion<>2 And abiVersion<>3 And abiVersion<>4 And abiVersion<>5 Then Throw "Max2D package: unsupported ABI version"
+		If abiVersion=4 And parameterNames.Length>3 Then Throw "Max2D package: two-texture packages allow at most three parameters"
+		If abiVersion=3 And parameterNames.Length>5 Then Throw "Max2D package: two-texture packages allow at most five parameters"
 		If abiVersion=2 And parameterNames.Length>6 Then Throw "Max2D package: coordinate packages allow at most six parameters"
 		For Local i:Int = 0 Until parameterNames.Length
 			Local value:String = parameterNames[i]
@@ -83,7 +84,7 @@ Type TMax2DShaderPackage
 		Return names.Length
 	End Method
 	Rem
-	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates, 3 for two textures, 4 for transformed maps).
+	bbdoc: Returns the immutable shader ABI version (1 for colour, 2 for coordinates, 3 for two textures, 4 for transformed maps, 5 for three textures).
 	End Rem
 	Method ABIVersion:Int()
 		Return version
@@ -119,14 +120,16 @@ Type TMax2DShaderPackage
 End Type
 
 Rem
-bbdoc: Reusable typed parameters and an optional second texture for packaged image effects.
+bbdoc: Reusable typed parameters and optional auxiliary textures for packaged image effects.
 about: Generic CreateShaderEffect values start at zero, with identity texture placement for ABI 4; convenience factories set their documented defaults. Updates affect subsequent draws; queued draws retain their snapshots. Named setters allocate no parameter arrays. Shader package assets are immutable and shared by instances.
 End Rem
 Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Private
 	Field package:TMax2DShaderPackage
-	Field values:Float[40]
+	Field values:Float[64]
 	Field edgeMode:Int
+	Field thirdTexture:TImage
+	Field thirdFrame:Int, thirdEdgeMode:Int
 	Field texture:TImage
 	Field textureFrame:Int, textureEdgeMode:Int
 	Method Slot:Int(name:String, kind:Int)
@@ -137,7 +140,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Rem
 	bbdoc: Creates zero-initialized parameters for an immutable package.
 	param: Initialized immutable package to share; null or uninitialized packages throw.
-	about: ABI 4 starts with identity texture placement. A second texture must be bound before drawing ABI 3/4 packages. Use CreateShaderEffect for the equivalent module-level factory.
+	about: ABI 4 starts with identity texture placement. A second texture must be bound before drawing ABI 3–5 packages; ABI 5 also requires a third. Use CreateShaderEffect for the equivalent module-level factory.
 	End Rem
 	Function Create:TMax2DShaderEffect(package:TMax2DShaderPackage)
 		If Not package Or package.ParameterCount() = 0 Then Throw "Max2D package: package is null or uninitialized"
@@ -156,7 +159,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 	Rem
 	bbdoc: Backend integration: submits packaged draws and always clears native effect selection.
 	End Rem
-	Method DrawNative(canvas:TMax2DGraphics, image:TImage, positions:Float[], x:Float, y:Float, frame:Int)
+	Method DrawNative(canvas:TMax2DGraphics, image:TImage, positions:Float[], x:Float, y:Float, frame:Int, mesh:TMesh2D=Null)
 		Local context:TMax2DContext = canvas.context
 		Local backend:TMax2DShaderPackageBackend = FindShaderPackageBackend(context)
 		If Not backend Then Throw "Max2D package: no provider for this context"
@@ -165,7 +168,7 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		If Not shader Then Throw "Max2D package: shader asset unavailable or compilation failed"
 		If package.ABIVersion()>=2 Then
 			image.CheckIndex(frame)
-			If image.Trim(frame) Then Throw "Max2D package: coordinate effects require untrimmed images; render the trimmed image into a layer first"
+			image=image.SamplingImage(frame)
 			Local source:TImageSource=image.sources[frame]
 			Local offset:Int=package.ParameterCount()*4
 			values[offset]=Float(image.sourceX[frame])/source.width
@@ -175,11 +178,13 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 			values[offset+4]=1.0/source.width; values[offset+5]=1.0/source.height
 			values[offset+6]=edgeMode; values[offset+7]=(image.flags & FILTEREDIMAGE)<>0
 		End If
-		Local second:TImageFrame
+		Local second:TImageFrame, third:TImageFrame
+		Local texture:TImage=Self.texture, textureFrame:Int=Self.textureFrame
+		Local thirdTexture:TImage=Self.thirdTexture, thirdFrame:Int=Self.thirdFrame
 		If package.ABIVersion()>=3 Then
 			If Not texture Then Throw "Max2D package: second texture is required"
 			texture.CheckIndex(textureFrame)
-			If texture.Trim(textureFrame) Then Throw "Max2D package: second texture must be untrimmed"
+			texture=texture.SamplingImage(textureFrame)
 			second=texture.Frame(textureFrame,canvas)
 			Local source:TImageSource=texture.sources[textureFrame]
 			Local offset:Int=(package.ParameterCount()+2)*4
@@ -190,10 +195,26 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 			values[offset+4]=1.0/source.width; values[offset+5]=1.0/source.height
 			values[offset+6]=textureEdgeMode; values[offset+7]=(texture.flags & FILTEREDIMAGE)<>0
 		End If
+		If package.ABIVersion()=5 Then
+			If Not thirdTexture Then Throw "Max2D package: third texture is required"
+			thirdTexture.CheckIndex(thirdFrame)
+			thirdTexture=thirdTexture.SamplingImage(thirdFrame)
+			third=thirdTexture.Frame(thirdFrame,canvas)
+			Local source:TImageSource=thirdTexture.sources[thirdFrame]
+			Local offset:Int=(package.ParameterCount()+4)*4
+			values[offset]=Float(thirdTexture.sourceX[thirdFrame])/source.width
+			values[offset+1]=Float(thirdTexture.sourceY[thirdFrame])/source.height
+			values[offset+2]=Float(thirdTexture.width)/source.width
+			values[offset+3]=Float(thirdTexture.height)/source.height
+			values[offset+4]=1.0/source.width; values[offset+5]=1.0/source.height
+			values[offset+6]=thirdEdgeMode; values[offset+7]=(thirdTexture.flags & FILTEREDIMAGE)<>0
+		End If
 		context.Flush()
-		backend.SelectShader(context,shader,values,second)
+		backend.SelectTextures(context,shader,values,second,third)
 		Try
-			If positions Then
+			If mesh Then
+				canvas.DrawTexturedMesh(mesh,image,x,y,frame)
+			Else If positions Then
 				For Local i:Int = 0 Until positions.Length Step 2
 					canvas.DrawImage(image, positions[i], positions[i+1], frame)
 				Next
@@ -209,9 +230,20 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 			backend.ClearShader(context)
 		End Try
 	End Method
+ Rem
+ bbdoc: Draws textured mesh geometry through this shader package without an intermediate capture.
+ about: Uses normalized mesh UVs and current drawing state; image handles are ignored. Package coordinates remain image UVs, not geometry positions. Requires a supported package provider and valid mesh UVs. Parameters and images are consumed before return. Native effect selection is cleared on success or failure. Sampling the current target is forbidden.
+ End Rem
+ Method DrawMesh(mesh:TMesh2D,image:TImage,x:Float=0,y:Float=0,frame:Int=0)
+  If Not mesh Or Not image Then Throw "Max2D package: mesh and image are required"
+  Local canvas:TMax2DGraphics=TMax2DGraphics.Current()
+  If image=canvas.renderImage Then Throw "Max2D package: cannot sample current target"
+  If Not Max2DSupportsImageEffect(Self) Then Throw "Max2D package: mesh effect unsupported for drawing state"
+  DrawNative(canvas,image,Null,x,y,frame,mesh)
+ End Method
 	Rem
 	bbdoc: Sets coordinate sampling to transparent (default), clamp, or repeat at image boundaries.
-	about: ABI 2–4 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero. Invalid modes throw without changing the previous setting.
+	about: ABI 2–5 support source edge modes. Repeat filters across the image's own seam; atlas neighbours are excluded. Sampling uses mip level zero. Invalid modes throw without changing the previous setting.
 	End Rem
 	Method SetEdgeMode(mode:Int)
 		If Not package Or package.ABIVersion()<2 Then Throw "Max2D package: edge modes require a coordinate package"
@@ -219,24 +251,43 @@ Type TMax2DShaderEffect Extends TMax2DImageEffect
 		edgeMode=mode
 	End Method
 	Rem
-	bbdoc: Sets the second image of an ABI 3/4 effect, retaining it for subsequent draws.
-	about: The selected frame maps across image-local UVs. Trimmed images are rejected. Passing Null clears the binding; drawing then throws. Queued draws retain the submitted texture binding.
+	bbdoc: Sets the second image of an ABI 3–5 effect, retaining it for subsequent draws.
+	about: The selected frame maps across image-local UVs. Trimmed byte images retain expanded sampling storage, refreshed after pixel edits. Passing Null clears the binding; drawing then throws. Queued draws retain the submitted texture binding.
 	End Rem
 	Method SetTexture(image:TImage, frame:Int=0)
-		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3 or 4"
+		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3, 4 or 5"
 		If image Then
 			image.CheckIndex(frame)
-			If image.Trim(frame) Then Throw "Max2D package: second texture must be untrimmed"
 		End If
 		texture=image; textureFrame=frame
 	End Method
 	Rem
+	bbdoc: Sets the third image of an ABI 5 effect; Null clears the retained binding.
+	about: Trimmed byte frames use retained expanded sampling storage. Drawing requires both auxiliary textures. The package defines third-image coordinates independently of source and second-image coordinates.
+	End Rem
+	Method SetThirdTexture(image:TImage, frame:Int=0)
+		If Not package Or package.ABIVersion()<>5 Then Throw "Max2D package: third texture requires ABI 5"
+		If image Then
+			image.CheckIndex(frame)
+		End If
+		thirdTexture=image; thirdFrame=frame
+	End Method
+	Rem
+	bbdoc: Sets third-image boundary sampling to transparent (default), clamp or repeat.
+	about: Requires ABI 5. Accepts MAX2D_EDGE_TRANSPARENT, MAX2D_EDGE_CLAMP or MAX2D_EDGE_REPEAT. Invalid modes throw atomically; sampling uses mip level zero.
+	End Rem
+	Method SetThirdTextureEdgeMode(mode:Int)
+		If Not package Or package.ABIVersion()<>5 Then Throw "Max2D package: third texture requires ABI 5"
+		If mode<MAX2D_EDGE_TRANSPARENT Or mode>MAX2D_EDGE_REPEAT Then Throw "Max2D package: invalid edge mode"
+		thirdEdgeMode=mode
+	End Method
+	Rem
 	bbdoc: Sets second-image boundary sampling to transparent, clamp or repeat.
 	param: MAX2D_EDGE_TRANSPARENT (default), MAX2D_EDGE_CLAMP or MAX2D_EDGE_REPEAT.
-	about: Requires ABI 3 or 4. Applies independently of the source edge mode and after map placement. Sampling uses mip level zero. Invalid modes throw without changing the previous mode.
+	about: Requires ABI 3, 4 or 5. Applies independently of the source edge mode and after map placement. Sampling uses mip level zero. Invalid modes throw without changing the previous mode.
 	End Rem
 	Method SetTextureEdgeMode(mode:Int)
-		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3 or 4"
+		If Not package Or package.ABIVersion()<3 Then Throw "Max2D package: second texture requires ABI 3, 4 or 5"
 		If mode<MAX2D_EDGE_TRANSPARENT Or mode>MAX2D_EDGE_REPEAT Then Throw "Max2D package: invalid edge mode"
 		textureEdgeMode=mode
 	End Method
@@ -311,7 +362,7 @@ End Type
 Rem
 bbdoc: Creates zero-initialized typed parameters for an immutable shader package.
 param: Initialized immutable package to share; null or uninitialized packages throw.
-about: Creates no graphics resources. ABI 4 initializes identity texture placement. Bind a second texture before drawing ABI 3/4 packages. Query Max2DSupportsImageEffect after Graphics with the intended target and blend.
+about: Creates no graphics resources. ABI 4 initializes identity texture placement. Bind a second texture before drawing ABI 3–5 packages, and a third for ABI 5. Query Max2DSupportsImageEffect after Graphics with the intended target and blend.
 End Rem
 Function CreateShaderEffect:TMax2DShaderEffect(package:TMax2DShaderPackage)
 	Return TMax2DShaderEffect.Create(package)
@@ -337,6 +388,53 @@ Rem
 bbdoc: Renderer adapter for immutable packages and captured shader parameters.
 End Rem
 Type TMax2DShaderPackageBackend Abstract
+ Rem
+ bbdoc: Returns the transport texture-count upper bound including the source image, or zero for an unhandled context.
+ about: Defaults to three for the existing transport. This is not a guarantee that a particular shader or legacy adapter accepts every binding count; Shader and SupportsShader still determine shader support. Providers extending the transport override this method together with BindTextureSet. The query must not select a shader or submit geometry.
+ End Rem
+ Method MaximumTextures:Int(context:TMax2DContext)
+  If Not context Or Not Handles(context) Then Return 0
+  Return 3
+ End Method
+ Rem
+ bbdoc: Selects a native shader with a counted prefix of borrowed auxiliary texture frames.
+ about: Renderer integration only. The primary artwork remains supplied by ordinary drawing; textures contains auxiliary frames in binding order starting at texture slot one. count must be nonnegative, fit the array and remain below MaximumTextures including the source. Only the first count entries are inspected; each must be nonnull, live, owned by this context and distinct from its current render target. Aliasing between auxiliary entries is allowed. Validation completes before BindTextureSet is called, without changing shader selection. The array and parameters are borrowed: providers must capture all state needed by queued work before returning. Callers can retain the array across draws and reuse or clear its entries immediately afterward. ClearShader restores ordinary drawing.
+ End Rem
+ Method SelectTextureSet(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,textures:TImageFrame[],count:Int) Final
+  If count<0 Or count>textures.Length Then Throw "Max2D package: invalid auxiliary texture count"
+  If Not context Or Not shader Then Throw "Max2D package: texture selection requires a context and shader"
+  context.CheckOpen()
+  If count>=MaximumTextures(context) Then Throw "Max2D package: texture count exceeds provider transport capacity"
+  For Local i:Int=0 Until count
+   Local frame:TImageFrame=textures[i]
+   If Not frame Or frame.closed Or frame.owner<>context Then Throw "Max2D package: invalid auxiliary texture frame"
+   If frame=context.target Then Throw "Max2D package: cannot sample the destination as an auxiliary texture"
+  Next
+  BindTextureSet(context,shader,values,textures,count)
+ End Method
+ Rem
+ bbdoc: Provider hook for an already validated counted auxiliary-texture prefix.
+ about: Called by SelectTextureSet; callers should use that validated entry point. The default forwards zero, one or two auxiliary frames to the existing SelectShader/SelectTextures hooks and rejects larger prefixes before selection. Higher-capacity providers override this method and MaximumTextures. Consume or copy the active prefix and parameters before returning; never retain the caller's array. Existing fixed-binding providers need no changes.
+ End Rem
+ Method BindTextureSet(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,textures:TImageFrame[],count:Int)
+  Select count
+   Case 0
+    SelectShader(context,shader,values,Null)
+   Case 1
+    SelectShader(context,shader,values,textures[0])
+   Case 2
+    SelectTextures(context,shader,values,textures[0],textures[1])
+   Default
+    Throw "Max2D package: provider has no extended texture binding implementation"
+  End Select
+ End Method
+ Rem
+ bbdoc: Checks an already resolved native shader against the current drawing target and blend.
+ about: Renderer integration for built-in native shaders. The default checks shader presence and blend support; providers with additional pipeline constraints override it. No geometry is submitted.
+ End Rem
+ Method SupportsShader:Int(canvas:TMax2DGraphics,shader:Byte Ptr)
+  Return shader<>Null And canvas.context.SupportsBlend(canvas.state.blend)
+ End Method
 	Rem
 	bbdoc: Registry linkage managed by RegisterShaderPackageBackend; applications must not modify it.
 	End Rem
@@ -354,10 +452,26 @@ Type TMax2DShaderPackageBackend Abstract
 	End Rem
 	Method SelectShader(context:TMax2DContext, shader:Byte Ptr, values:Float Ptr, second:TImageFrame) Abstract
 	Rem
+	bbdoc: Selects a shader with up to two auxiliary images.
+	about: ABI 5 providers override this method. The default preserves older providers and rejects an unsupported third image before selection.
+	End Rem
+	Method SelectTextures(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame,third:TImageFrame)
+		If third Then Throw "Max2D package: provider does not support three textures"
+		SelectShader(context,shader,values,second)
+	End Method
+	Rem
 	bbdoc: Restores ordinary drawing after packaged submission, including error recovery.
 	End Rem
 	Method ClearShader(context:TMax2DContext) Abstract
 End Type
+Rem
+bbdoc: Returns the registered native shader adapter for a context, or Null.
+about: Renderer integration only. The returned adapter is shared and registry-owned. Built-in renderer modules can reuse native shader transport without adopting the public effect-package parameter schema.
+End Rem
+Function Max2DShaderPackageAdapter:TMax2DShaderPackageBackend(context:TMax2DContext)
+ Return FindShaderPackageBackend(context)
+End Function
+
 Rem
 bbdoc: Registers an optional renderer's package adapter.
 param: Non-null adapter instance retained for the application lifetime.
@@ -428,7 +542,7 @@ Public
 Rem
 bbdoc: Creates texture-driven displacement using the map's straight red and green channels.
 about: Map values 0.5 leave coordinates unchanged; 0 and 1 offset by minus and plus strength, measured as fractions of source width and height. The map uses image-local UVs and is not tinted. Source and map bounds have separate edge modes. Change strength with SetFloat4("amount", strengthX, strengthY, 0, 0). The factory binds frame zero; SetTexture can change the map or frame. Supports independent map transforms and shared texture mapping.
-param: Untrimmed displacement map; binds frame zero. Null leaves drawing disabled until SetTexture.
+param: Displacement map; binds frame zero. Null leaves drawing disabled until SetTexture.
 param: Finite horizontal displacement strength as a fraction of source width.
 param: Finite vertical displacement strength as a fraction of source height.
 End Rem
@@ -443,7 +557,7 @@ End Function
 Rem
 bbdoc: Creates a texture-driven dissolve with an optional HDR edge glow.
 about: Set progress from 0 (fully visible) to 1 (invisible). Intermediate values retain pixels whose map red channel is at least progress. width controls the soft glow band in map-value units; edge is RGB colour and intensity in its fourth component. Glow preserves source alpha. Defaults are progress 0, width 0.1 and edge (4,1,0.1,1). Map alpha does not affect the threshold.
-param: Untrimmed map whose red channel controls visibility; binds frame zero. Null requires a later SetTexture.
+param: Map whose red channel controls visibility; binds frame zero. Null requires a later SetTexture.
 End Rem
 Function CreateDissolveEffect:TMax2DShaderEffect(map:TImage)
 	If Not defaultDissolvePackage Then defaultDissolvePackage=CreateDissolvePackage()
@@ -460,7 +574,7 @@ Public
 Rem
 bbdoc: Creates a reusable mask that multiplies source alpha by a second image's coverage.
 about: Defaults to the mask alpha channel, including R8 coverage images. Set channels to RGBA weights with SetFloat4; the weighted sum is clamped to 0–1 before inversion. Set invert above 0.5 to invert coverage. Source straight RGB is unchanged, preserving HDR; drawing tint and alpha still apply. Map filtering, atlas bounds and render-image alpha interpretation follow the two-texture ABI.
-param: Untrimmed coverage map; binds frame zero. Null requires a later SetTexture.
+param: Coverage map; binds frame zero. Null requires a later SetTexture.
 param: True inverts the weighted mask coverage.
 End Rem
 Function CreateTextureMaskEffect:TMax2DShaderEffect(mask:TImage, inverted:Int=False)
@@ -478,7 +592,7 @@ Public
 Rem
 bbdoc: Creates a texture threshold mask with a smooth transition between low and high.
 about: Defaults to map alpha. Set channels with SetFloat4 to select RGBA weights; their sum is clamped to 0–1 before thresholding. Set range with SetFloat4("range",low,high,0,0). Values at or below low are hidden and values at or above high are visible when high exceeds low. Otherwise a hard cut retains values at least low. Inversion is applied after thresholding. Source straight RGB, including HDR, is preserved; drawing tint and alpha still apply. Supports independent map transforms and shared texture mapping.
-param: Untrimmed threshold map; binds frame zero. Null requires a later SetTexture.
+param: Threshold map; binds frame zero. Null requires a later SetTexture.
 param: Finite lower threshold; defaults to 0.4.
 param: Finite upper threshold; defaults to 0.6. Values at or below low select a hard cut.
 param: True inverts the thresholded coverage.

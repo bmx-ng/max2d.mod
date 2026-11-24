@@ -1,0 +1,65 @@
+platform,profile,test,status,summary
+Linux,core,scene_bounds,PASS,PASS: 38 scene bounds checks
+Linux,core,scene_foundation,PASS,PASS: 47 scene foundation checks
+Linux,core,scene_interaction,PASS,PASS: 50 scene interaction checks
+Linux,core,scene_picking,PASS,PASS: 142 scene picking checks
+Linux,core,scene_pointer,PASS,PASS: 55 scene pointer checks
+Linux,gl,camera_world,PASS,"PASS: Camera World camera picking, fixed HUD, capture reuse, viewport and caller state"
+Linux,gl,reactor_workshop,PASS,"PASS: Reactor Workshop capture, effect, isolation and resource checks"
+Linux,gl,scene_bloom,PASS,PASS: 19 scene bloom checks
+Linux,gl,scene_composite,PASS,PASS: 48 scene composite checks
+Linux,gl,scene_culling,PASS,PASS: 22 scene culling checks
+Linux,gl,scene_inspection,PASS,PASS: 16 scene inspection checks
+Linux,gl,scene_render,PASS,PASS: 54 scene rendering checks
+Linux,gl,scene_stages,PASS,PASS: 51 scene stage checks
+Linux,gl,scene_storage,PASS,PASS: 24 scene storage checks
+Linux,sdl,scene_bloom,PASS,PASS: 5 scene bloom checks
+Linux,sdl,scene_composite,PASS,PASS: 45 scene composite checks
+Linux,sdl,scene_culling,PASS,PASS: 22 scene culling checks
+Linux,sdl,scene_inspection,PASS,PASS: 16 scene inspection checks
+Linux,sdl,scene_render,PASS,PASS: 54 scene rendering checks
+Linux,sdl,scene_stages,PASS,PASS: 30 scene stage checks
+Linux,sdl,scene_storage,PASS,PASS: 24 scene storage checks
+Linux,sdlgpu,camera_world,PASS,"PASS: Camera World camera picking, fixed HUD, capture reuse, viewport and caller state"
+Linux,sdlgpu,reactor_workshop,PASS,"PASS: Reactor Workshop capture, effect, isolation and resource checks"
+Linux,sdlgpu,scene_bloom,PASS,PASS: 19 scene bloom checks
+Linux,sdlgpu,scene_composite,PASS,PASS: 48 scene composite checks
+Linux,sdlgpu,scene_culling,PASS,PASS: 22 scene culling checks
+Linux,sdlgpu,scene_inspection,PASS,PASS: 16 scene inspection checks
+Linux,sdlgpu,scene_render,PASS,PASS: 54 scene rendering checks
+Linux,sdlgpu,scene_stages,PASS,PASS: 53 scene stage checks
+Linux,sdlgpu,scene_storage,PASS,PASS: 24 scene storage checks
+Linux,sdlgpu,touch_playground,PASS,"PASS: Touch Playground affine drags, independent capture, cancellation and native ID mapping"
+Linux,sdlrender,touch_playground,PASS,"PASS: Touch Playground affine drags, independent capture, cancellation and native ID mapping"
+Windows,core,scene_bounds,PASS,PASS: 38 scene bounds checks
+Windows,core,scene_foundation,PASS,PASS: 47 scene foundation checks
+Windows,core,scene_interaction,PASS,PASS: 50 scene interaction checks
+Windows,core,scene_picking,PASS,PASS: 142 scene picking checks
+Windows,core,scene_pointer,PASS,PASS: 55 scene pointer checks
+Windows,gl,camera_world,PASS,"PASS: Camera World camera picking, fixed HUD, capture reuse, viewport and caller state"
+Windows,gl,reactor_workshop,PASS,"PASS: Reactor Workshop capture, effect, isolation and resource checks"
+Windows,gl,scene_bloom,PASS,PASS: 19 scene bloom checks
+Windows,gl,scene_composite,PASS,PASS: 48 scene composite checks
+Windows,gl,scene_culling,PASS,PASS: 22 scene culling checks
+Windows,gl,scene_inspection,PASS,PASS: 16 scene inspection checks
+Windows,gl,scene_render,PASS,PASS: 54 scene rendering checks
+Windows,gl,scene_stages,PASS,PASS: 51 scene stage checks
+Windows,gl,scene_storage,PASS,PASS: 24 scene storage checks
+Windows,sdl,scene_bloom,PASS,PASS: 5 scene bloom checks
+Windows,sdl,scene_composite,PASS,PASS: 45 scene composite checks
+Windows,sdl,scene_culling,PASS,PASS: 22 scene culling checks
+Windows,sdl,scene_inspection,PASS,PASS: 16 scene inspection checks
+Windows,sdl,scene_render,PASS,PASS: 54 scene rendering checks
+Windows,sdl,scene_stages,PASS,PASS: 30 scene stage checks
+Windows,sdl,scene_storage,PASS,PASS: 24 scene storage checks
+Windows,sdlgpu,camera_world,PASS,"PASS: Camera World camera picking, fixed HUD, capture reuse, viewport and caller state"
+Windows,sdlgpu,reactor_workshop,PASS,"PASS: Reactor Workshop capture, effect, isolation and resource checks"
+Windows,sdlgpu,scene_bloom,PASS,PASS: 19 scene bloom checks
+Windows,sdlgpu,scene_composite,PASS,PASS: 48 scene composite checks
+Windows,sdlgpu,scene_culling,PASS,PASS: 22 scene culling checks
+Windows,sdlgpu,scene_inspection,PASS,PASS: 16 scene inspection checks
+Windows,sdlgpu,scene_render,PASS,PASS: 54 scene rendering checks
+Windows,sdlgpu,scene_stages,PASS,PASS: 53 scene stage checks
+Windows,sdlgpu,scene_storage,PASS,PASS: 24 scene storage checks
+Windows,sdlgpu,touch_playground,PASS,"PASS: Touch Playground affine drags, independent capture, cancellation and native ID mapping"
+Windows,sdlrender,touch_playground,PASS,"PASS: Touch Playground affine drags, independent capture, cancellation and native ID mapping"

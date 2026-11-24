@@ -1,6 +1,15 @@
 ' A padded atlas region belongs to the shared source, so edits through any
 ' subview (or the page itself) can refresh its border before the next upload.
 
+Private
+Type TImageSamplingFrame
+ Field image:TImage
+ Field source:TImageSource
+ Field version:Long
+ Field x:Int,y:Int,tx:Int,ty:Int,tw:Int,th:Int
+End Type
+Public
+
 Rem
 bbdoc: An atlas rectangle with extruded padding maintained by its shared image source.
 End Rem
@@ -355,6 +364,46 @@ Type TImage
 	End Rem
 	Field trims:TImageTrim[]
 
+ Private
+ Field samplingFrames:TImageSamplingFrame[]
+ Public
+ Rem
+ bbdoc: Backend integration: resolves a frame to full logical pixel storage for coordinate sampling.
+ about: Untrimmed frames return Self and preserve the frame index. Trimmed CPU-backed byte images retain one expanded image per requested frame and return index zero. The transparent margins, filtering flags and handle are preserved. Source pixel revisions refresh retained storage; unchanged draws allocate nothing. The extra CPU/GPU storage belongs to this image and is released with it. The returned image is borrowed and must not be modified. Unsupported CPU storage and locked images throw.
+ End Rem
+ Method SamplingImage:TImage(index:Int Var)
+  CheckIndex(index)
+  Local trim:TImageTrim=Trim(index)
+  If Not trim Then Return Self
+  Local source:TImageSource=sources[index]
+  If source.locked Then Throw "Max2D: cannot sample a locked trimmed image"
+  If source.renderTarget Then Throw "Max2D: trimmed sampling requires CPU image storage"
+  If Not samplingFrames Then samplingFrames=New TImageSamplingFrame[sources.Length]
+  Local entry:TImageSamplingFrame=samplingFrames[index]
+  If Not entry Then entry=New TImageSamplingFrame;samplingFrames[index]=entry
+  Local rebuild:Int=Not entry.image
+  If entry.image Then rebuild=entry.image.width<>width Or entry.image.height<>height Or entry.image.flags<>flags
+  Local refresh:Int=rebuild Or entry.source<>source Or entry.version<>source.version Or entry.x<>sourceX[index] Or entry.y<>sourceY[index] Or entry.tx<>trim.x Or entry.ty<>trim.y Or entry.tw<>trim.width Or entry.th<>trim.height
+  If refresh Then
+   Local pixels:TPixmap=Lock(index,True,False)
+   Try
+    If rebuild Then
+     entry.image=TImage.FromPixmap(pixels,flags,pixels.format)
+    Else
+     entry.image.ReplacePixels(pixels)
+    End If
+   Finally
+    Unlock(index)
+   End Try
+   entry.source=source;entry.version=source.version
+   entry.x=sourceX[index];entry.y=sourceY[index]
+   entry.tx=trim.x;entry.ty=trim.y;entry.tw=trim.width;entry.th=trim.height
+  End If
+  entry.image.handle_x=handle_x;entry.image.handle_y=handle_y
+  index=0
+  Return entry.image
+ End Method
+
 	Rem
 	bbdoc: Returns a frame's trim metadata, or Null when the full logical image is stored.
 	param: Zero-based index.
@@ -557,6 +606,11 @@ Type TImage
 		For Local source:TImageSource = EachIn sources
 			source.ReleaseFrames()
 		Next
+		If samplingFrames Then
+			For Local entry:TImageSamplingFrame=EachIn samplingFrames
+				If entry And entry.image Then entry.image.ReleaseFrames()
+			Next
+		End If
 	End Method
 
 	Rem

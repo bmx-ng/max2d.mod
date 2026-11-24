@@ -189,6 +189,17 @@ Type TMax2DState
 	End Rem
 	Method Copy:TMax2DState()
 		Local result:TMax2DState = New TMax2DState
+		CopyTo(result)
+		Return result
+	End Method
+
+	Rem
+	bbdoc: Copies drawing settings into an existing state object.
+	about: Reuses the destination camera when possible, without sharing mutable camera settings. The destination must not be Null. Copying to Self has no effect.
+	End Rem
+	Method CopyTo(result:TMax2DState)
+		If Not result Then Throw "Max2D: state destination is null"
+		If result=Self Then Return
 		result.red = red
 		result.green = green
 		result.blue = blue
@@ -218,14 +229,20 @@ Type TMax2DState
 		result.coordYY=coordYY
 		result.coordTX=coordTX
 		result.coordTY=coordTY
-		If camera Then result.camera=camera.Copy()
+		If camera Then
+			If Not result.camera Or result.camera=camera Then result.camera=New TCamera2D
+			result.camera.x=camera.x; result.camera.y=camera.y
+			result.camera.offsetX=camera.offsetX; result.camera.offsetY=camera.offsetY
+			result.camera.zoom=camera.zoom; result.camera.rotation=camera.rotation
+		Else
+			result.camera=Null
+		End If
 		result.cameraXX=cameraXX
 		result.cameraXY=cameraXY
 		result.cameraYX=cameraYX
 		result.cameraYY=cameraYY
 		result.cameraTX=cameraTX
 		result.cameraTY=cameraTY
-		Return result
 	End Method
 
 	' Compose the linear drawing matrix without allocating a captured transform.
@@ -350,9 +367,29 @@ Type TMax2DSavedState
 End Type
 
 Rem
-bbdoc: Reusable polygon vertices and triangle indices for filled drawing.
+bbdoc: Reusable polygon vertices and triangle indices, with optional texture coordinates.
 End Rem
 Type TMesh2D
+
+ Rem
+ bbdoc: Optional alternating normalized u and v coordinates, one pair per vertex.
+ about: Coordinates address the full logical image rectangle, from zero to one. Raw edits must preserve valid length and finite coordinates in range; invalidate scene consumers after edits.
+ End Rem
+ Field uv:Float[]
+
+ Rem
+ bbdoc: Copies normalized texture coordinates, or clears them with Null.
+ about: Requires one pair per vertex, with finite values in 0..1. Image handles do not affect mesh geometry. Atlas frames are mapped to their source rectangle when drawn.
+ End Rem
+ Method SetUV(values:Float[])
+  If values Then
+   If values.Length<>xy.Length Then Throw "Max2D: mesh UV count must match vertices"
+   For Local value:Float=EachIn values
+    If IsNan(value) Or IsInf(value) Or value<0 Or value>1 Then Throw "Max2D: mesh UV must be finite and within 0..1"
+   Next
+  End If
+  uv=values[..]
+ End Method
 
 	Rem
 	bbdoc: Alternating local x and y coordinates of mesh vertices.
@@ -365,11 +402,12 @@ Type TMesh2D
 	Field indices:Int[]
 
 	Rem
-	bbdoc: Copies vertices and validates supplied triangles, or triangulates a polygon.
+	bbdoc: Copies vertices and optional UVs, validates supplied triangles, or triangulates a polygon.
 	param: Alternating x and y vertex coordinates.
 	param: Triangle vertex indices, or Null to triangulate the polygon.
+	param: Optional normalized UV pairs, one per vertex.
 	End Rem
-	Function Create:TMesh2D(xy:Float[], indices:Int[] = Null)
+	Function Create:TMesh2D(xy:Float[], indices:Int[] = Null, uv:Float[] = Null)
 		If xy.Length < 6 Or (xy.Length & 1) Then Throw "Max2D: polygon requires at least three coordinate pairs"
 		If Not indices Then indices = TriangulatePoly(xy)
 		If indices.Length Mod 3 Then Throw "Max2D: indices must describe triangles"
@@ -379,6 +417,7 @@ Type TMesh2D
 		Local mesh:TMesh2D = New TMesh2D
 		mesh.xy = xy[..]
 		mesh.indices = indices[..]
+  mesh.SetUV(uv)
 		Return mesh
 	End Function
 
@@ -607,7 +646,19 @@ Type TMax2DGraphics Extends TGraphics
 	End Rem
 	Method PushState:TMax2DSavedState()
 		Local entry:TMax2DSavedState = New TMax2DSavedState
-		entry.state = state.Copy()
+		CaptureState(entry)
+		saved.AddLast(entry)
+		Return entry
+	End Method
+
+	Rem
+	bbdoc: Copies the current drawing state, font, target and view into a reusable snapshot.
+	about: Does not push onto the state stack or change the snapshot's active/scoped flags. Do not overwrite an entry that is still on a canvas stack. Snapshot state and camera storage are reused where possible.
+	End Rem
+	Method CaptureState(entry:TMax2DSavedState)
+		If Not entry Then Throw "Max2D: state snapshot is null"
+		If Not entry.state Or entry.state=state Then entry.state=New TMax2DState
+		state.CopyTo(entry.state)
 		entry.font = imageFont
 		entry.target = renderImage
 		Local view:TMax2DView = context.view
@@ -623,8 +674,6 @@ Type TMax2DGraphics Extends TGraphics
 		entry.barRed=view.barRed
 		entry.barGreen=view.barGreen
 		entry.barBlue=view.barBlue
-		saved.AddLast(entry)
-		Return entry
 	End Method
 
 	Rem
@@ -641,6 +690,7 @@ Type TMax2DGraphics Extends TGraphics
 
 	Rem
 	bbdoc: Restores a saved target, view, font and drawing state.
+	about: Installs the entry's state object as the live canvas state. CaptureState detaches this alias if the same snapshot is captured again.
 	param: Saved canvas state to restore.
 	End Rem
 	Method RestoreState(entry:TMax2DSavedState)
@@ -893,6 +943,27 @@ Type TMax2DGraphics Extends TGraphics
 			Next
 		Next
 	End Method
+
+ Rem
+ bbdoc: Draws a triangle mesh with a shared image and per-vertex normalized UVs.
+ about: Requires UVs matching the mesh vertices. Uses current blend, tint, alpha, transforms, viewport and drawing handle; the image handle is ignored. UVs address the full logical image from 0..1 and interpolate affinely within each triangle; no texture repeat is provided. Atlas frames map to their source rectangle with the same filtering rules as DrawImage. Trimmed CPU byte frames use image-owned expanded sampling storage; unsupported trimmed formats throw. Warm unchanged draws allocate no textures. Null mesh or image draws nothing. Raw mesh edits must retain valid indices, lengths and UV values.
+ End Rem
+ Method DrawTexturedMesh(mesh:TMesh2D,image:TImage,x:Float=0,y:Float=0,frame:Int=0)
+  If Not mesh Or Not image Then Return
+  If mesh.uv.Length<>mesh.xy.Length Then Throw "Max2D: textured mesh requires one UV pair per vertex"
+  image=image.SamplingImage(frame)
+  Local native:TImageFrame=image.Frame(frame,Self)
+  Local source:TImageSource=image.sources[frame]
+  Local u0:Float=Float(image.sourceX[frame])/source.width,v0:Float=Float(image.sourceY[frame])/source.height
+  Local us:Float=Float(image.width)/source.width,vs:Float=Float(image.height)/source.height
+  For Local triangle:Int=0 Until mesh.indices.Length Step 3
+   context.BeginTriangles(native,state.blend,3)
+   For Local corner:Int=0 Until 3
+    Local index:Int=mesh.indices[triangle+corner]*2
+    AddVertex(mesh.xy[index]-state.handleX,mesh.xy[index+1]-state.handleY,x+state.originX,y+state.originY,u0+mesh.uv[index]*us,v0+mesh.uv[index+1]*vs)
+   Next
+  Next
+ End Method
 
 	Rem
 	bbdoc: Draws a source image rectangle with explicit destination size and handle.

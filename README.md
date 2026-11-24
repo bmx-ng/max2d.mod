@@ -224,6 +224,16 @@ from the basic drawing API.
 
 | Module | Adds |
 | --- | --- |
+| `Max2D.Scene` | Optional node trees, transforms, rendering, interaction, culling and inspection. |
+| `Max2D.SceneTileMap` | Scene adapter for shared tilemaps, explicit animation clocks and capture invalidation; see [adapters](docs/scene/adapters.md). |
+| `Max2D.SceneParticles` | Fixed-capacity scene particle batches with automatic local bounds and lifetime fading. |
+| `Max2D.SceneAnimation` | Optional retained transform/opacity timelines; see [scene animation](docs/scene/animation.md). |
+| `Max2D.SceneEffects` | Scene composites, automatic caches, storage budgets and retained effect stages. |
+| `Max2D.Lighting` | Image lighting, receiver materials, occluders and capability-based grouped rendering. |
+| `Max2D.SceneLighting` | Scene light/occluder nodes, lit sprites and retained custom canvases; uses `Max2D.Lighting`. |
+| `Max2D.Profiling` | Optional asynchronous elapsed-GPU timing contract. |
+| `Max2D.GLProfiling` | OpenGL timer-query provider; see [GPU profiling](docs/gpu-profiling.md). |
+| `Max2D.D3DProfiling` | Optional Direct3D 9/11 timestamp-query provider, including unreliable-sample accounting. |
 | `Max2D.Effects` | Shared effect descriptions, layer operations, buffer owners, bloom and shadows; no shader provider. |
 | `Max2D.SDL3GPUEffects` / `Max2D.GLEffects` | Built-in and packaged effects for SDL GPU / OpenGL. |
 | `Max2D.D3D11Effects` / `Max2D.D3D9Effects` | Built-in and packaged image effects for the native Windows renderers; D3D9 effects require shader 3.0. |
@@ -315,6 +325,22 @@ Build examples from your SDK directory, for example:
 | [effects_quickstart.bmx](examples/effects_quickstart.bmx) | Direct effects, a retained chain and a cached shadow without assets. |
 | [gl_hello.bmx](examples/gl_hello.bmx) | OpenGL drawing with virtual and native coordinates. |
 | [sdl_gpu_hello.bmx](examples/sdl_gpu_hello.bmx) | The direct SDL GPU backend. |
+| [scene_alpha_masks.bmx](examples/scene_alpha_masks.bmx) | Soft local alpha masks, inverted cutouts, transformed clipping and optional CPU alpha picking. |
+| [scene_clipping.bmx](examples/scene_clipping.bmx) | Local rectangular clipping, rotated and nested panels, matching pointer picking and cached captures. |
+| [scene_composite.bmx](examples/scene_composite.bmx) | Cached subtree composition, flattened opacity, animated bloom, shared memory budgets, bounds overlays and live processing counters. |
+| [scene_shadows.bmx](examples/scene_shadows.bmx) | Cached outer and inner shadows with animated logical offsets. |
+| [scene_lit_canvas.bmx](examples/scene_lit_canvas.bmx) | Retained text, mesh and shape artwork with shared scene lighting and materials. |
+| [scene_stages.bmx](examples/scene_stages.bmx) | Explicit scene capture and retained effect stages. |
+| [scene_culling.bmx](examples/scene_culling.bmx) | Culling and render statistics across 2,500 grouped tiles. |
+| [scene_controls.bmx](examples/scene_controls.bmx) | Hover, keyboard focus, key routing and dragging. |
+| [scene_drag.bmx](examples/scene_drag.bmx) | Dragging through pointer event routing and capture. |
+| [scene_picking.bmx](examples/scene_picking.bmx) | Pointer picking through transformed, overlapping cards. |
+| [scene_bounds_order.bmx](examples/scene_bounds_order.bmx) | Cached subtree bounds and stable sibling draw ordering. |
+| [scene_material_maps.bmx](examples/scene_material_maps.bmx) | Separate emission/specular artwork on lit sprites and deforming meshes, with interactive toggles. |
+| [scene_lit_mesh.bmx](examples/scene_lit_mesh.bmx) | Animated textured geometry with normal/specular materials and a movable point light. |
+| [scene_textured_mesh.bmx](examples/scene_textured_mesh.bmx) | Retained textured grid with animated vertices and shared artwork. |
+| [scene_gallery.bmx](examples/scene_gallery.bmx) | Retained scene sprites, text, meshes, custom drawing and layer views. |
+| [scene_tree.bmx](examples/scene_tree.bmx) | Scene ownership, explicit updates and affine coordinates (console). |
 | [camera.bmx](examples/camera.bmx) | A moving, rotating view and minimap. |
 | [drawing_state.bmx](examples/drawing_state.bmx) | Nested transforms, clips and state restoration. |
 | [presentation.bmx](examples/presentation.bmx) | Letterboxing, integer scaling and mouse mapping. |
@@ -332,6 +358,62 @@ For more detail, read the [drawing guide](docs/drawing-guide.md), browse
 [topic guides](docs), or use the module's bbdoc API documentation. Maintainers can
 find regression commands in [stabilisation](docs/stabilisation.md) and performance
 measurements in [benchmarks](benchmarks/README.md).
+
+## Optional scene framework
+
+`Max2D.Scene` now provides reusable object trees, lifecycle callbacks, explicit
+updates and affine transforms without requiring a graphics context. Its optional
+render traversal draws sprites, text, meshes and custom geometry on the current
+Max2D target. Start with the [foundation guide](docs/scene/foundation.md) and
+[rendering guide](docs/scene/rendering.md), followed by [bounds and ordering](docs/scene/bounds-order.md),
+[coordinates and picking](docs/scene/picking.md), and
+[pointer routing and capture](docs/scene/pointer.md) and
+[hover and keyboard focus](docs/scene/interaction.md), then
+[culling and render diagnostics](docs/scene/culling.md). The optional
+[effect-stage module](docs/scene/stages.md) provides layouts and retained chains,
+with [composite nodes and automatic caches](docs/scene/composites.md), local
+rectangular clips and [alpha masks with optional picking](docs/scene/stages.md#local-alpha-masks).
+See the [design and behavioural specification](docs/scene/design.md),
+[API outline](docs/scene/api.md) and [worked examples](docs/scene/examples.md).
+The [development sequence](docs/scene/design.md#development-sequence) separates
+remaining work from implemented capabilities.
+The [November capability review](docs/scene/design.md#capability-review--24-november-2026-after-shared-source-preparation)
+summarises scenes, effects and lighting, their current capabilities and measured limits.
+
+For a complete scene-framework application, see the
+[Reactor Workshop](demos/reactor_workshop/README.md), including a reusable component,
+interactive controls and capture/resource checks. The
+[Touch Playground](demos/touch_playground/README.md) adds simultaneous dragging,
+native SDL3 input conversion and cancellation experiments.
+[Camera World](demos/camera_world/README.md) completes the set with camera-aware
+picking, a fixed HUD and ordinary drawing alongside the scene. See also the
+[scene performance measurements](docs/scene/performance.md) for reproducible
+warmed allocation and rendering benchmarks, and [platform validation](docs/scene/validation.md)
+for correctness checks and known toolchain limitations.
+
+## Lighting
+
+[The lighting guide](docs/lighting.md) covers ambient, coloured point and directional lights,
+scene light nodes, textured point lights, selective receivers, normal-mapped and specular materials (including per-pixel gloss), light height,
+unlit HUDs, and optional cached composition. [Light Lab](demos/light_lab/README.md) is a complete interactive
+example. Convex and concave occluders add hard or filtered point and directional shadows with independent caster
+masks, finite caster heights and receiver control. Reusable [lighting diagnostics](docs/lighting.md#profiling-lighting-work)
+and a [stress benchmark](benchmarks/README.md#lighting) expose pass counts, shadow reuse and retained storage.
+Optional [grouped lighting](docs/lighting.md#grouped-lighting) combines up to sixteen
+lights per pass, including normal/specular materials, projected patterns and
+shadow maps up to 512×512. The first eligible group also composes ambient,
+saving one draw per eligible receiver, including single-light receivers. Emission
+maps can join that group alongside shadows and patterns where the four-texture
+material shader is supported. Separate specular maps use a fifth sampler where
+supported, avoiding CPU normal-alpha packing while retaining the packed fallback. Native D3D9
+retains eight-light groups; other backends fall back when the larger shader is unavailable.
+Batching also combines non-overlapping deformed meshes into one draw per light
+group, preserving per-triangle normal mapping and ordered fallback for unsupported
+cases. See [mesh lighting](docs/lighting.md#direct-textured-mesh-receivers).
+Backend authors can use the optional [lighting renderer contract](docs/lighting-renderers.md)
+to supply grouped lighting independently of image-effect texture and parameter limits.
+Distance-dependent penumbras remain a planned extension.
+
 
 ## Licence
 

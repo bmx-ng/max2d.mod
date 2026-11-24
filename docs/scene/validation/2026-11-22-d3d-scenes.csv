@@ -1,0 +1,19 @@
+platform,profile,test,status,summary
+Windows,d3d9,scene_render,PASS,PASS: 54 scene rendering checks
+Windows,d3d9,scene_culling,PASS,PASS: 22 scene culling checks
+Windows,d3d9,scene_composite,PASS,PASS: 47 scene composite checks
+Windows,d3d9,scene_stages,PASS,PASS: 51 scene stage checks
+Windows,d3d9,scene_bloom,PASS,PASS: 19 scene bloom checks
+Windows,d3d9,scene_storage,PASS,PASS: 24 scene storage checks
+Windows,d3d9,scene_inspection,PASS,PASS: 16 scene inspection checks
+Windows,d3d9,scene_shadows,PASS,PASS: 39 scene shadow checks
+Windows,d3d9,scene_adapters_render,PASS,PASS: scene adapter rendering 8 checks
+Windows,d3d11,scene_render,PASS,PASS: 54 scene rendering checks
+Windows,d3d11,scene_culling,PASS,PASS: 22 scene culling checks
+Windows,d3d11,scene_composite,PASS,PASS: 47 scene composite checks
+Windows,d3d11,scene_stages,PASS,PASS: 51 scene stage checks
+Windows,d3d11,scene_bloom,PASS,PASS: 19 scene bloom checks
+Windows,d3d11,scene_storage,PASS,PASS: 24 scene storage checks
+Windows,d3d11,scene_inspection,PASS,PASS: 16 scene inspection checks
+Windows,d3d11,scene_shadows,PASS,PASS: 39 scene shadow checks
+Windows,d3d11,scene_adapters_render,PASS,PASS: scene adapter rendering 8 checks

@@ -203,12 +203,13 @@ RandR monitor bounds, and checks that the original sizing hints return on exit.
 
 ## Shader packages and effect parity
 
-Import `Max2D.GLEffects` for ABI 1–4 packages with desktop GLSL assets, including
+Import `Max2D.GLEffects` for ABI 1–5 packages with desktop GLSL assets, including
 `CreateColorMatrixEffect`, `CreateDistortionEffect` and `CreateGradedDistortionEffect`. The shared `Max2D.ShaderEffects` module owns package
 schemas and parameters. Contexts cache compiled programs by package identity;
 closing a context releases them. Existing packages need regeneration/embedding
 to include the GLSL 1.20 asset. Two-texture packages include displacement,
-dissolve, texture masks and transformed/shared maps.
+dissolve, texture masks and transformed/shared maps. ABI 5 also supports three
+images in a single pass, including textured normal/specular lighting.
 
 Build `examples/color_matrix.bmx` with `-ud max2d_gl` for the interactive
 original/contrast/sepia comparison. `examples/coordinate_effects.bmx` and

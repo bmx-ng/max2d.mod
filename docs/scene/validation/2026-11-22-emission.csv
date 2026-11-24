@@ -1,0 +1,6 @@
+platform,profile,test,status,summary
+macOS,sdlgpu,lighting_emission,PASS,PASS: 1049 emission checks
+macOS,gl,lighting_emission,PASS,PASS: 1049 emission checks
+macOS,sdlgpu,scene_lighting,PASS,PASS: 1050 lighting checks
+macOS,gl,scene_lighting,PASS,PASS: 1050 lighting checks
+macOS,sdlgpu,light_lab,PASS,PASS: light lab example

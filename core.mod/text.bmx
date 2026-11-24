@@ -237,13 +237,19 @@ Type TImageFont
 
 	Rem
 	bbdoc: Retained layouts indexed by source text.
+	about: Inspect only; font implementations should use FindCachedLayout and CacheLayout to maintain eviction bookkeeping.
 	End Rem
 	Field layouts:TMap = New TMap
 
 	Rem
-	bbdoc: Order used to evict entries from the text-layout cache.
+	bbdoc: Order used to evict entries from the text-layout cache, least recently used first.
+	about: Inspect only; use ClearLayoutCache and SetLayoutCacheLimit to manage the cache.
 	End Rem
 	Field layoutKeys:TList = New TList
+
+	Private
+	Field layoutLinks:TMap = New TMap
+	Public
 
 	Rem
 	bbdoc: Shared texture atlas containing artwork or glyph images.
@@ -408,15 +414,60 @@ Type TImageFont
 	End Method
 
 	Rem
+	bbdoc: Returns a cached layout and marks it most recently used, or Null on a cache miss.
+	param: Source text identifying the cached layout.
+	about: For font implementations. Warm cache hits reuse list entries without allocating or scanning the eviction list.
+	End Rem
+	Method FindCachedLayout:TTextLayout(text:String)
+		Local result:TTextLayout=TTextLayout(layouts.ValueForKey(text))
+		If Not result Then Return Null
+		Local link:TLink=TLink(layoutLinks.ValueForKey(text))
+		If Not link Or Not link.Value() Then
+			' Accommodate entries inserted by older derived font implementations.
+			link=layoutKeys.FindLink(text)
+			If Not link Then link=layoutKeys.AddLast(text)
+			layoutLinks.Insert(text,link)
+		End If
+		Local tail:TLink=layoutKeys.LastLink()
+		If link<>tail Then
+			' Relink within this list without Remove(), which clears the value.
+			' Neither membership nor TList's cached count changes.
+			link._pred._succ=link._succ
+			link._succ._pred=link._pred
+			link._pred=tail; link._succ=tail._succ
+			tail._succ._pred=link; tail._succ=link
+		End If
+		Return result
+	End Method
+
+	Rem
+	bbdoc: Retains a completed layout under its source text, respecting the cache limit.
+	param: Source text identifying the layout.
+	param: Completed non-Null layout to retain.
+	about: For font implementations. Replacing an entry marks it most recently used. Zero cache capacity retains nothing. Eviction does not invalidate layouts held by callers. Does not increment layoutBuilds.
+	End Rem
+	Method CacheLayout(text:String,layout:TTextLayout)
+		If Not layout Then Throw "Max2D: cached layout is null"
+		If layoutCacheLimit<=0 Then Return
+		If FindCachedLayout(text) Then
+			layouts.Insert(text,layout)
+			Return
+		End If
+		While layoutKeys.Count()>=layoutCacheLimit
+			Local oldest:String=String(layoutKeys.RemoveFirst())
+			layouts.Remove(oldest); layoutLinks.Remove(oldest)
+		Wend
+		layoutLinks.Insert(text,layoutKeys.AddLast(text))
+		layouts.Insert(text,layout)
+	End Method
+
+	Rem
 	bbdoc: Shapes and positions text, reusing the font's layout cache when possible.
 	param: Text to lay out, measure or draw.
 	End Rem
 	Method Layout:TTextLayout(text:String)
-		Local cached:TTextLayout = TTextLayout(layouts.ValueForKey(text))
-		If cached Then
-			layoutKeys.Remove(text); layoutKeys.AddLast(text)
-			Return cached
-		End If
+		Local cached:TTextLayout = FindCachedLayout(text)
+		If cached Then Return cached
 		Local result:TTextLayout = New TTextLayout
 		Local positioned:TList = New TList
 		Local lines:String[] = text.Replace("~t","    ").Split("~n")
@@ -474,12 +525,7 @@ Type TImageFont
 			result.glyphs[index] = item; index :+ 1
 		Next
 		result.CalculateBounds()
-		If layoutCacheLimit>0 Then
-			While layoutKeys.Count()>=layoutCacheLimit
-				layouts.Remove(String(layoutKeys.RemoveFirst()))
-			Wend
-			layoutKeys.AddLast(text); layouts.Insert(text,result)
-		End If
+		CacheLayout(text,result)
 		layoutBuilds :+ 1
 		Return result
 	End Method
@@ -492,7 +538,8 @@ Type TImageFont
 		If limit<0 Then Throw "Max2D: layout cache limit cannot be negative"
 		layoutCacheLimit=limit
 		While layoutKeys.Count()>limit
-			layouts.Remove(String(layoutKeys.RemoveFirst()))
+			Local oldest:String=String(layoutKeys.RemoveFirst())
+			layouts.Remove(oldest); layoutLinks.Remove(oldest)
 		Wend
 	End Method
 
@@ -500,7 +547,7 @@ Type TImageFont
 	bbdoc: Discards cached text layouts without discarding glyph images.
 	End Rem
 	Method ClearLayoutCache()
-		layouts.Clear(); layoutKeys.Clear()
+		layouts.Clear(); layoutKeys.Clear(); layoutLinks.Clear()
 	End Method
 
 	Rem

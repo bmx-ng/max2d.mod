@@ -1,5 +1,6 @@
 /* Native SDL GPU command recording. zlib/libpng licence. */
 #include <SDL3/SDL.h>
+#include <max2d.mod/shadereffects.mod/package.h>
 #include <max2d.mod/core.mod/blend.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,14 +43,15 @@ typedef struct {
 struct GPUContext {
 	SDL_GPUDevice *device;
 	SDL_Window *window;
-	GPUFrame *backbuffer,*white,*effectTexture;
+	GPUFrame *backbuffer,*white,*effectTextures[4];
 	SDL_GPUShader *vertex,*fragment,*compactVertex;
 	SDL_GPUGraphicsPipeline *pipelines[4][6];
 	SDL_GPUGraphicsPipeline *compactPipelines[4][6];
 	SDL_GPUSampler *samplers[2][32];
 	GPUBlendPipeline *customBlends;
 	GPUImageEffect *imageEffects,*selectedEffect;
-	float effectParameters[40];
+ /* Native sixteen-light groups use 109 vectors; public package limits are unchanged. */
+	float effectParameters[M2D_NATIVE_PARAMETER_SLOTS*4];
 	unsigned char *effectData;
 	size_t effectDataCount,effectDataCapacity;
 	SDL_GPUBuffer *vertices;
@@ -102,6 +104,8 @@ int m2d_gpu_target_support(GPUContext *c,int kind) {
 	return (kind==0 || kind==2 || kind==3) && m2d_gpu_support(c,kind,1) && ensure_pipelines(c,kind);
 }
 static GPUFrame *create_frame(GPUContext *c,int w,int h,int target,int kind,int filtered,int automatic,int levels) {
+	/* SDL GPU uses a portable 16384 limit for two-dimensional textures. */
+	if(w<=0 || h<=0 || w>16384 || h>16384) { fail("Texture dimensions exceed SDL GPU limits"); return NULL; }
 	if(target && !m2d_gpu_target_support(c,kind)) return NULL;
 	if(automatic) {
 		levels=1;
@@ -349,7 +353,7 @@ static SDL_GPUGraphicsPipeline *blend_pipeline(GPUContext *c,int kind,int compac
 void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info) {
 	for(GPUImageEffect *effect=c->imageEffects;effect;effect=effect->next)
 		if(strcmp(effect->key,key)==0) return effect;
-	if(info->stage!=SDL_GPU_SHADERSTAGE_FRAGMENT || (info->num_samplers!=1 && info->num_samplers!=2) ||
+	if(info->stage!=SDL_GPU_SHADERSTAGE_FRAGMENT || (info->num_samplers<1 || info->num_samplers>5) ||
 		info->num_uniform_buffers!=2 || info->num_storage_buffers || info->num_storage_textures) {
 		fail("Invalid image effect shader layout");
 		return NULL;
@@ -370,26 +374,38 @@ void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCrea
 }
 /* Packages use bounded float4 slots; built-ins retain 16-byte uniforms. */
 void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
-	if(bytes<16 || bytes>160 || bytes%16) { fail("Invalid effect parameter size"); return NULL; }
+	if(bytes<16 || bytes>M2D_NATIVE_PARAMETER_SLOTS*16 || bytes%16 || bytes<(int)(info->num_samplers-1)*16) { fail("Invalid effect parameter size"); return NULL; }
 	GPUImageEffect *effect=m2d_gpu_image_effect(c,key,info);
 	if(effect) effect->parameterBytes=(Uint32)bytes;
 	return effect;
 }
 void m2d_gpu_select_package_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters) {
 	c->selectedEffect=effect;
-	c->effectTexture=NULL;
+	memset(c->effectTextures,0,sizeof(c->effectTextures));
 	if(effect) memcpy(c->effectParameters,parameters,effect->parameterBytes);
 }
-/* Two-texture packages snapshot their binding beside the large uniform block. */
-int m2d_gpu_select_texture_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters,GPUFrame *texture) {
-	if(!effect || effect->owner!=c || effect->samplers!=2 || effect->parameterBytes<96 || !texture || texture->owner!=c)
-		return fail("Invalid second effect texture");
-	m2d_gpu_select_package_effect(c,effect,parameters);
-	c->effectTexture=texture;
-	int slot=effect->parameterBytes/4-4;
-	c->effectParameters[slot]=(float)texture->coverage;
-	c->effectParameters[slot+1]=(float)(texture->target || (texture->automatic && !texture->coverage));
-	return 1;
+/* Copy bindings and their sampling modes only after validating the whole set. */
+int m2d_gpu_select_texture_set(GPUContext *c,GPUImageEffect *effect,const float *parameters,GPUFrame **textures,int count) {
+    if(!effect || effect->owner!=c || !parameters || count<0 || count>4 ||
+       count!=effect->samplers-1 || effect->parameterBytes<(Uint32)count*16)
+        return fail("Texture count does not match native shader");
+    for(int i=0;i<count;i++) if(!textures[i] || textures[i]->owner!=c)
+        return fail("Invalid native effect texture");
+    m2d_gpu_select_package_effect(c,effect,parameters);
+    for(int i=0;i<count;i++) {
+        GPUFrame *texture=textures[i];
+        c->effectTextures[i]=texture;
+        int slot=effect->parameterBytes/4-(count-i)*4;
+        c->effectParameters[slot]=(float)texture->coverage;
+        c->effectParameters[slot+1]=(float)(texture->target || (texture->automatic && !texture->coverage));
+    }
+    return 1;
+}
+int m2d_gpu_select_texture_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters,GPUFrame *texture,GPUFrame *third) {
+    if(!effect || (effect->samplers!=2 && effect->samplers!=3) || effect->parameterBytes<96)
+        return fail("Invalid texture effect layout");
+    GPUFrame *textures[]={texture,third};
+    return m2d_gpu_select_texture_set(c,effect,parameters,textures,effect->samplers-1);
 }
 static SDL_GPUGraphicsPipeline *image_effect_pipeline(GPUContext *c,GPUImageEffect *effect,int kind,int compact,int blend) {
 	if(!effect || effect->owner!=c) { fail("Invalid image effect owner"); return NULL; }
@@ -411,7 +427,7 @@ int m2d_gpu_image_effect_support(GPUContext *c,GPUImageEffect *effect,GPUFrame *
 }
 void m2d_gpu_select_image_effect(GPUContext *c,GPUImageEffect *effect,float p0,float p1,float p2,float p3) {
 	c->selectedEffect=effect;
-	c->effectTexture=NULL;
+	memset(c->effectTextures,0,sizeof(c->effectTextures));
 	c->effectParameters[0]=p0;
 	c->effectParameters[1]=p1;
 	c->effectParameters[2]=p2;
@@ -534,10 +550,11 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 	return 1;
 }
 static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
-	if(c->selectedEffect && c->selectedEffect->samplers==2) {
-		if(!c->effectTexture || c->effectTexture->owner!=c) return fail("Missing second effect texture");
-		if(c->effectTexture==target) return fail("Effect texture cannot be the active render target");
-	}
+    if(c->selectedEffect) for(int i=0;i<c->selectedEffect->samplers-1;i++) {
+        GPUFrame *texture=c->effectTextures[i];
+        if(!texture || texture->owner!=c || texture==target)
+            return fail("Invalid effect texture or target feedback");
+    }
 	if(!c->clip.w || !c->clip.h) return 1;
 	if(count<0 || count>262144) return fail("Vertex batch is too large");
 	SDL_GPUGraphicsPipeline *pipeline=c->selectedEffect?
@@ -566,8 +583,8 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 		c->vertexCapacity=capacity;
 	}
 	/* Large package uniforms share a retained arena; ordinary draw records do not grow. */
-	if(c->selectedEffect && c->selectedEffect->parameterBytes>16) {
-		size_t needed=c->effectDataCount+c->selectedEffect->parameterBytes+(c->selectedEffect->samplers==2?16:0);
+	if(c->selectedEffect && (c->selectedEffect->parameterBytes>16 || c->selectedEffect->samplers>1)) {
+		size_t needed=c->effectDataCount+c->selectedEffect->parameterBytes+(c->selectedEffect->samplers-1)*sizeof(GPUFrame *);
 		if(needed>c->effectDataCapacity) {
 			size_t capacity=c->effectDataCapacity?c->effectDataCapacity*2:4096;
 			if(capacity<needed) capacity=needed;
@@ -584,15 +601,14 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	draw->pipeline=pipeline;
 	draw->effect=c->selectedEffect;
 	if(draw->effect) {
-		if(draw->effect->parameterBytes<=16) memcpy(draw->effectParameters.small,c->effectParameters,16);
+		if(draw->effect->parameterBytes<=16 && draw->effect->samplers==1) memcpy(draw->effectParameters.small,c->effectParameters,16);
 		else {
 			draw->effectParameters.offset=c->effectDataCount;
 			memcpy(c->effectData+c->effectDataCount,c->effectParameters,draw->effect->parameterBytes);
 			c->effectDataCount+=draw->effect->parameterBytes;
-			if(draw->effect->samplers==2) {
-				memcpy(c->effectData+c->effectDataCount,&c->effectTexture,sizeof(c->effectTexture));
-				c->effectDataCount+=16;
-			}
+            size_t textureBytes=(draw->effect->samplers-1)*sizeof(GPUFrame *);
+            memcpy(c->effectData+c->effectDataCount,c->effectTextures,textureBytes);
+            c->effectDataCount+=textureBytes;
 		}
 	}
 	draw->compact=compact;
@@ -699,7 +715,7 @@ static int flush(GPUContext *c) {
 		float mode[4]={(float)image->coverage,(float)(image->target || (image->automatic && !image->coverage)),draw->blend==1,draw->blend==3 || draw->blend==4 || (draw->destination && draw->blend<=2)};
 		SDL_PushGPUVertexUniformData(cmd,0,draw->transform,sizeof(draw->transform));
 		SDL_PushGPUFragmentUniformData(cmd,0,mode,sizeof(mode));
-		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,draw->effect->parameterBytes<=16?(void *)draw->effectParameters.small:(void *)(c->effectData+draw->effectParameters.offset),draw->effect->parameterBytes);
+		if(draw->effect) SDL_PushGPUFragmentUniformData(cmd,1,(draw->effect->parameterBytes<=16 && draw->effect->samplers==1)?(void *)draw->effectParameters.small:(void *)(c->effectData+draw->effectParameters.offset),draw->effect->parameterBytes);
 		SDL_BindGPUGraphicsPipeline(pass,draw->pipeline);
 		SDL_SetGPUScissor(pass,&draw->clip);
 		SDL_GPUBufferBinding buffer={c->vertices,0};
@@ -707,12 +723,16 @@ static int flush(GPUContext *c) {
 		else SDL_BindGPUVertexBuffers(pass,0,&buffer,1);
 		SDL_GPUTextureSamplerBinding sampler={image->texture,image->sampler};
 		SDL_BindGPUFragmentSamplers(pass,0,&sampler,1);
-		if(draw->effect && draw->effect->samplers==2) {
-			GPUFrame *texture;
-			memcpy(&texture,c->effectData+draw->effectParameters.offset+draw->effect->parameterBytes,sizeof(texture));
-			SDL_GPUTextureSamplerBinding second={texture->texture,texture->sampler};
-			SDL_BindGPUFragmentSamplers(pass,1,&second,1);
-		}
+        if(draw->effect && draw->effect->samplers>=2) {
+            SDL_GPUTextureSamplerBinding bindings[4];
+            int count=draw->effect->samplers-1;
+            for(int i=0;i<count;i++) {
+                GPUFrame *texture;
+                memcpy(&texture,c->effectData+draw->effectParameters.offset+draw->effect->parameterBytes+i*sizeof(texture),sizeof(texture));
+                bindings[i]=(SDL_GPUTextureSamplerBinding){texture->texture,texture->sampler};
+            }
+            SDL_BindGPUFragmentSamplers(pass,1,bindings,count);
+        }
 		SDL_DrawGPUPrimitives(pass,draw->compact?draw->count*3:draw->count,1,draw->compact?draw->first*3:draw->first,0);
 	}
 	if(pass) SDL_EndGPURenderPass(pass);

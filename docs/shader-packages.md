@@ -2,13 +2,14 @@
 
 Import `Max2D.SDL3GPUEffects` to use shader packages on SDL GPU, or
 `Max2D.GLEffects` for OpenGL, `Max2D.D3D9Effects` for native Direct3D9 or
-`Max2D.D3D11Effects` for native Direct3D11. All support ABI 1–4 and import the shared
+`Max2D.D3D11Effects` for native Direct3D11. All support ABI 1–5 and import the shared
 `Max2D.ShaderEffects` API; existing SDL imports and package factories remain valid.
 ABI 1 transforms sampled colour; ABI 2 transforms image-local texture
 coordinates before sampling; ABI 3 also samples a second image; ABI 4 adds
-independent transforms for that image. Existing ABI 1–3 packages remain compatible. Arbitrary resource layouts remain outside
+independent transforms for that image; ABI 5 adds a third independently sampled
+image. Existing ABI 1–4 packages remain compatible. Arbitrary resource layouts remain outside
 these contracts.
-Software SDL reports packages unsupported. OpenGL supports ABI 1–4 packages with desktop GLSL assets. Always query `Max2DSupportsImageEffect` before use.
+Software SDL reports packages unsupported. OpenGL supports ABI 1–5 packages with desktop GLSL assets. Always query `Max2DSupportsImageEffect` before use.
 
 The snippets below assume an open graphics context and existing source/map images.
 Start with [Applying effects](effects-quickstart.md) for a complete program.
@@ -85,9 +86,13 @@ Render-image filtering operates on stored premultiplied colour. Ordinary
 straight-colour textures retain their existing interpolation convention.
 
 Distortion only changes sampling within the drawn quad; it does not expand
-geometry or layer padding. Trimmed sprites are rejected explicitly because
-removed pixels cannot be recovered by coordinate sampling. Draw them into an
-untrimmed transparent render-image layer first. A coordinate package can also apply a colour body in the same draw, as described below.
+geometry or layer padding. Trimmed CPU-backed byte sprites use their full logical
+quad and a retained sampling image with transparent black margins. RGB data
+discarded by trimming cannot be reconstructed. Each requested
+frame costs an additional full-size CPU image and GPU texture; unchanged draws
+reuse them, and atlas pixel edits refresh the pixels. Ordinary draws retain their
+compact atlas geometry. Compressed, floating-point and render-target storage
+with manually assigned trim metadata is unsupported. A coordinate package can also apply a colour body in the same draw, as described below.
 No new work is added to ordinary draws or the native renderer's draw records.
 
 ## Combined distortion and colour
@@ -95,8 +100,14 @@ No new work is added to ordinary draws or the native renderer's draw records.
 ABI 2–4 manifests may add `colourBodies`, an object with equivalent `metal`,
 `glsl` and `hlsl` function bodies returning a four-component colour. These receive
 `c` (straight RGBA) and the same named parameters as the coordinate body.
-The two functions share the package parameter slots (six for ABI 2, three for ABI 3/4). See
+The two functions share the package parameter slots (six for ABI 2, five for ABI 3, three for ABI 4). See
 `tests/data/combined/manifest.json` for a minimal example.
+
+A coordinate manifest may opt into `"colourUV": true` alongside `colourBodies`.
+This supplies the original normalized image-local `uv` to the colour body,
+before the coordinate body's distortion. It enables procedural colour or
+lighting calculations without a texture-coordinate encoding image. Existing
+manifests and compiled package ABIs are unchanged. See the `pointlight` package.
 
 The order is coordinate transformation, bounded sampling, source alpha
 interpretation, drawing tint, colour body, alpha clamp, mask discard and output
@@ -148,13 +159,13 @@ images produce white RGB and coverage alpha. Use an RGBA map for red-channel dat
 `SetTexture` retains the image; queued draws snapshot the binding and parameters.
 It does not copy the texture's pixels. Normal texture updates flush prior draws
 before changing pixels. Passing Null clears the binding; subsequent drawing throws.
-Trimmed maps and sampling the current render target are rejected. Render-image
-maps must belong to the current graphics context. Use an untrimmed layer when
-starting from trimmed artwork.
+Trimmed byte maps use the same retained expansion as source artwork. Sampling
+the current render target is rejected. Render-image maps must belong to the
+current graphics context.
 
-ABI 3 provides one to three typed user slots and five reserved slots: source bounds,
+ABI 3 provides one to five typed user slots and five reserved slots: source bounds,
 source sampling, map bounds, map sampling and map alpha interpretation. Total
-uniform data remains at most 128 bytes. The texture binding is stored alongside
+uniform data is at most 160 bytes. The texture binding is stored alongside
 queued uniforms; ordinary draw records remain unchanged in size.
 
 ### Positioning the map
@@ -162,7 +173,8 @@ queued uniforms; ordinary draw records remain unchanged in size.
 The built-in displacement, dissolve and texture-mask factories now create ABI 4
 packages. They start with an identity map transform, so existing calls behave as
 before. Custom packages opt in with `"abi": 4` and regenerated/compiled assets.
-Original ABI 3 binaries remain usable with their original layout; attempting to
+ABI 3 now permits up to five user slots within the existing 160-byte storage
+capacity. Original ABI 3 binaries remain usable with their original layout; attempting to
 set a transform on them throws rather than silently ignoring it.
 
 ```blitzmax
@@ -325,10 +337,10 @@ mask for complementary normal and inverted reveals. Press M to preview the map.
 `TMax2DShaderPackage.Create(name,names,types,metal,spirv,dxbc,abiVersion=1,glsl=Null,d3d11=Null,d3d9=Null)`
 copies the schema and shader bytes. Names must be unique identifiers. Declare
 one to eight `MAX2D_PARAMETER_FLOAT` or `MAX2D_PARAMETER_FLOAT4` parameters
-for ABI 1, one to six for ABI 2, or one to three for ABI 3/4.
+for ABI 1, one to six for ABI 2, one to five for ABI 3, one to three for ABI 4, or one to eight for ABI 5.
 Each occupies one 16-byte slot, including scalars; including reserved slots,
 total uniforms are at most
-128 bytes for ABI 1–3 or 160 bytes for ABI 4. At least one platform asset is required, each at most 4 MiB.
+128 bytes for ABI 1/2, 160 bytes for ABI 3/4, or 256 bytes for ABI 5. At least one platform asset is required, each at most 4 MiB.
 
 `CreateShaderEffect(package)` creates reusable, initially zero parameters.
 Use `SetFloat(name,value)` and `SetFloat4(name,x,y,z,w)`. Unknown names, type
@@ -352,7 +364,7 @@ The tools live in `sdl3gpueffects.mod/packages`. Start from the checked-in
 A manifest has `abi`, `name`, `factory`, `parameters` and `bodies` fields.
 Each parameter has `name` and `type` (`float` or `float4`). Supply equivalent
 trusted function bodies for `metal`, `glsl` and `hlsl`; each returns a
-four-component colour for ABI 1 or two-component coordinates for ABI 2–4.
+four-component colour for ABI 1 or two-component coordinates for ABI 2–5.
 In ABI 1, `c` is tinted straight RGBA; in ABI 2, `uv` is image-local. Named parameters are
 available as local values. This is not an automatic shader-language translator.
 
@@ -395,16 +407,16 @@ SPIR-V, DXBC, BMX wrapper and `_assets.c` together in version control. C arrays
 embed the assets without runtime file access. No build-time shader compiler is
 linked into the application. Metal source is compiled by the system on use.
 
-ABI 1–4 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
+ABI 1–5 generation also writes `.glsl`: a GLSL 1.20 wrapper using the manifest
 `glsl` body, distinct from the Vulkan `.frag` source. The embedder includes it
 as asset 3; OpenGL compiles it on first use. It uses sampler `image`, the Max2D
 mode uniforms and a `vec4 p[]` parameter array. Keep shader bodies compatible
-with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1–4
+with GLSL 1.20 when targeting OpenGL. Regenerate and embed existing ABI 1–5
 packages to add OpenGL support; their Metal/SPIR-V/DXBC assets need no changes.
 
 Direct callers may pass desktop GLSL bytes after the ABI version in
 `TMax2DShaderPackage.Create(..., abiVersion, glsl)`. Existing calls remain valid.
-A GLSL-only ABI 1–4 package is allowed; missing renderer assets report unsupported.
+A GLSL-only ABI 1–5 package is allowed; missing renderer assets report unsupported.
 The shared module owns immutable assets and typed values, while each renderer
 registers its own adapter and owns compiled resources per context.
 `examples/color_matrix.bmx`, `examples/coordinate_effects.bmx` and
@@ -434,7 +446,7 @@ SDL GPU versions use image/sampler 0 and two uniform buffers: Max2D mode
 flags at 0, parameter float4 slots at 1. Vulkan uses image set 2 and uniform
 set 3; HLSL uses t0/s0 space2 and b0/b1 space3, shader model 5.1. Metal uses
 `m2dEffectMain`, Vulkan `main`, and HLSL `m2dEffectMain`. ABI 3/4 adds image/sampler
-1 in the same resource spaces.
+1 in the same resource spaces; ABI 5 also adds image/sampler 2.
 
 ## Native Direct3D assets
 
@@ -452,8 +464,9 @@ trailing byte arrays; existing calls remain valid. A package may omit any backen
 asset, in which case that backend reports it unsupported. SDL DXBC uses its own
 binding contract and cannot be substituted for the native D3D11 asset.
 
-D3D11 binds modes at pixel buffer b0, parameters at b1, and source/map at t0/t1.
-D3D9 binds modes at c0, parameter slots at c1–c10, allocation scales at c11/c12,
+D3D11 binds modes at pixel buffer b0, parameters at b1, and source/map at t0/t1
+(with the third image at t2 for ABI 5).
+For ABI 1–4, D3D9 binds modes at c0, parameter slots at c1–c10, allocation scales at c11/c12,
 and source filtering information at c13. Generated D3D9 shaders receive float tint
 through TEXCOORD1, logical image UV through TEXCOORD0, and screen coordinates
 through TEXCOORD2 for pixel-centre interpolation correction. Keep these wrapper
@@ -528,3 +541,108 @@ rejects the GPU package explicitly.
 
 See [the interactive comparison](../examples/threshold_masks.bmx): Space pauses,
 I inverts, and Up/Down adjusts the transition width.
+
+## Three-texture packages (ABI 5)
+
+ABI 5 adds a third independently sampled image while retaining the existing
+source and second-image rules. Use it when a single pass needs artwork and two
+maps, such as a normal map and a projected light pattern. Existing ABI 1–4
+layouts and generated assets are unchanged.
+
+Bind the second image with `SetTexture(image,frame)` and the third with
+`SetThirdTexture(image,frame)`. Both bindings are required; passing Null clears a
+binding and subsequent drawing throws. `SetThirdTextureEdgeMode` accepts the
+same transparent, clamp and repeat modes as the second texture. Trimmed byte frames retain expanded sampling storage. Atlas bounds, filtering, render-image orientation and alpha decoding
+are independent for all three images. Sampling the active destination throws.
+Bindings and parameter values are captured for each draw.
+
+An ABI 5 manifest requires `bodies`, `colourBodies`, `colourUV` and
+`thirdBodies`, each body object containing Metal, GLSL and HLSL strings.
+`thirdBodies` receives source-local `uv` and the declared parameters and returns
+third-image normalized coordinates. It runs before either user effect function.
+The second image uses source-local UVs by default. Optional `secondBodies`
+(Metal/GLSL/HLSL strings, ABI 5 only) receives the same `uv` and user parameters
+and returns second-image normalized coordinates. It uses the existing bounded
+sampler and alpha decoding, without changing the ABI or uniform layout.
+Both `bodies` and `colourBodies` receive
+`m` (second sample) and `t` (third sample); `colourBodies` also receives source
+`c`, and `uv` when `colourUV` is true. Samples are straight RGBA, independently
+of whether their storage is premultiplied. Map samples are not drawing-tinted.
+`bodies` returns the source sample coordinates. Neither of the ABI 4 texture
+placement setters applies to ABI 5; put placement parameters in `secondBodies`
+or `thirdBodies`.
+
+The complete [textured-light package](../sdl3gpueffects.mod/packages/texturedlight/manifest.json)
+shows a normal map and a light pattern combined with material shading. The
+[paired-light package](../sdl3gpueffects.mod/packages/lightpair/manifest.json)
+uses independent coordinates for two shadow masks.
+
+ABI 5 allows eight user float4 slots (scalars still occupy a full slot), followed
+by eight reserved slots:
+
+| Offset after user slots | Contents |
+| --- | --- |
+| 0–1 | Source bounds and sampling settings |
+| 2–3 | Second-image bounds and sampling settings |
+| 4–5 | Third-image bounds and sampling settings |
+| 6 | Second-image coverage and premultiplied flags |
+| 7 | Third-image coverage and premultiplied flags |
+
+The generator binds image/sampler pairs at 0, 1 and 2. Native D3D9 uses modes at
+c0, up to sixteen parameter slots at c1–c16, and allocation scales at c17–c19.
+SDL GPU, OpenGL and native D3D11 use the same generated sampling contract.
+Backends retain 256 bytes of parameter storage; ordinary draws do not allocate
+that storage per submission. Third bindings share SDL GPU's existing retained
+command arena. Custom renderer adapters can override `SelectTextures`; the
+default forwards older one/two-image draws to `SelectShader` and rejects a third
+image, preserving existing provider implementations.
+
+
+## Shared assets and module ownership
+
+The package tools, manifests and generated assets currently live under
+`sdl3gpueffects.mod/packages` for compatibility with existing imports and build
+scripts. They are shared across backends; the directory name does not imply a
+runtime dependency on SDL GPU for OpenGL or native Direct3D lighting.
+
+| Component | Responsibility |
+| --- | --- |
+| `Max2D.Effects` | Effect descriptions, composition helpers and owned processing buffers. |
+| `Max2D.ShaderEffects` | Shared package schemas, parameters, bindings and backend registration. |
+| Matching effects provider | Backend shader compilation, capability checks and drawing integration. |
+| `Max2D.LightingDriver` | Lighting requests and explicit renderer capabilities, independent of public package layouts. |
+| `Max2D.LightingNative` | Dedicated grouped-light shaders and retained map atlas. |
+| `Max2D.Lighting` | Receiver selection, materials, shadows and ordered native/paired/ordinary negotiation. |
+| `Max2D.SceneEffects` / `Max2D.SceneLighting` | Scene composition and light/receiver adapters over the processing APIs. |
+
+Generated source, platform binaries and embedded C assets serve different steps
+of the reproducible package pipeline. The generators are BlitzMax programs;
+embedded C contains assets and bindings. Older public ABIs remain supported.
+Removing a generated representation or relocating the package tree requires
+updating generators, tests, application examples and documented import paths
+together. Existing package factories remain valid.
+
+Dedicated native lighting shaders live in `lightingnative.mod/shaders` and are
+not additional public package ABI versions. Their shared sampling wrappers are
+currently derived from the textured-light package; the reproduction test checks
+that the eight/sixteen-light, three/four/five-texture variants agree with the
+checked-in generated assets.
+
+## Textured mesh submission
+
+A `TMax2DShaderEffect` can apply its package to a `TMesh2D` directly:
+
+```blitzmax
+Local grade:TMax2DShaderEffect=CreateColorMatrixEffect()
+grade.SetFloat4("row0",1.2,0,0,0)
+If Max2DSupportsImageEffect(grade) Then grade.DrawMesh(mesh,image,x,y)
+```
+
+The mesh needs normalized UVs for every vertex. Image handles are ignored; the
+current drawing state and drawing handle are used. Source/auxiliary texture
+mapping follows the same atlas and trim contracts as image submission. Shader
+coordinates remain image-local UVs, even when geometry is deformed. Parameters
+are consumed before return and native effect selection is cleared after drawing.
+Do not sample the active render target. This path does not create a capture image.
+For world-space illumination and material normal transforms, use
+[direct lit mesh receivers](lighting.md#direct-textured-mesh-receivers).

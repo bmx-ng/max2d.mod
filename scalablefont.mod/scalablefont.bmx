@@ -562,11 +562,8 @@ Type TScalableImageFont Extends TImageFont
 	param: Text to lay out, measure or draw.
 	End Rem
  Method Layout:TTextLayout(text:String) Override
-  Local cached:TTextLayout=TTextLayout(layouts.ValueForKey(text))
-  If cached Then
-   layoutKeys.Remove(text); layoutKeys.AddLast(text)
-   Return cached
-  End If
+  Local cached:TTextLayout=FindCachedLayout(text)
+  If cached Then Return cached
   Local result:TScalableTextLayout=New TScalableTextLayout
   result.font=Self
   Local positioned:TList=New TList
@@ -606,12 +603,7 @@ Type TScalableImageFont Extends TImageFont
    result.glyphs[i]=item; i:+1
   Next
   result.CalculateBounds()
-  If layoutCacheLimit>0 Then
-   While layoutKeys.Count()>=layoutCacheLimit
-    layouts.Remove(String(layoutKeys.RemoveFirst()))
-   Wend
-   layouts.Insert(text,result); layoutKeys.AddLast(text)
-  End If
+  CacheLayout(text,result)
   layoutBuilds:+1
   Return result
  End Method

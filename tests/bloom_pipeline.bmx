@@ -111,6 +111,28 @@ Try
 			stats = CaptureMax2DStats()
 			Check(stats.submissions = 0 And stats.textureCreations = 0, "cached result performs no rendering")
 		Next
+		bloom.SetOpaqueBackground(False)
+		bloom.SetIntensity(0)
+		Local sourcePixels:TTextureData = ReadEffectTestTexture(source)
+		Local sourceRGBA:Float Ptr = Float Ptr(sourcePixels.Level().Data())
+		Local transparent:TTextureData = ReadEffectTestTexture(bloom.Update(source))
+		Local rgba:Float Ptr = Float Ptr(transparent.Level().Data())
+		For Local i:Int = 0 Until 32*32
+		 Check(Abs(rgba[i*4+3]-sourceRGBA[i*4+3]) < effectTestTolerance, "transparent zero intensity preserves alpha")
+		 For Local c:Int = 0 Until 3
+		  Check(Abs(rgba[i*4+c]-sourceRGBA[i*4+c]) < Max(effectTestTolerance,0.001), "transparent zero intensity preserves premultiplied RGB")
+		 Next
+		Next
+		bloom.SetIntensity(0.5)
+		transparent = ReadEffectTestTexture(bloom.Update(source))
+		rgba = Float Ptr(transparent.Level().Data())
+		Local transparentHalo:Int
+		For Local i:Int = 0 Until 32*32
+		 Check(rgba[i*4+3] >= 0 And rgba[i*4+3] <= 1, "transparent coverage bounded")
+		 If values[i*4+3] = 0 And rgba[i*4] > 0.001 And rgba[i*4+3] > 0 Then transparentHalo = True
+		Next
+		Check(transparentHalo, "floating point halo includes alpha coverage")
+		bloom.SetOpaqueBackground(True)
 		' Rebuild between window draws, then verify the complete frame and restored tint/origin.
 		SetRenderImage(Null)
 		Print "bloom_pipeline window="+NativeResolutionWidth()+"x"+NativeResolutionHeight()+" logical="+canvas.context.view.width+"x"+canvas.context.view.height

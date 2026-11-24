@@ -235,7 +235,7 @@ accept `-ud max2d_gl`. The HDR example renders into float layers and tone maps t
 an SDR window. Linear HDR values in a float texture do not enable HDR window
 presentation; that remains a separate SDL GPU capability.
 Chains containing unsupported effects reject during preflight before writing.
-ABI 1–4 packages also work through this provider, including displacement,
+ABI 1–5 packages also work through this provider, including displacement,
 dissolve, texture masks, transformed/shared maps and soft thresholds. The gallery
 offers both pages on OpenGL. [The OpenGL comparison](../examples/gl_effects.bmx)
 focuses on the built-in effects.
@@ -352,7 +352,8 @@ intermediate for its fixed three-step chain and lets you toggle grayscale.
 
 The public [shader package API](shader-packages.md) implements colour (ABI 1),
 coordinates (ABI 2), a secondary texture (ABI 3), and independent map transforms
-(ABI 4). ABI 1–3 packages remain compatible. Built-ins and custom packages use
+(ABI 4), and a third independently sampled image (ABI 5). ABI 1–4 packages
+remain compatible. Built-ins and custom packages use
 the same registration path. BlitzMax tools validate manifests, generate shader
 wrappers and embed the Metal, SPIR-V and DXBC assets. This is schema/container
 validation, not general shader reflection.
@@ -387,8 +388,10 @@ coordinates so independently transformed sprites can share one map. The latter
 captures the source transform per call; distinct placements require separate
 effect draws. Neither helper adds a render target or redraws the map.
 
-Packages support one secondary texture and fixed ABI 1–4 resource layouts.
-Arbitrary layouts and automatic normal/light-map interpretation are not provided.
+Packages support up to two auxiliary textures through fixed ABI 1–5 resource
+layouts. ABI 5 combines artwork with two maps in one pass, as used by textured
+lighting. Arbitrary resource layouts are not provided; see [lighting](lighting.md)
+for scene light and normal/specular material APIs.
 SDL_Renderer has no general custom shader hook.
 
 ## Performance considerations

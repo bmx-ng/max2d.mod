@@ -1,0 +1,56 @@
+{
+  "abi": 5,
+  "name": "lightpair",
+  "factory": "CreateLightPairPackage",
+  "parameters": [
+    {
+      "name": "lightA",
+      "type": "float4"
+    },
+    {
+      "name": "colourA",
+      "type": "float4"
+    },
+    {
+      "name": "lightB",
+      "type": "float4"
+    },
+    {
+      "name": "colourB",
+      "type": "float4"
+    },
+    {
+      "name": "basisX",
+      "type": "float4"
+    },
+    {
+      "name": "basisY",
+      "type": "float4"
+    },
+    {
+      "name": "options",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nfloat a=pow(max(0.0,1.0-length(position-lightA.xy)/lightA.z),lightA.w);\nfloat b=pow(max(0.0,1.0-length(position-lightB.xy)/lightB.z),lightB.w);\nfloat3 first=c.rgb*colourA.rgb*colourA.a*a;\nfloat3 second=c.rgb*colourB.rgb*colourB.a*b;\nif (options.x>0.5) first*=m.rgb*m.a;\nif (options.y>0.5) second*=t.rgb*t.a;\nif (options.z>0.5) { first=clamp(first,0.0,1.0); second=clamp(second,0.0,1.0); }\nreturn float4((first+second)*clamp(c.a,0.0,1.0),1.0);",
+    "glsl": "vec2 position=vec2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nfloat a=pow(max(0.0,1.0-length(position-lightA.xy)/lightA.z),lightA.w);\nfloat b=pow(max(0.0,1.0-length(position-lightB.xy)/lightB.z),lightB.w);\nvec3 first=c.rgb*colourA.rgb*colourA.a*a;\nvec3 second=c.rgb*colourB.rgb*colourB.a*b;\nif (options.x>0.5) first*=m.rgb*m.a;\nif (options.y>0.5) second*=t.rgb*t.a;\nif (options.z>0.5) { first=clamp(first,0.0,1.0); second=clamp(second,0.0,1.0); }\nreturn vec4((first+second)*clamp(c.a,0.0,1.0),1.0);",
+    "hlsl": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nfloat a=pow(max(0.0,1.0-length(position-lightA.xy)/lightA.z),lightA.w);\nfloat b=pow(max(0.0,1.0-length(position-lightB.xy)/lightB.z),lightB.w);\nfloat3 first=c.rgb*colourA.rgb*colourA.a*a;\nfloat3 second=c.rgb*colourB.rgb*colourB.a*b;\nif (options.x>0.5) first*=m.rgb*m.a;\nif (options.y>0.5) second*=t.rgb*t.a;\nif (options.z>0.5) { first=clamp(first,0.0,1.0); second=clamp(second,0.0,1.0); }\nreturn float4((first+second)*clamp(c.a,0.0,1.0),1.0);"
+  },
+  "colourUV": true,
+  "secondBodies": {
+    "metal": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightA.xy)/(2.0*lightA.z)+0.5;",
+    "glsl": "vec2 position=vec2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightA.xy)/(2.0*lightA.z)+0.5;",
+    "hlsl": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightA.xy)/(2.0*lightA.z)+0.5;"
+  },
+  "thirdBodies": {
+    "metal": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightB.xy)/(2.0*lightB.z)+0.5;",
+    "glsl": "vec2 position=vec2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightB.xy)/(2.0*lightB.z)+0.5;",
+    "hlsl": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nreturn (position-lightB.xy)/(2.0*lightB.z)+0.5;"
+  }
+}

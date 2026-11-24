@@ -1,0 +1,6 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu,lighting_mapped_ambient,PASS,PASS: 724 mapped emission checks
+macOS arm64,gl,lighting_mapped_ambient,PASS,PASS: 724 mapped emission checks
+Windows 11 ARM64 Parallels (x64 application),d3d9,lighting_mapped_ambient,PASS,PASS: 724 mapped emission checks
+Windows 11 ARM64 Parallels (x64 application),d3d11,lighting_mapped_ambient,PASS,PASS: 724 mapped emission checks
+macOS arm64,generator,native_lighting_shaders,PASS,native_lighting_shaders passed

@@ -1,0 +1,5 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu Metal,gpu_texture_set,PASS,PASS: 3132 SDL GPU texture-set checks
+macOS arm64,sdlgpu Metal,shader_texture_bindings,PASS,PASS: 19 texture binding checks
+macOS arm64,sdlgpu Metal,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+macOS arm64,sdlgpu Metal,shader_packages,PASS,shader_packages passed

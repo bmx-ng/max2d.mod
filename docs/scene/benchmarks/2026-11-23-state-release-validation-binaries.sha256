@@ -1,0 +1,4 @@
+6a542edde9cf90de0f740c2f63f354a3f6fc40c8f5eab403d91e9db8c3b57526  build-artifacts/material-refresh/scene-sdlgpu
+877b1922bd7e831026b448b417f94c92b3100a9d7b7a7fea24151ff3c9ee45e2  build-artifacts/material-refresh/scene-gl
+87bb68493cfe168bd46090adf38ca8368b7204d5aa54e3e9a498a41132ff0089  build-artifacts/capture-state-reuse/scene_workload-sdlgpu
+b3ccad848077520ecfc4add8b329b1a9f199603963495636cde102b325f470e0  build-artifacts/capture-state-reuse/scene_workload-gl

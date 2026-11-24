@@ -1,0 +1,15 @@
+platform,backend,test,checks,result
+macOS arm64,Metal,scene_source_preparation,17,PASS
+macOS arm64,Metal,scene_subtree_masks,39,PASS
+macOS arm64,Metal,scene_subtree_capture,68,PASS
+macOS arm64,Metal,scene_composite,65,PASS
+macOS arm64,Metal,scene_alpha_masks,56,PASS
+macOS arm64,Metal,scene_culling,22,PASS
+macOS arm64,Metal,scene_storage,24,PASS
+macOS arm64,OpenGL,scene_source_preparation,17,PASS
+macOS arm64,OpenGL,scene_subtree_masks,39,PASS
+macOS arm64,OpenGL,scene_subtree_capture,68,PASS
+macOS arm64,OpenGL,scene_composite,65,PASS
+macOS arm64,OpenGL,scene_alpha_masks,56,PASS
+macOS arm64,OpenGL,scene_culling,22,PASS
+macOS arm64,OpenGL,scene_storage,24,PASS

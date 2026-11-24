@@ -40,6 +40,7 @@ Type TMax2DShadow
 
 	Rem
 	bbdoc: Sets a finite nonnegative blur radius in full-resolution source pixels.
+	param: Finite nonnegative blur radius in full-resolution source pixels.
 	about: Takes effect on the next Update. Prepare and Update check that the radius fits the pyramid. Zero still resamples with reduction levels; use zero levels for an exact silhouette.
 	End Rem
 	Method SetRadius(value:Float)
@@ -48,6 +49,7 @@ Type TMax2DShadow
 
 	Rem
 	bbdoc: Returns the requested shadow radius.
+	returns: The requested shadow radius.
 	End Rem
 	Method GetRadius:Float()
 		Return blur.GetRadius()
@@ -56,6 +58,7 @@ Type TMax2DShadow
 	Rem
 	bbdoc: Rebuilds and returns a borrowed blurred white silhouette, preserving source pixels.
 	param: Source render image matching the prepared dimensions, distinct from the cached result.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
 	about: Source RGB is ignored. Drawing state and target views are restored. Source handles and transforms do not affect extraction. Parameters and shader support are checked before output writes; a later failure invalidates the result. Updates allocate state scopes but no images, arrays or effect descriptions. Only source alpha or radius changes require rebuilding.
 	End Rem
 	Method Update:TRenderImage(source:TRenderImage)
@@ -82,6 +85,7 @@ Type TMax2DShadow
 
 	Rem
 	bbdoc: Returns the cached borrowed white shadow without rendering.
+	returns: The cached borrowed white shadow without rendering.
 	about: Throws before a successful Update, after changed layout or release, or on the wrong or closed context. Radius changes alone keep the previous result. Tint, opacity and position are normal drawing settings; draw the source separately after its shadow.
 	End Rem
 	Method Result:TRenderImage()
@@ -109,6 +113,7 @@ End Type
 Rem
 bbdoc: Creates a reusable shadow description without allocating graphics resources.
 param: Finite, nonnegative blur radius in source pixels; defaults to eight.
+returns: A new #TMax2DShadow instance configured with the supplied settings.
 End Rem
 Function CreateShadow:TMax2DShadow(radius:Float = 8)
 	Local shadow:TMax2DShadow = New TMax2DShadow

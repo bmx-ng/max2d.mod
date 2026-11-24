@@ -272,6 +272,15 @@ bbdoc: Backend contract for texture storage, batched drawing and window presenta
 End Rem
 Type TMax2DContext
 
+ Rem
+ bbdoc: Returns the selected drawing target's logical pixel format.
+ about: Render images report their storage format. The default window format is PF_RGBA8888; drivers with floating-point window drawing override this method. This describes the drawing buffer, not the physical display or swapchain format.
+ End Rem
+ Method DrawingPixelFormat:Int()
+  If target Then Return target.pixelFormat
+  Return PF_RGBA8888
+ End Method
+
 	Rem
 	bbdoc: Underlying native graphics window.
 	End Rem
@@ -858,7 +867,7 @@ Type TMax2DContext
 			Local frame:TImageFrame = TImageFrame(link.Value())
 			If frame.releasePending And frame <> target Then
 				frame.Dispose()
-				link.Remove()
+				frames.RemoveLink(link)
 			End If
 			link = following
 		Wend

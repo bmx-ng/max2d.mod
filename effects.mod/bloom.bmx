@@ -1,6 +1,6 @@
 Rem
 bbdoc: Reusable bright-pass, scaled-blur and bloom-composition pipeline.
-about: Prepare owns intermediate buffers; Update rebuilds explicitly; Result returns the cached borrowed image. Composition flattens the source over opaque black, then adds bloom, producing an opaque result suitable for final HDR or SDR presentation. Use linear source colours and a floating-point format for HDR. The class does not select a window output mode or tone-map its result. Borrowed results must not be independently released or retained across changed Prepare, Release or context closure. Source changes are not detected automatically.
+about: Prepare owns intermediate buffers; Update rebuilds explicitly; Result returns the cached borrowed image. By default composition flattens the source over opaque black. SetOpaqueBackground(False) preserves transparency and adds glow coverage for scene composition. Use linear source colours and a floating-point format for HDR. The class does not select a window output mode or tone-map its result. Borrowed results must not be independently released or retained across changed Prepare, Release or context closure. Source changes are not detected automatically.
 End Rem
 Type TMax2DBloom
 	Private
@@ -10,6 +10,9 @@ Type TMax2DBloom
 	Field gain:TMax2DLinearOutputEffect = CreateLinearOutputEffect(True)
 	Field extraction:TMax2DImageEffect[] = [TMax2DImageEffect(bright)]
 	Field cached:TRenderImage
+	Field opaqueBackground:Int = True
+	Field transparentBlend:Int = CreateBlendMode(BLEND_SRC_ALPHA, BLEND_ONE)
+	Field drawingState:TLayerDrawingState=New TLayerDrawingState
 	Field valid:Int
 	Field width:Int, height:Int, smallestWidth:Int, smallestHeight:Int
 
@@ -40,6 +43,7 @@ Type TMax2DBloom
 
 	Rem
 	bbdoc: Sets the finite, nonnegative bright-pass threshold in source colour units.
+	param: Finite nonnegative luminance threshold in source colour units.
 	about: Takes effect on the next Update; the cached result is unchanged until then.
 	End Rem
 	Method SetThreshold(value:Float)
@@ -47,12 +51,14 @@ Type TMax2DBloom
 	End Method
 	Rem
 	bbdoc: Returns the bright-pass threshold.
+	returns: The bright-pass threshold.
 	End Rem
 	Method GetThreshold:Float()
 		Return bright.GetThreshold()
 	End Method
 	Rem
 	bbdoc: Sets the finite, nonnegative blur radius in full-resolution source pixels.
+	param: Finite nonnegative blur radius in full-resolution source pixels.
 	about: Prepare and Update check that the radius fits the prepared reduction levels. Takes effect on the next Update.
 	End Rem
 	Method SetRadius(value:Float)
@@ -60,12 +66,14 @@ Type TMax2DBloom
 	End Method
 	Rem
 	bbdoc: Returns the blur radius.
+	returns: The blur radius.
 	End Rem
 	Method GetRadius:Float()
 		Return blur.GetRadius()
 	End Method
 	Rem
 	bbdoc: Sets finite, nonnegative bloom intensity; one is unchanged glow, zero suppresses it.
+	param: Finite nonnegative colour multiplier; zero removes this contribution.
 	about: Values above one amplify bloom without changing source brightness. Takes effect on the next Update.
 	End Rem
 	Method SetIntensity(value:Float)
@@ -73,15 +81,59 @@ Type TMax2DBloom
 	End Method
 	Rem
 	bbdoc: Returns the bloom intensity multiplier.
+	returns: The bloom intensity multiplier.
 	End Rem
 	Method GetIntensity:Float()
 		Return gain.GetExposure()
 	End Method
 
+ Rem
+ bbdoc: Chooses opaque-black composition (default True) or transparent composition.
+ param: True for opaque-black composition, False to preserve transparent composition.
+ about: Takes effect on the next Update without reallocating textures. Transparent output adds bloom RGB and combines source and glow alpha as coverage: a = glowAlpha + sourceAlpha*(1-glowAlpha). Glow coverage scales with intensity up to one; higher intensity increases RGB only. Zero intensity preserves source RGBA. Present with ordinary ALPHABLEND; this is a composited glow, not additive lighting applied to the eventual background.
+ End Rem
+ Method SetOpaqueBackground(value:Int)
+  opaqueBackground = value <> 0
+ End Method
+ Rem
+ bbdoc: Returns whether composition fills the canvas with opaque black.
+ returns: Whether composition fills the canvas with opaque black.
+ End Rem
+ Method GetOpaqueBackground:Int()
+  Return opaqueBackground
+ End Method
+ Private
+ Method SelectGlowBlend()
+  If opaqueBackground Then
+   SetBlend(LIGHTBLEND)
+  Else
+   SetBlend(transparentBlend)
+  End If
+ End Method
+ Public
+
+ Rem
+ bbdoc: Validates bloom effects on the prepared targets without changing pixels or caller state.
+ about: Call after Prepare. Throws when the selected backend cannot perform extraction, blur or additive composition for this format.
+ End Rem
+ Method ValidateSupport()
+  Local scope:SLayerDrawingScope = drawingState.Open()
+  Try
+   SetBlend(SOLIDBLEND)
+   CheckScaledBlurTarget(buffers.Image(0), bright)
+   CheckScaledBlurTarget(buffers.Image(1), blurSupport)
+   SelectGlowBlend()
+   CheckScaledBlurTarget(buffers.Image(2), gain)
+  Finally
+   scope.Close()
+  End Try
+ End Method
+
 	Rem
-	bbdoc: Rebuilds bloom and returns the cached borrowed opaque result.
+	bbdoc: Rebuilds bloom and returns the cached borrowed result.
 	param: Source render image matching the prepared dimensions, distinct from the cached result.
-	about: Preserves source pixels, drawing state and target views. Performs extraction, scaled blur, opaque-black fill, source composition and scaled glow addition. No images, arrays or descriptors are allocated after preparation. State scopes are allocated by the underlying operations. Rerun only when scene content or bloom settings change. Parameters and shader support are checked before output writes; a later runtime failure invalidates the cached result. Pad source content to retain halos. Transparent areas are flattened over black.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
+	about: Preserves source pixels, drawing state and target views. Performs extraction, scaled blur, source composition and scaled glow addition. No images, arrays or descriptors are allocated after preparation. Warm updates reuse private drawing state throughout the pipeline; reentrant calls use separate scopes. Rerun only when scene content or bloom settings change. Parameters and shader support are checked before output writes; a later runtime failure invalidates the cached result. Pad source content to retain halos. Transparent areas remain transparent when opaque background is disabled.
 	End Rem
 	Method Update:TRenderImage(source:TRenderImage)
 		Local destination:TRenderImage = buffers.Image(2)
@@ -89,7 +141,7 @@ Type TMax2DBloom
 		If source = destination Then Throw "Max2D Effects: bloom cannot sample its cached result"
 		If source.width <> width Or source.height <> height Then Throw "Max2D Effects: bloom source dimensions must match prepared buffers"
 		CheckRadius(width, height, smallestWidth, smallestHeight)
-		Local scope:TMax2DStateScope = ScopedMax2DState()
+		Local scope:SLayerDrawingScope = drawingState.Open()
 		Try
 			SetCamera(Null)
 			ResetCoordinates()
@@ -102,23 +154,34 @@ Type TMax2DBloom
 			source.Frame(0, TMax2DGraphics.Current())
 			CheckScaledBlurTarget(buffers.Image(0), bright)
 			CheckScaledBlurTarget(buffers.Image(1), blurSupport)
-			SetBlend(LIGHTBLEND)
+			SelectGlowBlend()
 			CheckScaledBlurTarget(destination, gain)
 			SetBlend(ALPHABLEND)
 			valid = False
 			buffers.ApplyChain(source, 0, extraction)
 			buffers.ApplyBlur(buffers.Image(0), 1, blur)
-			Local destinationScope:TMax2DStateScope = PrepareChainTarget(destination)
+			Local destinationScope:SLayerTargetView = PrepareChainTarget(destination)
 			Try
 				SetBlend(SOLIDBLEND)
-				SetColor(0, 0, 0)
-				DrawRect(0, 0, width, height)
-				SetColor(255, 255, 255)
-				SetBlend(ALPHABLEND)
+				If opaqueBackground Then
+				 SetColor(0, 0, 0)
+				 DrawRect(0, 0, width, height)
+				 SetColor(255, 255, 255)
+				 SetBlend(ALPHABLEND)
+				End If
 				DrawImage(source, source.handle_x, source.handle_y)
-				SetBlend(LIGHTBLEND)
+				SelectGlowBlend()
 				Local glow:TRenderImage = buffers.Image(1)
-				DrawImageEffect(glow, gain, glow.handle_x, glow.handle_y)
+				Local strength:Float = gain.GetExposure()
+				Try
+				 If Not opaqueBackground Then
+				  SetAlpha(Min(strength,1.0:Float))
+				  gain.SetExposure(Max(strength,1.0:Float))
+				 End If
+				 DrawImageEffect(glow, gain, glow.handle_x, glow.handle_y)
+				Finally
+				 gain.SetExposure(strength)
+				End Try
 			Finally
 				destinationScope.Close()
 			End Try
@@ -131,6 +194,7 @@ Type TMax2DBloom
 
 	Rem
 	bbdoc: Returns the cached borrowed result without performing drawing.
+	returns: The cached borrowed result without performing drawing.
 	about: Throws before the first successful Update, after layout changes or release, and on the wrong or closed context. Settings changes alone do not rebuild or discard the last result.
 	End Rem
 	Method Result:TRenderImage()
@@ -161,6 +225,7 @@ bbdoc: Creates a reusable bloom description without allocating graphics resource
 param: Finite, nonnegative luminance threshold in source colour units; defaults to one.
 param: Finite, nonnegative blur radius in source pixels; defaults to eight.
 param: Finite, nonnegative glow multiplier; defaults to one.
+returns: A new #TMax2DBloom instance configured with the supplied settings.
 End Rem
 Function CreateBloom:TMax2DBloom(threshold:Float = 1, radius:Float = 8, intensity:Float = 1)
 	Local bloom:TMax2DBloom = New TMax2DBloom

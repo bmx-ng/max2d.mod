@@ -1,0 +1,51 @@
+{
+  "abi": 5,
+  "name": "texturedlight",
+  "factory": "CreateTexturedLightPackage",
+  "parameters": [
+    {
+      "name": "light",
+      "type": "float4"
+    },
+    {
+      "name": "colour",
+      "type": "float4"
+    },
+    {
+      "name": "shape",
+      "type": "float4"
+    },
+    {
+      "name": "basisX",
+      "type": "float4"
+    },
+    {
+      "name": "basisY",
+      "type": "float4"
+    },
+    {
+      "name": "cookieX",
+      "type": "float4"
+    },
+    {
+      "name": "cookieY",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nfloat3 delta=float3(light.xy-position,light.w);\nfloat attenuation=1.0;\nif (shape.x<0.0) {\n delta=light.xyz;\n} else {\n attenuation=pow(max(0.0,1.0-length(delta.xy)/light.z),shape.x);\n}\nfloat3 n=float3(0.0,0.0,1.0);\nif (shape.y>=0.0) {\n n=m.rgb*2.0-1.0;\n n.xy*=shape.y;\n}\nfloat a=basisX.x*basisX.w, b=basisX.y*basisY.w;\nfloat d=basisY.x*basisX.w, e=basisY.y*basisY.w;\nfloat determinant=a*e-b*d;\nif (abs(determinant)>0.000001) {\n n=float3((e*n.x-d*n.y)/determinant,(-b*n.x+a*n.y)/determinant,n.z);\n} else {\n n=float3(0.0,0.0,1.0);\n}\nn=n/max(length(n),0.000001);\nfloat3 direction=delta/max(length(delta),0.000001);\nfloat diffuse=shape.y < -1.5 ? 1.0 : max(0.0,dot(n,direction));\nfloat3 halfway=direction+float3(0.0,0.0,1.0);\nhalfway=halfway/max(length(halfway),0.000001);\nfloat specular=0.0;\nif (diffuse>0.0 && shape.z>0.0) {\n specular=shape.z*pow(max(0.0,dot(n,halfway)),abs(shape.w));\n if(shape.w<0.0) specular*=clamp(m.a,0.0,1.0);\n}\nreturn float4((c.rgb*diffuse+float3(specular,specular,specular))*colour.rgb*colour.a*attenuation*t.rgb*t.a,c.a);",
+    "glsl": "vec2 position=vec2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nvec3 delta=vec3(light.xy-position,light.w);\nfloat attenuation=1.0;\nif (shape.x<0.0) {\n delta=light.xyz;\n} else {\n attenuation=pow(max(0.0,1.0-length(delta.xy)/light.z),shape.x);\n}\nvec3 n=vec3(0.0,0.0,1.0);\nif (shape.y>=0.0) {\n n=m.rgb*2.0-1.0;\n n.xy*=shape.y;\n}\nfloat a=basisX.x*basisX.w, b=basisX.y*basisY.w;\nfloat d=basisY.x*basisX.w, e=basisY.y*basisY.w;\nfloat determinant=a*e-b*d;\nif (abs(determinant)>0.000001) {\n n=vec3((e*n.x-d*n.y)/determinant,(-b*n.x+a*n.y)/determinant,n.z);\n} else {\n n=vec3(0.0,0.0,1.0);\n}\nn=n/max(length(n),0.000001);\nvec3 direction=delta/max(length(delta),0.000001);\nfloat diffuse=shape.y < -1.5 ? 1.0 : max(0.0,dot(n,direction));\nvec3 halfway=direction+vec3(0.0,0.0,1.0);\nhalfway=halfway/max(length(halfway),0.000001);\nfloat specular=0.0;\nif (diffuse>0.0 && shape.z>0.0) {\n specular=shape.z*pow(max(0.0,dot(n,halfway)),abs(shape.w));\n if(shape.w<0.0) specular*=clamp(m.a,0.0,1.0);\n}\nreturn vec4((c.rgb*diffuse+vec3(specular))*colour.rgb*colour.a*attenuation*t.rgb*t.a,c.a);",
+    "hlsl": "float2 position=float2(dot(basisX.xy,uv)+basisX.z,dot(basisY.xy,uv)+basisY.z);\nfloat3 delta=float3(light.xy-position,light.w);\nfloat attenuation=1.0;\nif (shape.x<0.0) {\n delta=light.xyz;\n} else {\n attenuation=pow(max(0.0,1.0-length(delta.xy)/light.z),shape.x);\n}\nfloat3 n=float3(0.0,0.0,1.0);\nif (shape.y>=0.0) {\n n=m.rgb*2.0-1.0;\n n.xy*=shape.y;\n}\nfloat a=basisX.x*basisX.w, b=basisX.y*basisY.w;\nfloat d=basisY.x*basisX.w, e=basisY.y*basisY.w;\nfloat determinant=a*e-b*d;\nif (abs(determinant)>0.000001) {\n n=float3((e*n.x-d*n.y)/determinant,(-b*n.x+a*n.y)/determinant,n.z);\n} else {\n n=float3(0.0,0.0,1.0);\n}\nn=n/max(length(n),0.000001);\nfloat3 direction=delta/max(length(delta),0.000001);\nfloat diffuse=shape.y < -1.5 ? 1.0 : max(0.0,dot(n,direction));\nfloat3 halfway=direction+float3(0.0,0.0,1.0);\nhalfway=halfway/max(length(halfway),0.000001);\nfloat specular=0.0;\nif (diffuse>0.0 && shape.z>0.0) {\n specular=shape.z*pow(max(0.0,dot(n,halfway)),abs(shape.w));\n if(shape.w<0.0) specular*=clamp(m.a,0.0,1.0);\n}\nreturn float4((c.rgb*diffuse+float3(specular,specular,specular))*colour.rgb*colour.a*attenuation*t.rgb*t.a,c.a);"
+  },
+  "colourUV": true,
+  "thirdBodies": {
+    "metal": "return float2(dot(cookieX.xy,uv)+cookieX.z,dot(cookieY.xy,uv)+cookieY.z);",
+    "glsl": "return vec2(dot(cookieX.xy,uv)+cookieX.z,dot(cookieY.xy,uv)+cookieY.z);",
+    "hlsl": "return float2(dot(cookieX.xy,uv)+cookieX.z,dot(cookieY.xy,uv)+cookieY.z);"
+  }
+}

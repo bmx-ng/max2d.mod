@@ -163,7 +163,7 @@ Try
 		Catch error:Object
 			rejected=True
 		End Try
-		Check(rejected,"Trimmed storage rejected explicitly")
+		Check(Not rejected,"Trim metadata with full pixel extent is supported")
 ?max2d_gl
 		' Coordinate packages implement their own interpolation at mip zero.
 		Local mipSource:TRenderImage=CreateRenderImage(32,32,MIPMAPPEDIMAGE|FILTEREDIMAGE)
@@ -191,6 +191,83 @@ Try
 		Check((result.ReadPixel(0,0)&$ffffff)=$ffffff And ((result.ReadPixel(0,0) Shr 24)&255)=255,"Coordinate coverage samples white RGB and shifted alpha")
 		Check(Abs(((result.ReadPixel(1,1) Shr 24)&255)-64)<=1,"Coverage wraps both axes")
 ?
+        ' Trimmed source and auxiliary frames retain logical transparent margins.
+        SetRenderImage(Null);ResetCoordinates();SetScale(1,1);SetRotation(0)
+        SetColor(255,255,255);SetAlpha(1);SetBlend(SOLIDBLEND)
+        Local trimPixels:TPixmap=CreatePixmap(8,8,PF_RGBA8888)
+        trimPixels.ClearPixels(0)
+        For Local y:Int=2 Until 6
+            For Local x:Int=2 Until 6
+                trimPixels.WritePixel(x,y,$80904020)
+            Next
+        Next
+        For Local filtering:Int=0 Until 2
+            Local atlasFlags:Int
+            If filtering Then atlasFlags=FILTEREDIMAGE
+            Local trimAtlas:TTextureAtlas=TTextureAtlas.Create(64,atlasFlags)
+            Local trimmed:TImage=trimAtlas.AddPixmap(trimPixels,"trim",True)
+            Local full:TImage=LoadImage(trimPixels,atlasFlags)
+            trimmed.handle_x=1;trimmed.handle_y=2
+            full.handle_x=1;full.handle_y=2
+            Local trimmedOutput:TRenderImage=CreateRenderImage(16,8)
+            For Local edge:Int=0 Until 3
+                effect.SetFloat4("offset",0.25,0.125,0,0);effect.SetEdgeMode(edge)
+                SetRenderImage(trimmedOutput);Cls
+                DrawImageEffect(full,effect,1,2)
+                DrawImageEffect(trimmed,effect,9,2)
+                Local comparison:TPixmap=ReadRenderImage(trimmedOutput)
+                For Local y:Int=0 Until 8
+                    For Local x:Int=0 Until 8
+                        Check(comparison.ReadPixel(x,y)=comparison.ReadPixel(x+8,y),"Trimmed coordinate margins and edge sampling")
+                    Next
+                Next
+            Next
+            Local maskEffect:TMax2DShaderEffect=CreateTextureMaskEffect(full)
+            SetRenderImage(trimmedOutput);Cls
+            DrawImageEffect(full,maskEffect,1,2)
+            maskEffect.SetTexture(trimmed)
+            DrawImageEffect(full,maskEffect,9,2)
+            Local masked:TPixmap=ReadRenderImage(trimmedOutput)
+            For Local y:Int=0 Until 8
+                For Local x:Int=0 Until 8
+                    Check(masked.ReadPixel(x,y)=masked.ReadPixel(x+8,y),"Trimmed auxiliary mask preserves logical margins")
+                Next
+            Next
+            Local index:Int=0
+            Local retained:TImage=trimmed.SamplingImage(index)
+            index=0
+            Check(retained=trimmed.SamplingImage(index),"Warm sampling reuses storage")
+            trimPixels.WritePixel(3,3,$ff20a050)
+            trimmed.ReplacePixels(trimPixels)
+            index=0
+            Check(retained=trimmed.SamplingImage(index),"Pixel edits reuse storage")
+            Local updated:TPixmap=retained.Lock(0,True,False)
+            Check(updated.ReadPixel(3,3)=$ff20a050,"Pixel edits refresh expanded storage")
+            retained.Unlock()
+            SetRenderImage(trimmedOutput)
+            DrawImageEffect(trimmed,effect,1,2)
+            TMax2DGraphics.Current().context.Flush()
+            ResetMax2DStats()
+            DrawImageEffect(trimmed,effect,1,2)
+            TMax2DGraphics.Current().context.Flush()
+            Local warm:TMax2DStats=CaptureMax2DStats()
+            Check(warm.textureCreations=0 And warm.textureUpdates=0 And warm.readbacks=0,"Warm trimmed draw reuses uploaded pixels")
+            Local emptyPixels:TPixmap=CreatePixmap(8,8,PF_RGBA8888)
+            emptyPixels.ClearPixels(0)
+            Local empty:TImage=trimAtlas.AddPixmap(emptyPixels,"empty",True)
+            empty.handle_x=trimmed.handle_x;empty.handle_y=trimmed.handle_y
+            Local animation:TImage=TImage.Animation([trimmed,empty],[100,100])
+            index=1
+            Local emptySampling:TImage=animation.SamplingImage(index)
+            Check(index=0,"Expanded animation frame selects frame zero")
+            Local emptyRead:TPixmap=emptySampling.Lock(0,True,False)
+            Check(emptyRead.ReadPixel(3,3)=0,"Empty trimmed frame retains transparent canvas")
+            emptySampling.Unlock()
+            index=0
+            Check(animation.SamplingImage(index)<>emptySampling,"Animation frames have independent retained storage")
+
+        Next
+
 		EndGraphics
 	Next
 	Print "coordinate_effects passed"
