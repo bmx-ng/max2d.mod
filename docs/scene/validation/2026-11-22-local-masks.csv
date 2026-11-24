@@ -1,0 +1,11 @@
+platform,profile,test,status,summary
+macOS,sdlgpu,scene_clipping,PASS,PASS: 29 scene clipping checks
+macOS,sdlgpu,scene_alpha_masks,PASS,PASS: 30 scene alpha mask checks
+macOS,gl,scene_clipping,PASS,PASS: 29 scene clipping checks
+macOS,gl,scene_alpha_masks,PASS,PASS: 30 scene alpha mask checks
+macOS,sdl,scene_clipping,PASS,PASS: 29 scene clipping checks
+macOS,sdl,scene_alpha_masks,PASS,PASS: 30 scene alpha mask checks
+Windows,d3d9,scene_clipping,PASS,PASS: 29 scene clipping checks
+Windows,d3d9,scene_alpha_masks,PASS,PASS: 30 scene alpha mask checks
+Windows,d3d11,scene_clipping,PASS,PASS: 29 scene clipping checks
+Windows,d3d11,scene_alpha_masks,PASS,PASS: 30 scene alpha mask checks

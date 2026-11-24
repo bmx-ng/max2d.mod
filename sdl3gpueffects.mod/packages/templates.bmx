@@ -1,4 +1,4 @@
-' Fixed colour (ABI 1), coordinate (ABI 2), and two-texture (ABI 3/4) shader wrappers.
+' Fixed colour (ABI 1), coordinate (ABI 2), and two-texture (ABI 3/4), and three-texture (ABI 5) shader wrappers.
 Const HEAD_metal:String = """
 #include <metal_stdlib>
 using namespace metal;

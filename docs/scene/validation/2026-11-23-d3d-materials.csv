@@ -1,0 +1,7 @@
+platform,profile,test,status,summary
+Windows 11 ARM64 Parallels,d3d9,lighting_emission,PASS,PASS: 1049 emission checks
+Windows 11 ARM64 Parallels,d3d9,scene_composite,PASS,PASS: 64 scene composite checks
+Windows 11 ARM64 Parallels,d3d9,scene_lighting,PASS,PASS: 1050 lighting checks
+Windows 11 ARM64 Parallels,d3d11,lighting_emission,PASS,PASS: 1049 emission checks
+Windows 11 ARM64 Parallels,d3d11,scene_composite,PASS,PASS: 64 scene composite checks
+Windows 11 ARM64 Parallels,d3d11,scene_lighting,PASS,PASS: 1050 lighting checks

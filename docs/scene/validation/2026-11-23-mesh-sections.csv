@@ -1,0 +1,17 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu,lighting_affine_mesh,PASS,PASS: 136 affine mesh checks
+macOS arm64,sdlgpu,lighting_mesh,PASS,PASS: 96 lighting mesh checks
+macOS arm64,sdlgpu,material_maps,PASS,PASS: 61 material map checks
+macOS arm64,sdlgpu,scene_lighting,PASS,PASS: 1050 lighting checks
+macOS arm64,gl,lighting_affine_mesh,PASS,PASS: 136 affine mesh checks
+macOS arm64,gl,lighting_mesh,PASS,PASS: 96 lighting mesh checks
+macOS arm64,gl,material_maps,PASS,PASS: 61 material map checks
+macOS arm64,gl,scene_lighting,PASS,PASS: 1050 lighting checks
+Windows x64 on ARM64 Parallels,d3d9,lighting_affine_mesh,PASS,PASS: 136 affine mesh checks
+Windows x64 on ARM64 Parallels,d3d9,lighting_mesh,PASS,PASS: 96 lighting mesh checks
+Windows x64 on ARM64 Parallels,d3d9,material_maps,PASS,PASS: 61 material map checks
+Windows x64 on ARM64 Parallels,d3d9,scene_lighting,PASS,PASS: 1050 lighting checks
+Windows x64 on ARM64 Parallels,d3d11,lighting_affine_mesh,PASS,PASS: 136 affine mesh checks
+Windows x64 on ARM64 Parallels,d3d11,lighting_mesh,PASS,PASS: 96 lighting mesh checks
+Windows x64 on ARM64 Parallels,d3d11,material_maps,PASS,PASS: 61 material map checks
+Windows x64 on ARM64 Parallels,d3d11,scene_lighting,PASS,PASS: 1050 lighting checks

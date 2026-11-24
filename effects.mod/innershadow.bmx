@@ -41,6 +41,7 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Sets a finite nonnegative blur radius in full-resolution source pixels.
+	param: Finite nonnegative blur radius in full-resolution source pixels.
 	about: Takes effect on the next Update. Prepare and Update check that the radius fits the pyramid. Zero still resamples with reduction levels; use zero levels to avoid blur resampling.
 	End Rem
 	Method SetRadius(value:Float)
@@ -49,6 +50,7 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Returns the requested inner-shadow radius.
+	returns: The requested inner-shadow radius.
 	End Rem
 	Method GetRadius:Float()
 		Return blur.GetRadius()
@@ -56,6 +58,8 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Sets finite shadow offsets in source pixels, applied on the next Update.
+	param: Finite horizontal coordinate in caller drawing coordinates.
+	param: Finite vertical coordinate in caller drawing coordinates.
 	about: Positive x/y shifts the blurred silhouette right/down, exposing inner shadow along the left/top edges. Both values are validated before changing either. Cached pixels remain unchanged until Update.
 	End Rem
 	Method SetOffset(x:Float, y:Float)
@@ -65,6 +69,7 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Returns the horizontal offset in source pixels.
+	returns: The horizontal offset in source pixels.
 	End Rem
 	Method GetOffsetX:Float()
 		Return offsetX
@@ -72,6 +77,7 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Returns the vertical offset in source pixels.
+	returns: The vertical offset in source pixels.
 	End Rem
 	Method GetOffsetY:Float()
 		Return offsetY
@@ -80,6 +86,7 @@ Type TMax2DInnerShadow
 	Rem
 	bbdoc: Rebuilds and returns borrowed white inner-shadow coverage, preserving source pixels.
 	param: Source render image matching the prepared dimensions, distinct from the cached result.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
 	about: Source RGB is ignored. Drawing state and target views are restored. Source handles and transforms do not affect extraction. Parameters and shader support are checked before output writes; a later failure invalidates the result. Updates allocate state scopes but no images, arrays or effect descriptions. Source alpha, radius and offset changes require rebuilding. The result is bounded by source coverage and has no shadow outside it.
 	End Rem
 	Method Update:TRenderImage(source:TRenderImage)
@@ -106,7 +113,7 @@ Type TMax2DInnerShadow
 			SetHandle(0, 0)
 			SetColor(255, 255, 255)
 			SetAlpha(1)
-			Local destinationScope:TMax2DStateScope = PrepareChainTarget(destination)
+			Local destinationScope:SLayerTargetView = PrepareChainTarget(destination)
 			Try
 				SetBlend(SOLIDBLEND)
 				Local coverage:TRenderImage = buffers.Image(0)
@@ -126,6 +133,7 @@ Type TMax2DInnerShadow
 
 	Rem
 	bbdoc: Returns the cached borrowed white shadow without rendering.
+	returns: The cached borrowed white shadow without rendering.
 	about: Throws before a successful Update, after changed layout or release, or on the wrong or closed context. Radius and offset changes keep the previous result. Tint and opacity are normal drawing settings; draw the source first, then the shadow at the same position.
 	End Rem
 	Method Result:TRenderImage()
@@ -155,6 +163,7 @@ bbdoc: Creates a reusable inner-shadow description without allocating graphics r
 param: Finite, nonnegative blur radius in source pixels; defaults to eight.
 param: Finite horizontal offset in source pixels; defaults to three.
 param: Finite vertical offset in source pixels; defaults to three.
+returns: A new #TMax2DInnerShadow instance configured with the supplied settings.
 End Rem
 Function CreateInnerShadow:TMax2DInnerShadow(radius:Float = 8, offsetX:Float = 3, offsetY:Float = 3)
 	Local shadow:TMax2DInnerShadow = New TMax2DInnerShadow

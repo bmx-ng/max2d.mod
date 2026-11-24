@@ -68,7 +68,7 @@ attempts; undo subtracts reverted moves. Restarting from the title resets it.
 This intentionally small game uses image effects for its lighting appearance;
 it does not add a scene lighting engine or custom shader-package ABI.
 The cover/ending illustration is generated artwork; gameplay art is drawn in
-BlitzMax. See [asset provenance and prompt](assets/README.md).
+BlitzMax.
 
 ## Source layout
 

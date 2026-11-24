@@ -114,6 +114,25 @@ RegisterMax2DImageEffectBackend(New TD3D9ImageEffectBackend)
 
 Private
 Type TD3D9ShaderPackageBackend Extends TMax2DShaderPackageBackend
+ Field frames:Byte Ptr[4]
+ Method MaximumTextures:Int(context:TMax2DContext) Override
+  If Handles(context) Then Return 5
+  Return 0
+ End Method
+ Method BindTextureSet(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,textures:TImageFrame[],count:Int) Override
+  Local native:TD3D9Max2DContext=TD3D9Max2DContext(context)
+  Try
+   For Local i:Int=0 Until count
+    native.Upload(TD3D9ImageFrame(textures[i]))
+    frames[i]=native.NativeFrame(textures[i])
+   Next
+   native.Require(m2d9_select_texture_set(native.native,shader,values,frames,count))
+  Finally
+   For Local i:Int=0 Until count
+    frames[i]=Null
+   Next
+  End Try
+ End Method
  Method Handles:Int(context:TMax2DContext) Override
   Return TD3D9Max2DContext(context)<>Null
  End Method
@@ -125,18 +144,24 @@ Type TD3D9ShaderPackageBackend Extends TMax2DShaderPackageBackend
   Return m2d9_package_shader(nativeContext.native,package)
  End Method
  Method SelectShader(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame) Override
+  SelectTextures(context,shader,values,second,Null)
+ End Method
+ Method SelectTextures(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame,third:TImageFrame) Override
   Local nativeContext:TD3D9Max2DContext=TD3D9Max2DContext(context)
+  If third And third=context.target Then Throw "Max2D package: cannot sample destination as third texture"
   If second And second=context.target Then Throw "Max2D package: cannot sample the destination as second texture"
+  If third Then nativeContext.Upload(TD3D9ImageFrame(third))
   If second Then nativeContext.Upload(TD3D9ImageFrame(second))
-  m2d9_select_package_effect(nativeContext.native,shader,values,nativeContext.NativeFrame(second))
+  m2d9_select_package_effect(nativeContext.native,shader,values,nativeContext.NativeFrame(second),nativeContext.NativeFrame(third))
  End Method
  Method ClearShader(context:TMax2DContext) Override
   m2d9_select_image_effect(TD3D9Max2DContext(context).native,Null,0,0,0,0)
  End Method
 End Type
 Extern "C"
+ Function m2d9_select_texture_set:Int(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,textures:Byte Ptr Ptr,count:Int)
  Function m2d9_package_shader:Byte Ptr(context:Byte Ptr,package:Byte Ptr)
- Function m2d9_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr)
+ Function m2d9_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr,third:Byte Ptr)
 End Extern
 RegisterShaderPackageBackend(New TD3D9ShaderPackageBackend)
 ?

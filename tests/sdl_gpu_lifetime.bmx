@@ -22,10 +22,12 @@ Try
 	DrawRect(4,4,2,2)
 	FlushMax2D()
 	Local oldFrame:TImageFrame=image.Frame()
+	Local registered:Int=context.frames.Count()
 	image.ReleaseFrames()
 	GCCollect()
 	FlushMax2D()
 	Check(oldFrame.closed,"Deferred source release drained")
+	Check(context.frames.Count()=registered-1,"Deferred release updates cached registry count")
 	Local result:TPixmap=ReadRenderImage(target)
 	Check(result.ReadPixel(0,0)=$ffff0000,"Queued source survives release and queue growth")
 	Check(result.ReadPixel(4,4)=$ff00ff00,"Drawing after queue rollover preserves order")
@@ -54,6 +56,7 @@ Try
 	SetRenderImage(Null)
 	EndGraphics()
 	Check(context.frames.IsEmpty(),"Closing drains frame ownership registry")
+	Check(context.frames.Count()=0,"Closing clears cached registry count")
 	Print "Max2D SDL GPU lifetime tests passed"
 Catch error:Object
 	Print "FAILED: "+error.ToString()

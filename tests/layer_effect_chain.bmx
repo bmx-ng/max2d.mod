@@ -22,6 +22,23 @@ Import BRL.StandardIO
 Type TUnavailableEffect Extends TMax2DImageEffect
 End Type
 
+Type TFailingEffect Extends TMax2DImageEffect
+End Type
+Type TProbeBackend Extends TMax2DImageEffectBackend
+ Field accept:Int,hits:Int,draws:Int
+ Method Handles:Int(context:TMax2DContext,effect:TMax2DImageEffect) Override
+  If Not TFailingEffect(effect) Then Return False
+  hits:+1;Return accept
+ End Method
+ Method Supports:Int(canvas:TMax2DGraphics,effect:TMax2DImageEffect) Override
+  Return True
+ End Method
+ Method Draw(canvas:TMax2DGraphics,image:TImage,effect:TMax2DImageEffect,x:Float,y:Float,frame:Int) Override
+  draws:+1
+  Throw "injected effect draw failure"
+ End Method
+End Type
+
 Function Check(ok:Int, message:String)
 	If Not ok Then Throw message
 End Function
@@ -159,6 +176,27 @@ Try
 	End Try
 	Check(rejected, "scratch alias rejected")
 	CheckPixel(ReadRenderImage(source), 255)
+	' Provider lookup preserves first-match order without allocating an iterator.
+	Local decline:TProbeBackend=New TProbeBackend,selected:TProbeBackend=New TProbeBackend,later:TProbeBackend=New TProbeBackend
+	selected.accept=True;later.accept=True
+	RegisterMax2DImageEffectBackend(decline);RegisterMax2DImageEffectBackend(selected);RegisterMax2DImageEffectBackend(later)
+	Local probe:TFailingEffect=New TFailingEffect
+	Local gcBefore:SGCStats,gcAfter:SGCStats
+	GCCollect();GCGetStats(gcBefore)
+	For Local i:Int=0 Until 1000
+		If Not Max2DSupportsImageEffect(probe) Then Throw "probe support missing"
+	Next
+	GCGetStats(gcAfter)
+	Check(Long(gcAfter.allocedBytesBeforeGC)+Long(gcAfter.bytesAllocedSinceGC)=Long(gcBefore.allocedBytesBeforeGC)+Long(gcBefore.bytesAllocedSinceGC),"warm provider lookup allocates zero bytes")
+	Check(decline.hits=1000 And selected.hits=1000 And later.hits=0,"provider registration order and first-match selection")
+	rejected=False
+	Try
+		ApplyLayerEffects(source,destination,[TMax2DImageEffect(probe),TMax2DImageEffect(probe)],scratch)
+	Catch error:Object
+		rejected=error.ToString()="injected effect draw failure"
+	End Try
+	Check(rejected And selected.draws=1 And later.draws=0,"runtime provider failure reaches selected backend")
+	CheckCaller(source)
 	SetRenderImage(destination)
 	Local x:Int, y:Int, w:Int, h:Int
 	GetViewport(x, y, w, h)

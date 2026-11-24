@@ -1,3 +1,25 @@
+Private
+' Handles and entries remain one-shot; only inactive drawing storage is reused.
+Type TEffectLayerCaptureScope Extends TMax2DStateScope
+ Field original:TMax2DState
+ Method Close() Override
+  Local owner:TMax2DGraphics=canvas
+  Local restore:Int=owner And entry And entry.active And Not owner.context.closed
+  Local snapshot:TMax2DState
+  If restore Then snapshot=entry.state
+  Try
+   Super.Close()
+  Finally
+   If restore And owner.state=snapshot Then
+    snapshot.CopyTo(original)
+    owner.state=original
+   End If
+   original=Null
+  End Try
+ End Method
+End Type
+Public
+
 Rem
 bbdoc: Reusable padded capture layer with logical coordinates and explicit resolution scaling.
 about: Prepare owns one filtered render image. Capture draws in content coordinates, with (0,0) inside the padding. Draw places that same content origin at the requested position, including when drawing a same-sized effect result. Padding is explicit and is not inferred from effects. Capture and effect updates remain separate operations.
@@ -5,6 +27,8 @@ End Rem
 Type TMax2DEffectLayer
 	Private
 	Field buffers:TMax2DEffectBuffers = New TMax2DEffectBuffers
+	Field savedState:TMax2DState=New TMax2DState
+	Field drawState:TMax2DState=New TMax2DState
 	Field capture:TMax2DStateScope
 	Field logicalWidth:Int, logicalHeight:Int
 	Field padLeft:Int, padTop:Int
@@ -36,12 +60,28 @@ Type TMax2DEffectLayer
 	Rem
 	bbdoc: Begins a scoped capture, optionally clearing the complete padded image to transparent black.
 	param: Clear the image before drawing; defaults to True.
-	about: Use the returned scope in a Using block or close it in Finally. Closing restores the previous target and caller drawing state. Capture resets camera, coordinates, transform, handle, colour, alpha and blend, selects ALPHABLEND and a full padded viewport, and places the origin inside the padding. Font and line settings are inherited. Padding is drawable. The owned image's view is configured for capture. Nested capture on the same layer is rejected; different layers may nest. With clear=False, existing pixels are retained.
+	returns: A one-shot drawing-state scope; close it in Finally or a Using block to restore the caller.
+	about: Use the returned scope in a Using block or close it in Finally. Closing restores the previous target and caller drawing state. Capture resets camera, coordinates, transform, handle, colour, alpha and blend, selects ALPHABLEND and a full padded viewport, and places the origin inside the padding. Font and line settings are inherited. Padding is drawable. The owned image's view is configured for capture. Nested capture on the same layer is rejected; different layers may nest. With clear=False, existing pixels are retained. Each capture returns a fresh one-shot handle and saved entry; private drawing-state storage is reused.
 	End Rem
 	Method Capture:TMax2DStateScope(clear:Int = True)
 		CheckNotCapturing()
 		Local image:TRenderImage = buffers.Image(0)
-		capture = ScopedMax2DState()
+		Local owner:TMax2DGraphics=TMax2DGraphics.Current()
+		Local scope:TEffectLayerCaptureScope=New TEffectLayerCaptureScope
+		scope.canvas=owner;scope.original=owner.state
+		scope.entry=New TMax2DSavedState
+		scope.entry.state=savedState
+		owner.CaptureState(scope.entry)
+		savedState=scope.entry.state
+		scope.entry.active=True;scope.entry.scoped=True
+		owner.saved.AddLast(scope.entry)
+		capture=scope
+		' Capture establishes all drawing settings except inherited clear/line
+		' settings and font. Keep the caller state (including its camera) intact.
+		drawState.lineWidth=owner.state.lineWidth
+		drawState.clsRed=owner.state.clsRed;drawState.clsGreen=owner.state.clsGreen;drawState.clsBlue=owner.state.clsBlue
+		drawState.clsAlpha=owner.state.clsAlpha;drawState.clsByteAlpha=owner.state.clsByteAlpha
+		owner.state=drawState
 		Try
 			SetRenderImage(image)
 			SetVirtualResolution(logicalWidth, logicalHeight)
@@ -67,6 +107,7 @@ Type TMax2DEffectLayer
 
 	Rem
 	bbdoc: Returns the borrowed padded source image for effect processing.
+	returns: The borrowed padded source image for effect processing.
 	about: Close capture before sampling this image. No rendering or automatic effect update occurs here. Do not release or resize the image independently. Its initial pixels are unspecified until captured or explicitly drawn.
 	End Rem
 	Method Image:TRenderImage()

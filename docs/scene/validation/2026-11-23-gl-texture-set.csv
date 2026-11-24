@@ -1,0 +1,6 @@
+platform,profile,test,status,summary
+macOS arm64,gl,gl_texture_set,PASS,PASS: 108 OpenGL texture-set checks
+macOS arm64,gl,shader_texture_bindings,PASS,PASS: 19 texture binding checks
+macOS arm64,gl,gl_package_textures,PASS,gl_package_textures passed
+macOS arm64,gl,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+macOS arm64,gl,shader_packages,PASS,shader_packages passed

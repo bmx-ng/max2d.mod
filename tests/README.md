@@ -312,3 +312,147 @@ The scratch directory must not already exist. The test regenerates the reference
 packages, compares their sources/wrappers/assets exactly, and rejects malformed
 manifests. After editing the wrapper template, run `generate` for each package;
 run `embed` when compiled asset data changes. See [package authoring](../docs/shader-packages.md#building-a-package).
+
+### Native material texture bindings
+
+`shader_texture_bindings.bmx` checks counted-binding validation and compatibility
+with existing adapter hooks. `gl_texture_set.bmx`, `gpu_texture_set.bmx` and
+`d3d_texture_set.bmx` exercise actual five-texture native rendering. The SDL GPU
+fixture contains Metal shaders and requires that runtime. The Direct3D fixture
+runs with either `-ud max2d_d3d9` or `-ud max2d_d3d11` on Windows. Tests include
+sampling modes, render-image orientation, repeated bindings, caller-array reuse,
+rejection recovery and ordinary drawing after clearing the shader. SDL GPU also
+checks queued snapshots through arena growth; Direct3D checks fifth-slot textures
+becoming render destinations.
+
+Direct3D fixture source and compiled assets are in `data/texture-set`. To rebuild
+them, build `sdl3gpueffects.mod/packages/compile_dxbc.bmx` on Windows using BlitzMax,
+then run these commands from the Max2D module directory:
+
+```text
+compile_dxbc.exe tests/data/texture-set/probe.d3d9.hlsl tests/data/texture-set/probe.d3d9.bin ps_3_0
+compile_dxbc.exe tests/data/texture-set/probe.d3d11.hlsl tests/data/texture-set/probe.d3d11.dxbc ps_4_0
+```
+
+These are native transport fixtures. They do not extend the public effect-package
+schema or enable additional maps in the lighting shaders by themselves.
+
+## Layout-cache allocation regression
+
+`layout_cache.bmx` runs without a graphics window. It checks LRU order in both
+list directions, eviction, replacement, shrinking, clearing, empty keys and held
+layouts. A mixed eight-key loop asserts zero allocations across 16,000 warm hits.
+The built-in bitmap font is always tested; pass an absolute font-file path to
+exercise scalable fonts too. Build in release and debug modes from the SDK root:
+
+```sh
+bin/bmk makeapp -r -o /tmp/layout-cache mod/max2d.mod/tests/layout_cache.bmx
+/tmp/layout-cache /absolute/path/to/font.ttf
+bin/bmk makeapp -d -o /tmp/layout-cache-debug mod/max2d.mod/tests/layout_cache.bmx
+/tmp/layout-cache-debug /absolute/path/to/font.ttf
+```
+
+`text_layout.bmx` separately checks synthetic shaping, while `scalable_text.bmx`
+checks real-font shaping and rendered text at multiple densities. See the
+[allocation report](../docs/scene/benchmarks/2026-11-23-text-cache.md) for the
+measured scene impact.
+
+## Native lighting atlas state
+
+`lighting_atlas_state.bmx` checks copy pixels, caller state identity, target/view
+restoration, failure invalidation and retry, and native-frame cleanup. It also
+asserts zero managed allocations across 1,000 warmed revision-changing copies.
+Build with `-ud max2d_sdlgpu` or `-ud max2d_gl`; no assets or arguments are required.
+
+## Lighting shadow state
+
+`lighting_shadow_state.bmx` checks caller state identity and target/view restoration
+for hard/soft point and directional shadows, optional point-light patterns,
+locked-pattern failure and retry, cached reuse and cleanup. It preserves an
+enclosing public scope with non-default camera, transform, tint and viewport.
+Build with `-ud max2d_sdlgpu` or `-ud max2d_gl`; no assets or arguments are required.
+
+## Retained effect processor state
+
+`effect_processor_state.bmx` injects provider failures into bloom and scaled blur
+and checks caller state identity, target/view restoration, enclosing scope balance,
+retry, bloom cache invalidation and cleanup. It also checks a provider reentering
+the same blur descriptor with separate images. The test provider performs ordinary
+copies; run `scaled_blur.bmx` and `bloom_pipeline.bmx` for native pixel fidelity.
+Build with `-ud max2d_sdlgpu` or `-ud max2d_gl`; no assets or arguments are required.
+
+The processor-state test also covers retained empty and two-effect chains with
+source, output or scratch selected, failures at both effect draws and successful
+retry. One thousand warmed two-effect calls must allocate zero managed bytes.
+`scene_alpha_masks.bmx` additionally checks success, failure and retry when the
+returned mask output is selected with a custom caller view.
+
+## Layer-alpha operation state
+
+`layer_operation_state.bmx` checks alpha-mask, inverse-mask and opacity state/view
+restoration, including affine and parent coordinates, camera, colour byte alpha,
+locked-mask failure and retry. Three thousand warmed calls must allocate zero
+managed bytes. Run `layer_effects.bmx` and `inverse_layer_masks.bmx` for pixel
+checks. Build with `-ud max2d_sdlgpu` or `-ud max2d_gl`; no assets are required.
+
+## Capture state reuse
+
+`effect_capture_state.bmx` checks inherited capture settings, caller state and
+view restoration, exception cleanup, and stale handles after normal close and
+outer unwind. It measures 1,000 warmed captures while requiring fresh-handle
+safety. Run `composition_helpers.bmx` alongside it for capture pixels, nesting
+and context recreation. Build with `-ud max2d_sdlgpu` or `-ud max2d_gl`; no assets
+are required.
+
+## State-reuse validation on Windows
+
+`effect_capture_state.bmx`, `layer_operation_state.bmx`,
+`effect_processor_state.bmx` and `lighting_shadow_state.bmx` also accept
+`-ud max2d_d3d9` and `-ud max2d_d3d11`. Build with the Windows SDK and run in an
+interactive desktop session so Direct3D can create a graphics context:
+
+```text
+bin\bmk.exe makeapp -r -g x64 -ud max2d_d3d11 -o capture-state.exe mod\max2d.mod\tests\effect_capture_state.bmx
+capture-state.exe
+```
+
+Run the existing `composition_helpers`, `scene_alpha_masks`, `bloom_pipeline` and
+`scaled_blur` tests with the same backend profile for pixel and lifecycle coverage.
+The SDL GPU and OpenGL profiles remain available on macOS and Linux.
+
+
+## Selected scene-subtree capture
+
+`scene_subtree_capture` checks the render-group provider's isolated subtree capture:
+source/child transforms, tint, alpha and visibility, hidden ancestors, reflection,
+invalid sources, rejection before drawing a recursive source, borrowed-context
+lifetime, failure recovery and nested composite cache/resource ownership.
+
+Run alongside `scene_composite`, `scene_alpha_masks` and `scene_culling` when
+changing scene traversal. For example, from the SDK directory:
+
+```sh
+python3 mod/max2d.mod/tests/run_regressions.py sdlgpu --test scene_subtree_capture \
+  --test scene_composite --test scene_alpha_masks --test scene_culling
+```
+
+Use `gl`, `sdl`, `d3d9` or `d3d11` for the corresponding desktop backend. These
+checks exercise the capture primitive; they do not establish live-mask dependency
+or input semantics.
+
+
+## Live scene-subtree masks
+
+`scene_subtree_masks` covers source-driven cache invalidation through cached
+ancestors, shared/nested sources, visibility/alpha/offsets, resolution, continuous
+sources, detach/destruction, configuration and structural cycles, failure retry,
+storage limits and graphics-context recreation. It also checks warm dependency
+preparation allocation. Run it alongside `scene_subtree_capture`, `scene_composite`,
+`scene_alpha_masks`, `scene_culling` and `scene_storage` after traversal changes.
+
+```sh
+python3 mod/max2d.mod/tests/run_regressions.py sdlgpu --test scene_subtree_masks
+```
+
+The test is registered for `sdlgpu`, `gl`, `sdl`, `d3d9` and `d3d11`. Registration
+alone does not establish runtime coverage; consult the dated validation results.

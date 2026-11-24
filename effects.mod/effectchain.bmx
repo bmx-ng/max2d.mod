@@ -44,6 +44,7 @@ Type TMax2DEffectChain
 	Rem
 	bbdoc: Applies all stages and returns the borrowed output, preserving caller drawing state.
 	param: Same-sized source render image, distinct from the owned output.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
 	about: Requires Prepare after SetEffects. An empty chain copies the source. Source and output must be distinct and equal in size. Every call rebuilds the result. A failed update invalidates Result because output pixels may have changed. No render images or effect arrays are allocated during updates.
 	End Rem
 	Method Update:TRenderImage(source:TRenderImage)
@@ -56,6 +57,7 @@ Type TMax2DEffectChain
 
 	Rem
 	bbdoc: Returns the last successful borrowed output without rendering.
+	returns: The last successful borrowed output without rendering.
 	about: Throws before a successful Update, after configuration changes, failed updates, changed storage or release, and on the wrong or closed context. Do not release the returned image independently or retain it across reconfiguration.
 	End Rem
 	Method Result:TRenderImage()
@@ -77,6 +79,7 @@ End Type
 Rem
 bbdoc: Creates a retained chain description without allocating graphics resources.
 param: Ordered effects; an empty array produces a plain copy.
+returns: A new #TMax2DEffectChain instance configured with the supplied settings.
 End Rem
 Function CreateEffectChain:TMax2DEffectChain(effects:TMax2DImageEffect[])
 	Local chain:TMax2DEffectChain = New TMax2DEffectChain

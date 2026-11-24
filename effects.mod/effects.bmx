@@ -26,14 +26,87 @@ Global alphaMultiplyBlend:Int = CreateBlendMode(BLEND_ZERO, BLEND_SRC_ALPHA, BLE
 
 Global inverseAlphaMultiplyBlend:Int = CreateBlendMode(BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLEND_OP_ADD, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA)
 
-Function BeginLayerOperation:TMax2DStateScope(layer:TRenderImage, blend:Int)
+' Closed layer passes only change these drawing fields and the target view.
+' No callbacks or shader providers run here; camera settings are never edited.
+Struct SLayerOperation
+ Field state:TMax2DState
+ Field view:SLayerTargetView
+ Field red:Int,green:Int,blue:Int,colorByteAlpha:Int,blend:Int
+ Field alpha:Float,ix:Float,iy:Float,jx:Float,jy:Float,originX:Float,originY:Float,handleX:Float,handleY:Float
+ Field coordXX:Double,coordXY:Double,coordYX:Double,coordYY:Double,coordTX:Double,coordTY:Double,cameraXX:Double,cameraXY:Double,cameraYX:Double,cameraYY:Double,cameraTX:Double,cameraTY:Double
+ Field camera:TCamera2D
+ Method Capture(source:TMax2DState)
+  state=source
+  red=source.red
+  green=source.green
+  blue=source.blue
+  colorByteAlpha=source.colorByteAlpha
+  blend=source.blend
+  alpha=source.alpha
+  ix=source.ix
+  iy=source.iy
+  jx=source.jx
+  jy=source.jy
+  originX=source.originX
+  originY=source.originY
+  handleX=source.handleX
+  handleY=source.handleY
+  coordXX=source.coordXX
+  coordXY=source.coordXY
+  coordYX=source.coordYX
+  coordYY=source.coordYY
+  coordTX=source.coordTX
+  coordTY=source.coordTY
+  cameraXX=source.cameraXX
+  cameraXY=source.cameraXY
+  cameraYX=source.cameraYX
+  cameraYY=source.cameraYY
+  cameraTX=source.cameraTX
+  cameraTY=source.cameraTY
+  camera=source.camera
+ End Method
+ Method Close()
+  If Not state Then Return
+  state.red=red
+  state.green=green
+  state.blue=blue
+  state.colorByteAlpha=colorByteAlpha
+  state.blend=blend
+  state.alpha=alpha
+  state.ix=ix
+  state.iy=iy
+  state.jx=jx
+  state.jy=jy
+  state.originX=originX
+  state.originY=originY
+  state.handleX=handleX
+  state.handleY=handleY
+  state.coordXX=coordXX
+  state.coordXY=coordXY
+  state.coordYX=coordYX
+  state.coordYY=coordYY
+  state.coordTX=coordTX
+  state.coordTY=coordTY
+  state.cameraXX=cameraXX
+  state.cameraXY=cameraXY
+  state.cameraYX=cameraYX
+  state.cameraYY=cameraYY
+  state.cameraTX=cameraTX
+  state.cameraTY=cameraTY
+  state.camera=camera
+  state=Null;camera=Null
+  view.Close()
+ End Method
+End Struct
+
+Function BeginLayerOperation:SLayerOperation(layer:TRenderImage, blend:Int)
 	If Not layer Then Throw "Max2D Effects: select a render image before applying a layer effect"
 	If Not Max2DSupportsBlend(blend) Then Throw "Max2D Effects: alpha multiplication is unsupported by this backend"
 
-	Local scope:TMax2DStateScope = ScopedMax2DState()
+	Local scope:SLayerOperation
+	scope.Capture(TMax2DGraphics.Current().state)
 	Try
-		SetVirtualResolution(layer.width, layer.height)
-		SetViewport(0, 0, layer.width, layer.height)
+		scope.view=PrepareChainTarget(layer)
 		SetCamera(Null)
 		ResetCoordinates()
 		SetAffineTransform(1, 0, 0, 1)
@@ -56,7 +129,7 @@ Function ApplyLayerMaskWithBlend(mask:TImage, blend:Int)
 	If mask = layer Then Throw "Max2D Effects: a layer cannot sample itself as its mask"
 	If mask.width <> layer.width Or mask.height <> layer.height Then Throw "Max2D Effects: mask and layer dimensions must match"
 
-	Local scope:TMax2DStateScope = BeginLayerOperation(layer, blend)
+	Local scope:SLayerOperation = BeginLayerOperation(layer, blend)
 	Try
 		TMax2DGraphics.Current().DrawImageRegion(mask, 0, 0, layer.width, layer.height, 0, 0, mask.width, mask.height, 0, 0)
 	Finally
@@ -68,6 +141,7 @@ Public
 
 Rem
 bbdoc: Reports whether the active backend can multiply a layer by alpha.
+returns: True if the active backend can multiply a layer by alpha, False otherwise.
 about: Call after Graphics. A render image is also required; query Max2DSupportsRenderImage for its dimensions and flags. This operation uses a drawing pass over that image, with no readback or new target allocation.
 End Rem
 Function Max2DSupportsLayerAlpha:Int()
@@ -77,7 +151,7 @@ End Function
 Rem
 bbdoc: Multiplies the current render image's colour and alpha by a mask image's alpha.
 param: Same-size mask image; its RGB is ignored.
-about: Draw the group into a transparent render image, then apply this mask and draw the group image to its parent target. The mask must cover the entire layer, including transparent areas. The mask and layer must be distinct images to avoid sampling the active target. This explicit operation costs one additional pass over the layer bounds. RGB and alpha are multiplied together, preserving premultiplied render-image storage. Unsupported blend modes throw before changing drawing state. Drawing state, camera, viewport and current target are restored on return.
+about: Draw the group into a transparent render image, then apply this mask and draw the group image to its parent target. The mask must cover the entire layer, including transparent areas. The mask and layer must be distinct images to avoid sampling the active target. This explicit operation costs one additional pass over the layer bounds. RGB and alpha are multiplied together, preserving premultiplied render-image storage. Unsupported blend modes throw before changing drawing state. Drawing state, camera, viewport and current target are restored on return using allocation-free value snapshots.
 End Rem
 Function ApplyLayerAlphaMask(mask:TImage)
 	ApplyLayerMaskWithBlend(mask, alphaMultiplyBlend)
@@ -85,6 +159,7 @@ End Function
 
 Rem
 bbdoc: Reports whether the active backend supports inverse layer alpha masks.
+returns: True if the active backend supports inverse layer alpha masks, False otherwise.
 about: Query after Graphics, alongside render-image support. This checks the exact destination-times-one-minus-source-alpha blend equation; no shader provider is needed.
 End Rem
 Function Max2DSupportsLayerInverseAlpha:Int()
@@ -108,7 +183,7 @@ End Rem
 Function ApplyLayerOpacity(opacity:Float)
 	If opacity < 0 Or opacity > 1 Or IsNan(opacity) Then Throw "Max2D Effects: opacity must be between zero and one"
 	Local layer:TRenderImage = TMax2DGraphics.Current().renderImage
-	Local scope:TMax2DStateScope = BeginLayerOperation(layer, alphaMultiplyBlend)
+	Local scope:SLayerOperation = BeginLayerOperation(layer, alphaMultiplyBlend)
 	Try
 		SetAlpha(opacity)
 		DrawRect(0, 0, layer.width, layer.height)

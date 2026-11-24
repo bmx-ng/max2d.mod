@@ -1,0 +1,17 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+macOS arm64,sdlgpu,material_maps,PASS,PASS: 121 material map checks
+macOS arm64,sdlgpu,lighting_affine_mesh,PASS,PASS: 366 affine mesh checks
+macOS arm64,sdlgpu,lighting_emission,PASS,PASS: 1049 emission checks
+macOS arm64,gl,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+macOS arm64,gl,material_maps,PASS,PASS: 121 material map checks
+macOS arm64,gl,lighting_affine_mesh,PASS,PASS: 366 affine mesh checks
+macOS arm64,gl,lighting_emission,PASS,PASS: 1049 emission checks
+Windows x64 on ARM64 Parallels,d3d9,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+Windows x64 on ARM64 Parallels,d3d9,material_maps,PASS,PASS: 121 material map checks
+Windows x64 on ARM64 Parallels,d3d9,lighting_affine_mesh,PASS,PASS: 366 affine mesh checks
+Windows x64 on ARM64 Parallels,d3d9,lighting_emission,PASS,PASS: 1049 emission checks
+Windows x64 on ARM64 Parallels,d3d11,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+Windows x64 on ARM64 Parallels,d3d11,material_maps,PASS,PASS: 121 material map checks
+Windows x64 on ARM64 Parallels,d3d11,lighting_affine_mesh,PASS,PASS: 366 affine mesh checks
+Windows x64 on ARM64 Parallels,d3d11,lighting_emission,PASS,PASS: 1049 emission checks

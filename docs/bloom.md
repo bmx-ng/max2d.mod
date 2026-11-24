@@ -43,11 +43,22 @@ Zero radius still resamples when reduction levels are present.
 
 ## Output and colour
 
-The source is composited over **opaque black**, then glow is added. The result is
-opaque, so halos remain visible outside the source's original alpha coverage.
+By default the source is composited over **opaque black**, then glow is added.
 For a scene with a different background, compose that background into the source
-before applying bloom. This API does not return a transparent glow-only layer;
-use the lower-level bright-pass and blur operations for that purpose.
+before applying bloom.
+
+Use `bloom.SetOpaqueBackground(False)` for a transparent composite containing
+both the source and glow. Present it with ordinary `ALPHABLEND`. Glow RGB is added
+to source RGB; output alpha is `glowAlpha + sourceAlpha*(1-glowAlpha)`. Glow
+coverage scales with intensity up to one; higher intensity amplifies RGB only.
+Zero intensity reproduces the source RGBA. Empty padding stays transparent.
+This combines glow coverage with the object, rather than adding light directly
+to the eventual background. For a glow-only layer, use bright-pass and blur.
+
+Changing the mode takes effect on the next `Update`, reuses all textures and
+leaves the previous `Result` available until that update. `GetOpaqueBackground()`
+reports the selected mode. `TSceneBloomStage` uses this same pipeline but defaults
+to transparent composition.
 
 Use linear source colours and floating-point buffers for HDR. RGBA16F is the
 default; there is no automatic downgrade when unsupported. RGBA8888 is an explicit
@@ -85,6 +96,7 @@ An update uses extraction, blur, opaque fill, source composition and glow additi
 
 - No reductions: 6 draws.
 - `L > 0`: `L+7` draws; two levels use **9 draws**.
+- Transparent mode omits the opaque fill: one fewer draw.
 - Retrieving `Result`: **0 draws**; presenting it normally adds one.
 
 After warming, updates create no images, arrays, effect descriptions or textures

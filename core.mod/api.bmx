@@ -74,6 +74,14 @@ Function DrawMesh(mesh:TMesh2D,x:Float=0,y:Float=0)
 End Function
 
 Rem
+bbdoc: Draws an image through a triangle mesh using its normalized texture coordinates.
+about: UVs address the image's full logical rectangle in 0..1. Uses the current drawing state and drawing handle, ignoring the image handle. Supports atlas frames and retained expanded sampling for trimmed CPU byte images. Null mesh or image draws nothing. See TMax2DGraphics.DrawTexturedMesh for sampling and mutation rules.
+End Rem
+Function DrawTexturedMesh(mesh:TMesh2D,image:TImage,x:Float=0,y:Float=0,frame:Int=0)
+ TMax2DGraphics.Current().DrawTexturedMesh(mesh,image,x,y,frame)
+End Function
+
+Rem
 bbdoc: Draws one image frame using its handle and the current drawing state.
 param: Image to operate on.
 param: Horizontal drawing position before the active transforms.

@@ -36,6 +36,15 @@ bbdoc: Max2D rendering context implemented with SDL3 GPU.
 End Rem
 Type TSDLGPUMax2DContext Extends TMax2DContext
 
+ Rem
+ bbdoc: Returns the selected drawing target's logical format, including PF_RGBA16F for an HDR window.
+ End Rem
+ Method DrawingPixelFormat:Int() Override
+  If target Then Return target.pixelFormat
+  If HDROutput() Then Return PF_RGBA16F
+  Return PF_RGBA8888
+ End Method
+
 	Rem
 	bbdoc: Opaque backend resource handle; managed by the owning graphics context.
 	End Rem
@@ -526,6 +535,14 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	End Rem
 	Method SupportsRenderImage:Int(width:Int,height:Int,flags:Int) Override
 		Return SupportsImageFlags(flags) And ValidTextureSize(width,height) And m2d_gpu_support(native,False,True)
+	End Method
+
+	Rem
+	bbdoc: Reports SDL GPU's portable 2D texture dimension limit.
+	about: Larger dimensions are rejected before native allocation, including on Metal where an invalid descriptor can abort the process.
+	End Rem
+	Method TextureSize(width:Int Var,height:Int Var) Override
+		width = 16384; height = 16384
 	End Method
 
 End Type

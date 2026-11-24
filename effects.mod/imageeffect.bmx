@@ -29,6 +29,7 @@ Type TMax2DSaturationEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the selected saturation value.
+	returns: The selected saturation value.
 	End Rem
 	Method GetAmount:Float()
 		Return amount
@@ -39,6 +40,7 @@ End Type
 Rem
 bbdoc: Creates a reusable saturation effect without allocating graphics resources.
 param: Finite, nonnegative saturation; zero is grayscale and one preserves colour.
+returns: A new #TMax2DSaturationEffect instance configured with the supplied settings.
 End Rem
 Function CreateSaturationEffect:TMax2DSaturationEffect(amount:Float = 1)
 	Local effect:TMax2DSaturationEffect = New TMax2DSaturationEffect
@@ -61,6 +63,9 @@ Type TMax2DColorizeEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Sets silhouette RGB components, each from zero to 255.
+	param: Red component in the inclusive range 0..255.
+	param: Green component in the inclusive range 0..255.
+	param: Blue component in the inclusive range 0..255.
 	about: Invalid components leave the previous colour unchanged. Previously submitted draws retain their colour.
 	End Rem
 	Method SetColor(r:Int, g:Int, b:Int)
@@ -72,6 +77,9 @@ Type TMax2DColorizeEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the selected silhouette RGB components.
+	param: Receives red component in the inclusive range 0..255.
+	param: Receives green component in the inclusive range 0..255.
+	param: Receives blue component in the inclusive range 0..255.
 	End Rem
 	Method GetColor(r:Int Var, g:Int Var, b:Int Var)
 		r = red
@@ -83,6 +91,10 @@ End Type
 
 Rem
 bbdoc: Creates a reusable silhouette colour description without graphics resources.
+param: Red component in the inclusive range 0..255.
+param: Green component in the inclusive range 0..255.
+param: Blue component in the inclusive range 0..255.
+returns: A new #TMax2DColorizeEffect instance configured with the supplied settings.
 about: Components range from zero to 255. The default is white.
 End Rem
 Function CreateColorizeEffect:TMax2DColorizeEffect(red:Int = 255, green:Int = 255, blue:Int = 255)
@@ -105,6 +117,7 @@ Type TMax2DBlurEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Sets the source-pixel sampling radius from zero to four.
+	param: Sampling radius from zero to four source pixels.
 	about: Four uses the full binomial kernel; smaller radii scale its sample spacing. Zero preserves the source. Values must be finite.
 	End Rem
 	Method SetRadius(value:Float)
@@ -114,6 +127,7 @@ Type TMax2DBlurEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the source-pixel sampling radius.
+	returns: The source-pixel sampling radius.
 	End Rem
 	Method GetRadius:Float()
 		Return radius
@@ -121,6 +135,7 @@ Type TMax2DBlurEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Selects horizontal sampling when True, or vertical sampling when False.
+	param: True for horizontal sampling, False for vertical sampling.
 	End Rem
 	Method SetHorizontal(value:Int)
 		horizontal = value <> 0
@@ -128,6 +143,7 @@ Type TMax2DBlurEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns True for horizontal sampling.
+	returns: True for horizontal sampling.
 	End Rem
 	Method IsHorizontal:Int()
 		Return horizontal
@@ -139,6 +155,7 @@ Rem
 bbdoc: Creates a reusable single-axis blur description without graphics resources.
 param: Source-pixel sampling radius, from zero to four.
 param: True for horizontal sampling, False for vertical sampling.
+returns: A new #TMax2DBlurEffect instance configured with the supplied settings.
 End Rem
 Function CreateBlurEffect:TMax2DBlurEffect(radius:Float = 4, horizontal:Int = True)
 	Local effect:TMax2DBlurEffect = New TMax2DBlurEffect
@@ -160,6 +177,7 @@ Type TMax2DOutlineEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Sets the outline radius from zero to four source pixels.
+	param: Sampling radius from zero to four source pixels; integral values only.
 	about: Previously submitted draws retain their radius. Fractional radii are not supported.
 	End Rem
 	Method SetRadius(value:Int)
@@ -169,6 +187,7 @@ Type TMax2DOutlineEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the outline radius in source pixels.
+	returns: The outline radius in source pixels.
 	End Rem
 	Method GetRadius:Int()
 		Return radius
@@ -178,6 +197,7 @@ End Type
 Rem
 bbdoc: Creates a reusable alpha-outline effect without graphics resources.
 param: Integer radius from zero to four source pixels.
+returns: A new #TMax2DOutlineEffect instance configured with the supplied settings.
 End Rem
 Function CreateOutlineEffect:TMax2DOutlineEffect(radius:Int = 1)
 	Local effect:TMax2DOutlineEffect = New TMax2DOutlineEffect
@@ -197,6 +217,7 @@ Type TMax2DBrightPassEffect Extends TMax2DImageEffect
 	Public
 	Rem
 	bbdoc: Sets the finite, nonnegative luminance threshold for subsequent draws.
+	param: Finite nonnegative luminance threshold in source colour units.
 	about: Zero retains positive-luminance pixels; one removes normalized RGB highlights at or below white. Larger thresholds can be used with floating-point inputs. Previously submitted draws retain their threshold.
 	End Rem
 	Method SetThreshold(value:Float)
@@ -206,6 +227,7 @@ Type TMax2DBrightPassEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the selected luminance threshold.
+	returns: The selected luminance threshold.
 	End Rem
 	Method GetThreshold:Float()
 		Return threshold
@@ -215,6 +237,7 @@ End Type
 Rem
 bbdoc: Creates a reusable brightness-extraction effect without graphics resources.
 param: Finite, nonnegative luminance threshold; defaults to 0.6.
+returns: A new #TMax2DBrightPassEffect instance configured with the supplied settings.
 End Rem
 Function CreateBrightPassEffect:TMax2DBrightPassEffect(threshold:Float = 0.6)
 	Local effect:TMax2DBrightPassEffect = New TMax2DBrightPassEffect
@@ -235,6 +258,7 @@ Type TMax2DToneMapEffect Extends TMax2DImageEffect
 	Public
 	Rem
 	bbdoc: Sets a finite, nonnegative exposure multiplier; zero produces black.
+	param: Finite nonnegative exposure multiplier; zero produces black.
 	End Rem
 	Method SetExposure(value:Float)
 		If value < 0 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: exposure must be finite and nonnegative"
@@ -243,6 +267,7 @@ Type TMax2DToneMapEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the exposure multiplier.
+	returns: The exposure multiplier.
 	End Rem
 	Method GetExposure:Float()
 		Return exposure
@@ -250,6 +275,7 @@ Type TMax2DToneMapEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Sets the power-curve gamma from 0.1 to 10; one leaves mapped RGB linear.
+	param: Power-curve gamma from 0.1 to 10.
 	End Rem
 	Method SetGamma(value:Float)
 		If value < 0.1 Or value > 10 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: gamma must be finite and between 0.1 and 10"
@@ -258,6 +284,7 @@ Type TMax2DToneMapEffect Extends TMax2DImageEffect
 
 	Rem
 	bbdoc: Returns the selected gamma.
+	returns: The selected gamma.
 	End Rem
 	Method GetGamma:Float()
 		Return gamma
@@ -268,6 +295,7 @@ Rem
 bbdoc: Creates a reusable tone-mapping effect without graphics resources.
 param: Finite, nonnegative exposure multiplier; defaults to one.
 param: Power-curve gamma from 0.1 to 10; defaults to one.
+returns: A new #TMax2DToneMapEffect instance configured with the supplied settings.
 End Rem
 Function CreateToneMapEffect:TMax2DToneMapEffect(exposure:Float = 1, gamma:Float = 1)
 	Local effect:TMax2DToneMapEffect = New TMax2DToneMapEffect
@@ -286,6 +314,7 @@ Type TMax2DImageEffectBackend Abstract
 	bbdoc: Reports whether this provider handles a context and effect description.
 	param: Active graphics context.
 	param: Requested effect description.
+	returns: True if this provider handles a context and effect description, False otherwise.
 	End Rem
 	Method Handles:Int(context:TMax2DContext, effect:TMax2DImageEffect) Abstract
 
@@ -293,6 +322,7 @@ Type TMax2DImageEffectBackend Abstract
 	bbdoc: Checks support for the current target, blend mode and submission path.
 	param: Active drawing canvas.
 	param: Requested effect description.
+	returns: True when the requested operation is supported by the current provider and state, False otherwise.
 	End Rem
 	Method Supports:Int(canvas:TMax2DGraphics, effect:TMax2DImageEffect) Abstract
 
@@ -309,6 +339,11 @@ Type TMax2DImageEffectBackend Abstract
 
 	Rem
 	bbdoc: Draws repeated images at interleaved x,y positions.
+	param: Current Max2D drawing canvas, including target and drawing state.
+	param: Borrowed image; its lifetime remains application-owned.
+	param: Required reusable image-effect description.
+	param: Interleaved X,Y drawing positions in submission order; the array must have even length.
+	param: Zero-based frame index in the supplied image.
 	about: Providers may override this to coalesce compatible sprites. The default preserves ordering by invoking Draw for each position. The caller has validated an even, nonempty positions array.
 	End Rem
 	Method DrawBatch(canvas:TMax2DGraphics, image:TImage, effect:TMax2DImageEffect, positions:Float[], frame:Int)
@@ -324,9 +359,13 @@ Private
 Global imageEffectBackends:TList = New TList
 
 Function ImageEffectBackend:TMax2DImageEffectBackend(canvas:TMax2DGraphics, effect:TMax2DImageEffect)
-	For Local backend:TMax2DImageEffectBackend = EachIn imageEffectBackends
+	Local link:TLink=imageEffectBackends.FirstLink()
+	While link
+		Local backend:TMax2DImageEffectBackend=TMax2DImageEffectBackend(link.Value())
+		' Advance before invoking the provider, matching list enumeration order.
+		link=link.NextLink()
 		If backend.Handles(canvas.context, effect) Then Return backend
-	Next
+	Wend
 	Return Null
 End Function
 
@@ -345,6 +384,7 @@ End Function
 Rem
 bbdoc: Checks an effect against the active backend, target, blend and submission path.
 param: Effect description to check.
+returns: True when the requested operation is supported by the current provider and state, False otherwise.
 about: Call after Graphics. Returns False if no provider is imported. This checks the effect and drawing state, not a source image, secondary texture binding or buffer layout; drawing still validates those inputs. A successful query may compile and cache a shader and pipeline; warm it before timing. Query again after changing context, target format, blend mode or compact-sprite mode.
 End Rem
 Function Max2DSupportsImageEffect:Int(effect:TMax2DImageEffect)

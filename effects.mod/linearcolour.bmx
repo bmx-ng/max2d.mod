@@ -1,5 +1,7 @@
 Rem
 bbdoc: Converts an 8-bit straight-alpha sRGB pixmap to linear RGBA32F texture data.
+param: Source straight-alpha sRGB pixmap to convert without modifying it.
+returns: New linear RGBA32F texture data; the source pixmap is unchanged.
 about: Converts RGB with the piecewise sRGB transfer function; alpha remains linear coverage. The source is unchanged. Convert once before LoadImage so filtering and generated mipmaps operate on linear values. This does not interpret ICC profiles, premultiplied artwork or wider colour spaces. The result contains one mip level and allocates CPU storage only.
 End Rem
 Function SRGBPixmapToLinearTextureData:TTextureData(pixmap:TPixmap)
@@ -42,18 +44,21 @@ Type TMax2DLinearOutputEffect Extends TMax2DImageEffect
 	Public
 	Rem
 	bbdoc: Selects extended linear HDR output when True, or tone-mapped sRGB when False.
+	param: True to enable extended linear HDR output instead of tone-mapped sRGB, False to disable it.
 	End Rem
 	Method SetHDR(enabled:Int)
 		hdr = enabled <> 0
 	End Method
 	Rem
 	bbdoc: Returns whether extended linear HDR output is selected.
+	returns: Whether extended linear HDR output is selected.
 	End Rem
 	Method IsHDR:Int()
 		Return hdr
 	End Method
 	Rem
 	bbdoc: Sets the finite, nonnegative exposure multiplier.
+	param: Finite nonnegative exposure multiplier; zero produces black.
 	End Rem
 	Method SetExposure(value:Float)
 		If value < 0 Or IsNan(value) Or IsInf(value) Then Throw "Max2D Effects: exposure must be finite and nonnegative"
@@ -61,12 +66,14 @@ Type TMax2DLinearOutputEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Returns the exposure multiplier.
+	returns: The exposure multiplier.
 	End Rem
 	Method GetExposure:Float()
 		Return exposure
 	End Method
 	Rem
 	bbdoc: Sets the finite, positive SDR white level used by extended linear HDR output.
+	param: Finite positive SDR white level used for linear HDR output; ignored for SDR output.
 	about: Use the SDL GPU context's SDRWhiteLevel; this setting is ignored for SDR output.
 	End Rem
 	Method SetWhiteLevel(value:Float)
@@ -75,6 +82,7 @@ Type TMax2DLinearOutputEffect Extends TMax2DImageEffect
 	End Method
 	Rem
 	bbdoc: Returns the HDR output white level.
+	returns: The HDR output white level.
 	End Rem
 	Method GetWhiteLevel:Float()
 		Return whiteLevel
@@ -86,6 +94,7 @@ bbdoc: Creates a linear-scene output effect; defaults to tone-mapped sRGB with u
 param: True for extended linear HDR values, False for tone-mapped sRGB; does not change the window mode.
 param: Finite, nonnegative exposure multiplier; defaults to one.
 param: Finite, positive HDR reference white multiplier; defaults to one and is ignored for SDR.
+returns: A new #TMax2DLinearOutputEffect instance configured with the supplied settings.
 End Rem
 Function CreateLinearOutputEffect:TMax2DLinearOutputEffect(hdr:Int = False, exposure:Float = 1, whiteLevel:Float = 1)
 	Local effect:TMax2DLinearOutputEffect = New TMax2DLinearOutputEffect

@@ -9,11 +9,11 @@ param(
 $ErrorActionPreference = 'Continue'
 $suites = @{
     core = @('text_layout','input_mapping','collisions','camera_math','paragraph_layout','paragraph_unicode','paragraph_interaction','text_selection','text_colors','text_styles','text_bidi')
-    sdl = @('integration','api_coverage','dirty_regions','collision_render','viewport','sdl_mipmap_capability','camera_render','drawing_state','paragraph_render','text_colors_render')
+    sdl = @('scene_alpha_masks','scene_subtree_capture','scene_subtree_masks','scene_source_preparation','scene_clipping','integration','api_coverage','dirty_regions','collision_render','viewport','sdl_mipmap_capability','camera_render','drawing_state','paragraph_render','text_colors_render')
     software = @('integration','api_coverage','dirty_regions','collision_render','viewport','sdl_mipmap_capability','camera_render','drawing_state','paragraph_render','text_colors_render')
-    gl = @('integration','api_coverage','dirty_regions','viewport','gl_targets','gl_mipmaps','camera_render','drawing_state','paragraph_render','text_colors_render')
-    d3d9 = @('d3d9_render','d3d9_targets','d3d9_mipmaps','viewport','camera_render','drawing_state','paragraph_render','text_colors_render')
-    d3d11 = @('d3d11_render','d3d11_targets','d3d11_mipmaps','viewport','camera_render','drawing_state','paragraph_render','text_colors_render')
+    gl = @('scene_alpha_masks','scene_subtree_capture','scene_subtree_masks','scene_source_preparation','scene_clipping','integration','api_coverage','dirty_regions','viewport','gl_targets','gl_mipmaps','camera_render','drawing_state','paragraph_render','text_colors_render')
+    d3d9 = @('scene_alpha_masks','scene_subtree_capture','scene_subtree_masks','scene_source_preparation','scene_clipping','scene_render','scene_culling','scene_composite','scene_stages','scene_bloom','scene_storage','scene_inspection','scene_shadows','scene_adapters_render','d3d9_render','d3d9_targets','d3d9_mipmaps','viewport','camera_render','drawing_state','paragraph_render','text_colors_render')
+    d3d11 = @('scene_alpha_masks','scene_subtree_capture','scene_subtree_masks','scene_source_preparation','scene_clipping','scene_render','scene_culling','scene_composite','scene_stages','scene_bloom','scene_storage','scene_inspection','scene_shadows','scene_adapters_render','d3d11_render','d3d11_targets','d3d11_mipmaps','viewport','camera_render','drawing_state','paragraph_render','text_colors_render')
 }
 $output = Join-Path ([IO.Path]::GetTempPath()) ('max2d-regressions-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null
@@ -61,7 +61,7 @@ foreach ($profile in $Profiles) {
             $text = $stdout.Result + $stderr.Result
             $exitCode = $process.ExitCode
             $process.Dispose()
-            if ($exitCode -ne 0 -or $text -notmatch 'passed' -or $text -match 'FAILED:') { throw "$name failed; see $output" }
+            if ($exitCode -ne 0 -or $text -notmatch 'passed|PASS:' -or $text -match 'FAIL:|FAILED:') { throw "$name failed; see $output" }
             $results += @{profile=$profile; test=$test; status='PASS'; debug=[bool]$DebugBuild}
             ConvertTo-Json -InputObject $results | Set-Content "$output\results.json"
             Write-Output "${name}: PASS"

@@ -15,7 +15,7 @@
 extern const unsigned char m2d11_vertex_shader[],m2d11_pixel_shader[];
 extern const size_t m2d11_vertex_shader_size,m2d11_pixel_shader_size;
 struct M2D11Texture;
-struct M2D11Package { ID3D11PixelShader *shader; int slots,abi; };
+struct M2D11Package { ID3D11PixelShader *shader; int slots,abi,samplers; };
 struct M2D11 {
  ID3D11Device *device;ID3D11DeviceContext *context;
  ID3D11VertexShader *vs;ID3D11PixelShader *ps;ID3D11InputLayout *layout;
@@ -24,8 +24,9 @@ struct M2D11 {
  float effectParameters[4];
  std::map<std::string,M2D11Package> packages;
  M2D11Package *package;
- M2D11Texture *second;
- float packageValues[40];
+ M2D11Texture *auxiliary[4];
+ /* Native material capacity; public package limits are unchanged. */
+ float packageValues[M2D_NATIVE_PARAMETER_SLOTS*4];
  ID3D11Buffer *vertices,*settings,*packageModes,*packageParameters;UINT capacity;
  std::map<int,ID3D11BlendState *> customBlends;
  ID3D11BlendState *blends[5];ID3D11SamplerState *samplers[2];
@@ -41,6 +42,7 @@ struct M2D11Texture {
 	int filtered,mipmapped,mipDirty,coverage;
 };
 static char errorText[192];
+static int fail(const char *message) { snprintf(errorText,sizeof(errorText),"%s",message); return 0; }
 static int check(HRESULT hr,const char *operation){
  if(SUCCEEDED(hr))return 1;
  snprintf(errorText,sizeof(errorText),"%s failed (HRESULT 0x%08lx)",operation,(unsigned long)hr);return 0;
@@ -130,31 +132,52 @@ void *m2d11_create_image_effect(M2D11 *c,const void *code,size_t size) {
 }
 void *m2d11_package_shader(M2D11 *c,M2DPackage *p) {
  if(!c||!p||!p->d3d11)return nullptr;
+ if(p->slots<1||p->slots>M2D_NATIVE_PARAMETER_SLOTS || p->samplers<1 || p->samplers>5 ||
+    (p->samplers>3 && p->abi!=M2D_NATIVE_MATERIAL_ABI) ||
+    (p->abi==M2D_NATIVE_MATERIAL_ABI && p->slots<p->samplers-1)) {
+  fail("Invalid native shader texture layout");return nullptr;
+ }
  auto found=c->packages.find(p->key);
  if(found!=c->packages.end())return &found->second;
  // Package-only uniform buffers are allocated once, on first use.
  D3D11_BUFFER_DESC buffer={};buffer.ByteWidth=16;buffer.Usage=D3D11_USAGE_DYNAMIC;
  buffer.BindFlags=D3D11_BIND_CONSTANT_BUFFER;buffer.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
  if(!c->packageModes&&!check(c->device->CreateBuffer(&buffer,nullptr,&c->packageModes),"Create package modes"))return nullptr;
- buffer.ByteWidth=160;
+ buffer.ByteWidth=M2D_NATIVE_PARAMETER_SLOTS*16;
  if(!c->packageParameters&&!check(c->device->CreateBuffer(&buffer,nullptr,&c->packageParameters),"Create package parameters"))return nullptr;
  ID3D11PixelShader *shader=nullptr;
  if(!check(c->device->CreatePixelShader(p->d3d11,p->d3d11Size,nullptr,&shader),"Create package shader"))return nullptr;
- M2D11Package entry={shader,p->slots,p->abi};
+ M2D11Package entry={shader,p->slots,p->abi,p->samplers};
  return &c->packages.emplace(p->key,entry).first->second;
 }
-void m2d11_select_package_effect(M2D11 *c,M2D11Package *p,const float *values,M2D11Texture *second) {
- c->package=p;c->effect=p->shader;c->second=second;
+static void select_package(M2D11 *c,M2D11Package *p,const float *values,M2D11Texture **textures,int count) {
+ c->package=p;c->effect=p->shader;
  memcpy(c->packageValues,values,p->slots*16);
- if(p->abi>=3) {
-  float *mode=c->packageValues+(p->slots-1)*4;
-  mode[0]=second&&second->coverage?1.f:0.f;
-  mode[1]=second&&(second->target||second->mipmapped)?1.f:0.f;
+ int modes=p->abi==M2D_NATIVE_MATERIAL_ABI?p->samplers-1:
+     ((p->abi==5 || p->abi==M2D_NATIVE_LIGHTING_ABI)?2:(p->abi>=3?1:0));
+ for(int i=0;i<4;i++) {
+  M2D11Texture *texture=i<count?textures[i]:nullptr;
+  c->auxiliary[i]=texture;
+  if(i>=modes) continue;
+  float *mode=c->packageValues+(p->slots-modes+i)*4;
+  mode[0]=texture&&texture->coverage?1.f:0.f;
+  mode[1]=texture&&(texture->target||texture->mipmapped)?1.f:0.f;
  }
+}
+int m2d11_select_texture_set(M2D11 *c,M2D11Package *p,const float *values,M2D11Texture **textures,int count) {
+ if(!p || !values || count<0 || count>4 || count!=p->samplers-1)
+  return fail("Texture count does not match native shader");
+ for(int i=0;i<count;i++) if(!textures[i]) return fail("Missing native effect texture");
+ select_package(c,p,values,textures,count);
+ return 1;
+}
+void m2d11_select_package_effect(M2D11 *c,M2D11Package *p,const float *values,M2D11Texture *second,M2D11Texture *third) {
+ M2D11Texture *textures[]={second,third};
+ select_package(c,p,values,textures,third?2:(second?1:0));
 }
 void m2d11_select_image_effect(M2D11 *c,ID3D11PixelShader *shader,float x,float y,float z,float w) {
  if(!c) return;
- c->package=nullptr;c->second=nullptr;c->effect=shader;
+ c->package=nullptr;memset(c->auxiliary,0,sizeof(c->auxiliary));c->effect=shader;
  c->effectParameters[0]=x;c->effectParameters[1]=y;c->effectParameters[2]=z;c->effectParameters[3]=w;
 }
 void m2d11_texture_size(M2D11 *c,int *width,int *height) {
@@ -235,14 +258,14 @@ void *m2d11_create(M2D11 *c,int w,int h,int flags,int target,int coverage,int fl
  if(!check(hr,"Create image texture")){m2d11_destroy(t);return nullptr;}return t;
 }
 int m2d11_update_level(M2D11 *c,M2D11Texture *t,int level,const unsigned char *pixels,int pitch) {
-	ID3D11ShaderResourceView *empty=nullptr;
-	c->context->PSSetShaderResources(0,1,&empty);
+	ID3D11ShaderResourceView *empty[5]={};
+	c->context->PSSetShaderResources(0,5,empty);
 	c->context->UpdateSubresource(t->texture,level,nullptr,pixels,pitch,0);
 	return check(c->device->GetDeviceRemovedReason(),"Upload supplied mip level");
 }
 /* pixels starts at the upload region; x/y locate it in the destination. */
 int m2d11_update(M2D11 *c,M2D11Texture *t,const unsigned char *pixels,int pitch,int x,int y,int w,int h){
- ID3D11ShaderResourceView *empty=nullptr;c->context->PSSetShaderResources(0,1,&empty);
+ ID3D11ShaderResourceView *empty[5]={};c->context->PSSetShaderResources(0,5,empty);
  D3D11_BOX box={(UINT)x,(UINT)y,0,(UINT)(x+w),(UINT)(y+h),1};
  // Filter premultiplied pixels so transparent RGB cannot bleed into lower levels.
  // Keep the caller's CPU pixmap straight-alpha, and convert only the dirty region.
@@ -295,22 +318,25 @@ static int draw(M2D11 *c,ID3D11RenderTargetView *target,M2D11Texture *t,int blen
   if(!check(ctx->Map(c->packageModes,0,D3D11_MAP_WRITE_DISCARD,0,&mapped),"Map package modes"))return 0;
   memcpy(mapped.pData,mode,sizeof(mode));ctx->Unmap(c->packageModes,0);
   if(!check(ctx->Map(c->packageParameters,0,D3D11_MAP_WRITE_DISCARD,0,&mapped),"Map package parameters"))return 0;
-  memcpy(mapped.pData,c->packageValues,sizeof(c->packageValues));ctx->Unmap(c->packageParameters,0);
+  memcpy(mapped.pData,c->packageValues,c->package->slots*16);ctx->Unmap(c->packageParameters,0);
   ID3D11Buffer *buffers[]={c->packageModes,c->packageParameters};ctx->PSSetConstantBuffers(0,2,buffers);
  }
  // Unbind the previous source before making it a destination, and bind the
  // new destination before sampling a texture that was previously a target.
- ID3D11ShaderResourceView *empty[2]={};ctx->PSSetShaderResources(0,2,empty);
+ ID3D11ShaderResourceView *empty[5]={};ctx->PSSetShaderResources(0,5,empty);
  ctx->OMSetRenderTargets(1,&target,nullptr);
  int generated=0;
  if(t&&t->mipmapped&&t->mipDirty){
   ctx->GenerateMips(t->view);t->mipDirty=0;generated=1;
  }
  ID3D11ShaderResourceView *image=t?t->view:nullptr;ctx->PSSetShaderResources(0,1,&image);ctx->PSSetSamplers(0,1,&c->samplers[t?t->filtered:0]);
- M2D11Texture *second=c->package&&!pixels?c->second:nullptr;
- if(second&&second->mipmapped&&second->mipDirty){ctx->GenerateMips(second->view);second->mipDirty=0;++generated;}
- ID3D11ShaderResourceView *map=second?second->view:nullptr;ctx->PSSetShaderResources(1,1,&map);
- ctx->PSSetSamplers(1,1,&c->samplers[second?second->filtered:0]);
+ for(int i=0;i<4;i++) {
+  M2D11Texture *texture=c->package&&!pixels?c->auxiliary[i]:nullptr;
+  if(texture&&texture->mipmapped&&texture->mipDirty){ctx->GenerateMips(texture->view);texture->mipDirty=0;++generated;}
+  ID3D11ShaderResourceView *view=texture?texture->view:nullptr;
+  ctx->PSSetShaderResources(i+1,1,&view);
+  ctx->PSSetSamplers(i+1,1,&c->samplers[texture?texture->filtered:0]);
+ }
  ctx->OMSetBlendState(blend<=5?c->blends[blend-1]:c->customBlends[blend],nullptr,0xffffffff);ctx->OMSetDepthStencilState(c->depth,0);
  D3D11_VIEWPORT viewport={0,0,(float)c->width,(float)c->height,0,1};ctx->RSSetViewports(1,&viewport);ctx->RSSetState(c->raster);ctx->RSSetScissorRects(1,&c->clip);
  ctx->Draw(count,0);return check(c->device->GetDeviceRemovedReason(),"Draw triangles")?1+generated:0;

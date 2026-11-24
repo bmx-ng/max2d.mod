@@ -1,16 +1,86 @@
 Private
 
-Function PrepareChainTarget:TMax2DStateScope(target:TRenderImage)
-	SetRenderImage(target)
-	Local scope:TMax2DStateScope = ScopedMax2DState()
-	Try
-		SetVirtualResolution(target.width, target.height)
-		SetViewport(0, 0, target.width, target.height)
-	Catch error:Object
-		scope.Close()
-		Throw error
-	End Try
-	Return scope
+' For retained processors whose passes restore every output view independently.
+' Keep caller state untouched; this helper must not enclose caller-view edits.
+Type TLayerDrawingState
+ Field state:TMax2DState=New TMax2DState
+ Field active:Int
+ Method Open:SLayerDrawingScope()
+  Local scope:SLayerDrawingScope
+  If active Then
+   ' A provider may re-enter the same processor. Do not share its live state.
+   scope.fallback=ScopedMax2DState()
+  Else
+   scope.canvas=TMax2DGraphics.Current()
+   scope.callerState=scope.canvas.state
+   scope.target=scope.canvas.renderImage
+   scope.owner=Self
+   active=True
+   scope.canvas.state=state
+  End If
+  Return scope
+ End Method
+End Type
+
+Struct SLayerDrawingScope
+ Field owner:TLayerDrawingState
+ Field canvas:TMax2DGraphics
+ Field callerState:TMax2DState
+ Field target:TRenderImage
+ Field fallback:TMax2DStateScope
+ Method Close()
+  If fallback Then
+   fallback.Close();fallback=Null
+  Else If owner Then
+   Try
+    canvas.state=callerState
+    If Not canvas.context.closed Then canvas.SetRenderImage(target)
+   Finally
+    owner.active=False
+    owner=Null;canvas=Null;callerState=Null;target=Null
+   End Try
+  End If
+ End Method
+End Struct
+
+' Internal pass state: the enclosing effect operation owns drawing-state
+' restoration. Each output still needs its independent persistent view restored.
+Struct SLayerTargetView
+ Field canvas:TMax2DGraphics
+ Field target:TRenderImage
+ Field view:TMax2DView
+ Field width:Float,height:Float
+ Field x:Int,y:Int,w:Int,h:Int,automatic:Int,fullClip:Int,presentation:Int
+ Field barRed:Int,barGreen:Int,barBlue:Int
+ Method Close()
+  If Not view Then Return
+  canvas.SetRenderImage(target)
+  view.width=width;view.height=height
+  view.x=x;view.y=y;view.w=w;view.h=h
+  view.automatic=automatic;view.fullClip=fullClip;view.presentation=presentation
+  view.barRed=barRed;view.barGreen=barGreen;view.barBlue=barBlue
+  canvas.context.ApplyView()
+  view=Null;target=Null;canvas=Null
+ End Method
+End Struct
+
+Function PrepareChainTarget:SLayerTargetView(target:TRenderImage)
+ SetRenderImage(target)
+ Local scope:SLayerTargetView
+ scope.canvas=TMax2DGraphics.Current();scope.target=target
+ Local view:TMax2DView=scope.canvas.context.view
+ scope.view=view;scope.width=view.width;scope.height=view.height
+ scope.x=view.x;scope.y=view.y;scope.w=view.w;scope.h=view.h
+ scope.automatic=view.automatic;scope.fullClip=view.fullClip;scope.presentation=view.presentation
+ scope.barRed=view.barRed;scope.barGreen=view.barGreen;scope.barBlue=view.barBlue
+ Try
+  SetVirtualResolution(target.width,target.height)
+  SetViewport(0,0,target.width,target.height)
+ Catch error:Object
+  scope.Close()
+  Throw error
+ End Try
+ Return scope
 End Function
 
 Public
@@ -21,9 +91,14 @@ param: Premultiplied source layer, left unchanged.
 param: Same-sized destination layer, distinct from the source.
 param: Reusable array of effect descriptions, applied in array order.
 param: Same-sized scratch layer, required for two or more effects and distinct from source and destination.
-about: Reuses destination and scratch as alternating outputs, always finishing in destination. Each effect costs one image draw. An empty chain copies the source with one ordinary draw. All passes replace the full target using SOLIDBLEND, white tint and identity coordinates, ignoring image handles. Target, camera, transforms, viewport and other drawing state are restored even on failure. Dimensions, aliasing and effect support for each target are checked before chain drawing begins; support checks can create native resources on first use. Runtime failures do not roll back pixels already written. No scratch images or per-pass arrays are allocated; the call allocates up to three drawing-state scopes to preserve the caller and both output views. Retain the images, descriptors and array across frames and rerun only when the source or effects change.
+about: Reuses destination and scratch as alternating outputs, always finishing in destination. Each effect costs one image draw. An empty chain copies the source with one ordinary draw. All passes replace the full target using SOLIDBLEND, white tint and identity coordinates, ignoring image handles. Target, camera, transforms, viewport and other drawing state are restored even on failure. Dimensions, aliasing and effect support for each target are checked before chain drawing begins; support checks can create native resources on first use. Runtime failures do not roll back pixels already written. No scratch images or per-pass arrays are allocated; the call allocates one drawing-state scope for the caller and uses allocation-free value snapshots for output views. Retain the images, descriptors and array across frames and rerun only when the source or effects change.
 End Rem
 Function ApplyLayerEffects(source:TRenderImage, destination:TRenderImage, effects:TMax2DImageEffect[], scratch:TRenderImage = Null)
+	ApplyLayerEffectsInternal(source, destination, effects, scratch, Null)
+End Function
+
+Private
+Function ApplyLayerEffectsInternal(source:TRenderImage, destination:TRenderImage, effects:TMax2DImageEffect[], scratch:TRenderImage, drawingState:TLayerDrawingState)
 	If Not source Or Not destination Then Throw "Max2D Effects: source and destination layers are required"
 	If source = destination Then Throw "Max2D Effects: source and destination layers must be distinct"
 	If source.width <> destination.width Or source.height <> destination.height Then Throw "Max2D Effects: layer dimensions must match"
@@ -37,7 +112,12 @@ Function ApplyLayerEffects(source:TRenderImage, destination:TRenderImage, effect
 	Next
 
 	Local canvas:TMax2DGraphics = TMax2DGraphics.Current()
-	Local scope:TMax2DStateScope = ScopedMax2DState()
+	Local scope:SLayerDrawingScope
+	If drawingState Then
+		scope=drawingState.Open()
+	Else
+		scope.fallback=ScopedMax2DState()
+	End If
 	Try
 		SetCamera(Null)
 		ResetCoordinates()
@@ -47,9 +127,9 @@ Function ApplyLayerEffects(source:TRenderImage, destination:TRenderImage, effect
 		SetColor(255, 255, 255)
 		SetAlpha(1)
 		SetBlend(SOLIDBLEND)
-		Local destinationScope:TMax2DStateScope = PrepareChainTarget(destination)
+		Local destinationScope:SLayerTargetView = PrepareChainTarget(destination)
 		Try
-			Local scratchScope:TMax2DStateScope
+			Local scratchScope:SLayerTargetView
 			If effects.Length > 1 Then scratchScope = PrepareChainTarget(scratch)
 			Try
 				' Materialize/validate the input before any output pixels are touched.
@@ -77,7 +157,7 @@ Function ApplyLayerEffects(source:TRenderImage, destination:TRenderImage, effect
 					Next
 				End If
 			Finally
-				If scratchScope Then scratchScope.Close()
+				scratchScope.Close()
 			End Try
 		Finally
 			destinationScope.Close()
@@ -86,3 +166,5 @@ Function ApplyLayerEffects(source:TRenderImage, destination:TRenderImage, effect
 		scope.Close()
 	End Try
 End Function
+
+Public

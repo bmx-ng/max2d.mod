@@ -27,21 +27,42 @@ Function ReadManifest:TJSONObject(path:String)
 	Local error:TJSONError
 	Local root:TJSONObject = TJSONObject(TJSON.Load(LoadText(path),0,error))
 	If Not root Then Throw "Expected a package manifest object"
-	If root.Get("colourBodies") Then
-		Fields(root,["abi","name","factory","parameters","bodies","colourBodies"])
+	If root.Get("secondBodies") Then
+		Fields(root,["abi","name","factory","parameters","bodies","colourBodies","colourUV","thirdBodies","secondBodies"])
+	Else If root.Get("thirdBodies") Then
+		Fields(root,["abi","name","factory","parameters","bodies","colourBodies","colourUV","thirdBodies"])
+	Else If root.Get("colourBodies") Then
+		If root.Get("colourUV") Then
+			Fields(root,["abi","name","factory","parameters","bodies","colourBodies","colourUV"])
+		Else
+			Fields(root,["abi","name","factory","parameters","bodies","colourBodies"])
+		End If
 	Else
 		Fields(root,["abi","name","factory","parameters","bodies"])
 	End If
 	If Not TJSONInteger(root.Get("abi")) Then Throw "Expected integer ABI version"
 	Local abi:Long=root.GetInteger("abi")
-	If abi<>1 And abi<>2 And abi<>3 And abi<>4 Then Throw "Expected package ABI 1, 2, 3 or 4"
+	If abi<>1 And abi<>2 And abi<>3 And abi<>4 And abi<>5 Then Throw "Expected package ABI 1, 2, 3, 4 or 5"
+	If abi=5 And Not root.Get("thirdBodies") Then Throw "ABI 5 requires thirdBodies"
+	If root.Get("secondBodies") Then
+		If abi<>5 Then Throw "secondBodies requires ABI 5"
+		ValidateBodies(TJSONObject(root.Get("secondBodies")))
+	End If
+	If root.Get("thirdBodies") Then
+		If abi<>5 Then Throw "thirdBodies requires ABI 5"
+		ValidateBodies(TJSONObject(root.Get("thirdBodies")))
+	End If
+	If root.Get("colourUV") Then
+		If Not TJSONBool(root.Get("colourUV")) Then Throw "colourUV must be boolean"
+	End If
 	If root.Get("colourBodies") And abi<2 Then Throw "colourBodies requires coordinate ABI 2 or 3"
 	If Not Identifier(TextValue(root.Get("name"))) Or Not Identifier(TextValue(root.Get("factory"))) Then Throw "Name and factory must be identifiers"
 	Local params:TJSONArray = TJSONArray(root.Get("parameters"))
 	If Not params Then Throw "Expected parameters array"
 	Local limit:Int=8
 	If abi=2 Then limit=6
-	If abi>=3 Then limit=3
+	If abi=3 Then limit=5
+	If abi=4 Then limit=3
 	If params.Size()<1 Or params.Size()>limit Then Throw "Too many or too few parameters for package ABI"
 	Local names:String[] = New String[params.Size()]
 	For Local i:Int = 0 Until params.Size()
@@ -54,6 +75,7 @@ Function ReadManifest:TJSONObject(path:String)
 		Next
 		If abi>=2 And name="uv" Then Throw "Reserved coordinate parameter name: uv"
 		If abi>=3 And (name="m" Or name="secondImage" Or name="localUV") Then Throw "Reserved two-texture parameter name"
+		If abi=5 And (name="t" Or name="thirdImage" Or name="thirdUV") Then Throw "Reserved third-texture parameter name"
 		If abi=4 And name="mapUV" Then Throw "Reserved transformed-map parameter name"
 		For Local j:Int = 0 Until i
 			If name=names[j] Then Throw "Duplicate parameter name: "+name
@@ -102,6 +124,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 	If abi=2 Then count:+2
 	If abi=3 Then count:+5
 	If abi=4 Then count:+7
+	If abi=5 Then count:+8
 	For Local lang:String = EachIn ["metal","glsl","hlsl"]
 		Local vec:String="float4", head:String, tail:String, ext:String=lang
 		Select lang
@@ -119,6 +142,7 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			argument=resultType+" uv"
 		End If
 		If abi>=3 Then argument:+", "+vec+" m"
+		If abi=5 Then argument:+", "+vec+" t"
 		Local helper:String=resultType+" userEffect("+argument
 		If lang="metal" Then helper:+", constant float4 *p"
 		helper:+") {~n"
@@ -154,14 +178,20 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			If lang="metal" Then parameterArgs=",p"
 			Local uvCall:String="userEffect(("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw"+parameterArgs+")"
 			tail=tail.Replace(originalSample,vec+" c=sampleRegion("+uvCall+callArgs+");").Replace(originalCall,"")
+			Local colourCoordinates:String
 			If colourBodies Then
 				helper:+vec+" userColour("+vec+" c"
+				If root.GetBool("colourUV") Then
+					helper:+", "+resultType+" uv"
+					colourCoordinates=",("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw"
+				End If
 				If abi>=3 Then helper:+", "+vec+" m"
+				If abi=5 Then helper:+", "+vec+" t"
 				If lang="metal" Then helper:+", constant float4 *p"
 				helper:+") {~n"+declarations+colourBodies.GetString(lang)+"~n}~n"
 				' Run after source alpha interpretation and drawing tint, before
 				' alpha clamp, mask discard and output premultiplication.
-				tail=tail.Replace("c.a=clamp(c.a,0.0,1.0);","c=userColour(c"+parameterArgs+");~nc.a=clamp(c.a,0.0,1.0);")
+				tail=tail.Replace("c.a=clamp(c.a,0.0,1.0);","c=userColour(c"+colourCoordinates+parameterArgs+");~nc.a=clamp(c.a,0.0,1.0);")
 			End If
 			If abi>=3 Then
 				Local mapSampling:String=UV_SAMPLE.Replace("@VEC4@",vec).Replace("@VEC2@",resultType).Replace("@SAMPLER_ARGS@",samplerArgs)
@@ -170,15 +200,23 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 				Local mapArgs:String=callArgs.Replace("image","secondImage").Replace("sampleState","secondState")
 				Local prefix:String=resultType+" localUV=("+inputUV+"-p["+params.Size()+"].xy)/p["+params.Size()+"].zw;~n"
 				Local mapUV:String="localUV", modeSlot:Int=params.Size()+4
+				If abi=5 Then modeSlot=params.Size()+6
 				If abi=4 Then
 					mapUV="mapUV"; modeSlot:+2
 					prefix:+resultType+" mapUV="+resultType+"(dot(p["+(params.Size()+4)+"].xy,localUV)+p["+(params.Size()+4)+"].z,dot(p["+(params.Size()+5)+"].xy,localUV)+p["+(params.Size()+5)+"].z);~n"
+				End If
+				If abi=5 And root.Get("secondBodies") Then
+					Local secondHelper:String=resultType+" userSecondUV("+resultType+" uv"
+					If lang="metal" Then secondHelper:+", constant float4 *p"
+					secondHelper:+") {~n"+declarations+TJSONObject(root.Get("secondBodies")).GetString(lang)+"~n}~n"
+					helper:+secondHelper
+					mapUV="userSecondUV(localUV"+parameterArgs+")"
 				End If
 				prefix:+vec+" m=sampleMap("+mapUV+mapArgs+");~n"
 				prefix:+"if(p["+modeSlot+"].x!=0) m="+vec+"(1,1,1,m.r);~n"
 				prefix:+"if(p["+modeSlot+"].y!=0) m.rgb=m.a>0?m.rgb/m.a:"+vec.Replace("4","3")+"(0,0,0);~n"
 				tail=tail.Replace(vec+" c=sampleRegion("+uvCall, prefix+vec+" c=sampleRegion(userEffect(localUV,m"+parameterArgs+")")
-				tail=tail.Replace("c=userColour(c"+parameterArgs+")","c=userColour(c,m"+parameterArgs+")")
+				tail=tail.Replace("c=userColour(c"+colourCoordinates+parameterArgs+")","c=userColour(c"+colourCoordinates+",m"+parameterArgs+")")
 				Select lang
 					Case "metal"
 						tail=tail.Replace("constant float4 &mode [[buffer(0)]]","texture2d<float> secondImage [[texture(1)]], sampler secondState [[sampler(1)]], constant float4 &mode [[buffer(0)]]")
@@ -187,6 +225,28 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 					Case "hlsl"
 						head:+"Texture2D secondImage : register(t1, space2);~nSamplerState secondState : register(s1, space2);~n"
 				End Select
+				If abi=5 Then
+					Local thirdSampling:String=mapSampling.Replace("sampleMap","sampleThird").Replace("secondImage","thirdImage").Replace("secondState","thirdState")
+					thirdSampling=thirdSampling.Replace("p["+(params.Size()+2)+"]","p["+(params.Size()+4)+"]").Replace("p["+(params.Size()+3)+"]","p["+(params.Size()+5)+"]")
+					Local thirdHelper:String=resultType+" userThirdUV("+resultType+" uv"
+					If lang="metal" Then thirdHelper:+", constant float4 *p"
+					thirdHelper:+") {~n"+declarations+TJSONObject(root.Get("thirdBodies")).GetString(lang)+"~n}~n"
+					helper:+thirdHelper+thirdSampling
+					Local thirdCall:String=vec+" t=sampleThird(userThirdUV(localUV"+parameterArgs+")"+mapArgs.Replace("secondImage","thirdImage").Replace("secondState","thirdState")+");~n"
+					thirdCall:+"if(p["+(params.Size()+7)+"].x!=0) t="+vec+"(1,1,1,t.r);~n"
+					thirdCall:+"if(p["+(params.Size()+7)+"].y!=0) t.rgb=t.a>0?t.rgb/t.a:"+vec.Replace("4","3")+"(0,0,0);~n"
+					tail=tail.Replace(vec+" m=sampleMap",thirdCall+vec+" m=sampleMap")
+					tail=tail.Replace("userEffect(localUV,m"+parameterArgs+")","userEffect(localUV,m,t"+parameterArgs+")")
+					tail=tail.Replace("c=userColour(c"+colourCoordinates+",m"+parameterArgs+")","c=userColour(c"+colourCoordinates+",m,t"+parameterArgs+")")
+					Select lang
+						Case "metal"
+							tail=tail.Replace("constant float4 &mode [[buffer(0)]]","texture2d<float> thirdImage [[texture(2)]], sampler thirdState [[sampler(2)]], constant float4 &mode [[buffer(0)]]")
+						Case "glsl"
+							head:+"layout(set=2,binding=2) uniform sampler2D thirdImage;~n"
+						Case "hlsl"
+							head:+"Texture2D thirdImage : register(t2, space2);~nSamplerState thirdState : register(s2, space2);~n"
+					End Select
+				End If
 				helper:+mapSampling
 			End If
 			helper:+sampling
@@ -208,6 +268,12 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 			legacy=legacy.Replace("float2 uv: TEXCOORD0;", "float2 uv: TEXCOORD0; float2 screen:TEXCOORD2;")
 			legacy=legacy.Replace("m2dEffectMain(Output input): COLOR0 {", "m2dEffectMain(Output input,float2 pixel:VPOS): COLOR0 {~ninput.uv+=ddx(input.uv)*(pixel.x-input.screen.x)+ddy(input.uv)*(pixel.y-input.screen.y);")
 			If abi=1 Then legacy=legacy.Replace("float4 m2dEffectMain",D3D9_COLOUR_SAMPLE+"float4 m2dEffectMain").Replace("tex2D(image,input.uv*sourceScale.xy)","sourceColour(input.uv)")
+			If abi=5 Then
+				legacy=legacy.Replace("register(c11)","register(c17)").Replace("register(c12)","register(c18)")
+				legacy="float4 thirdScale : register(c19);~n"+legacy
+				legacy=legacy.Replace("Texture2D thirdImage : register(t2);~nSamplerState thirdState : register(s2);", "sampler2D thirdImage : register(s2);")
+				legacy=legacy.Replace("thirdImage.Load(int3(q,0))", "tex2Dlod(thirdImage,float4((q+0.5)*thirdScale.zw,0,0))")
+			End If
 			WriteTextFile(output+"/"+name+".d3d9.hlsl",legacy)
 		End If
 		If lang="glsl" Then
@@ -221,6 +287,11 @@ Function GeneratePackage(manifest:String, output:String, prefix:String="")
 					desktopHelper=GL120_TEXEL.Replace("m2dTexel","m2dMapTexel").Replace("sourceTarget","secondTarget").Replace("texture2D(image,","texture2D(secondImage,")+desktopHelper.Replace("texelFetch(secondImage,ivec2(q),0)","m2dMapTexel(q,info.xy)")
 					desktopTail=desktopTail.Replace("m=vec4(1,1,1,m.r)","m=vec4(1,1,1,m.a)")
 				End If
+			End If
+			If abi=5 Then
+				desktopHead:+"uniform sampler2D thirdImage;~nuniform int thirdTarget;~n"
+				desktopHelper=GL120_TEXEL.Replace("m2dTexel","m2dThirdTexel").Replace("sourceTarget","thirdTarget").Replace("texture2D(image,","texture2D(thirdImage,")+desktopHelper.Replace("texelFetch(thirdImage,ivec2(q),0)","m2dThirdTexel(q,info.xy)")
+				desktopTail=desktopTail.Replace("t=vec4(1,1,1,t.r)","t=vec4(1,1,1,t.a)")
 			End If
 			WriteTextFile(output+"/"+name+".glsl",desktopHead.Replace("@COUNT@",String(count))+desktopHelper+desktopTail)
 		End If

@@ -1,0 +1,25 @@
+{
+  "abi": 3,
+  "name": "emissionlight",
+  "factory": "CreateEmissionLightPackage",
+  "parameters": [
+    {
+      "name": "ambient",
+      "type": "float4"
+    },
+    {
+      "name": "emission",
+      "type": "float4"
+    }
+  ],
+  "bodies": {
+    "metal": "return uv;",
+    "glsl": "return uv;",
+    "hlsl": "return uv;"
+  },
+  "colourBodies": {
+    "metal": "return float4(c.rgb*(ambient.rgb+emission.rgb*emission.a*m.rgb*m.a),c.a);",
+    "glsl": "return vec4(c.rgb*(ambient.rgb+emission.rgb*emission.a*m.rgb*m.a),c.a);",
+    "hlsl": "return float4(c.rgb*(ambient.rgb+emission.rgb*emission.a*m.rgb*m.a),c.a);"
+  }
+}

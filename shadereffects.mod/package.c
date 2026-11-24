@@ -57,7 +57,7 @@ void m2d_package_free(M2DPackage *p) {
 	free(p->metal); free(p->spirv); free(p->dxbc); free(p->glsl); free(p->d3d11); free(p->d3d9); free(p);
 }
 void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *spirv,int ns,const unsigned char *dxbc,int nd,int slots,int abi,const unsigned char *glsl,int ng,const unsigned char *d3d11,int n11,const unsigned char *d3d9,int n9) {
-	if((abi!=1 && abi!=2 && abi!=3 && abi!=4) || slots<1 || slots>(abi>=3?3:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || ng<0 || ng>4194304 || n11<0 || n11>4194304 || n9<0 || n9>4194304 || !(nm||ns||nd||ng||n11||n9)) {
+	if((abi!=1 && abi!=2 && abi!=3 && abi!=4 && abi!=5) || slots<1 || slots>(abi==5?8:abi==4?3:abi==3?5:abi==2?6:8) || nm<0 || ns<0 || nd<0 || nm>4194304 || ns>4194304 || nd>4194304 || ng<0 || ng>4194304 || n11<0 || n11>4194304 || n9<0 || n9>4194304 || !(nm||ns||nd||ng||n11||n9)) {
 		package_fail("Max2D package: invalid ABI/schema/assets (%d, %d, %d/%d/%d bytes)",abi,slots,nm,ns,nd); return NULL;
 	}
 	if(!valid_spirv(spirv,ns)) { package_fail("Max2D package: malformed SPIR-V (%d bytes)",ns); return NULL; }
@@ -77,8 +77,8 @@ void *m2d_package_create(const unsigned char *metal,int nm,const unsigned char *
 	if(n11) { p->d3d11=malloc(n11); if(!p->d3d11) goto oom; memcpy(p->d3d11,d3d11,n11); p->d3d11Size=n11; }
 	if(n9) { p->d3d9=malloc(n9); if(!p->d3d9) goto oom; memcpy(p->d3d9,d3d9,n9); p->d3d9Size=n9; }
 	p->abi=abi;
-	p->samplers=abi>=3?2:1;
-	p->slots=slots+(abi==4?7:abi==3?5:abi==2?2:0);
+	p->samplers=abi==5?3:abi>=3?2:1;
+	p->slots=slots+(abi==5?8:abi==4?7:abi==3?5:abi==2?2:0);
 	int previous,id;
 	do {
 		previous=atomic_load(&nextPackage);

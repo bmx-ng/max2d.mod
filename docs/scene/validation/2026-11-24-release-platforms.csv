@@ -1,0 +1,33 @@
+platform,backend,test,checks_or_frames,result
+Ubuntu 26.04.1 arm64,SDL GPU,scene_source_preparation,17,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_subtree_masks,39,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_subtree_capture,68,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_composite,65,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_alpha_masks,56,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_culling,22,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,scene_storage,24,PASS
+Ubuntu 26.04.1 arm64,SDL GPU,example,3,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_source_preparation,17,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_subtree_masks,39,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_subtree_capture,68,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_composite,65,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_alpha_masks,56,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_culling,22,PASS
+Ubuntu 26.04.1 arm64,OpenGL,scene_storage,24,PASS
+Ubuntu 26.04.1 arm64,OpenGL,example,3,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_source_preparation,17,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_subtree_masks,39,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_subtree_capture,68,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_composite,64,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_alpha_masks,56,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_culling,22,PASS
+Windows 11 ARM64 (x64 app),D3D9,scene_storage,24,PASS
+Windows 11 ARM64 (x64 app),D3D9,example,3,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_source_preparation,17,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_subtree_masks,39,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_subtree_capture,68,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_composite,64,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_alpha_masks,56,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_culling,22,PASS
+Windows 11 ARM64 (x64 app),D3D11,scene_storage,24,PASS
+Windows 11 ARM64 (x64 app),D3D11,example,3,PASS

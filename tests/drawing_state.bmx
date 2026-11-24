@@ -86,6 +86,29 @@ Try
  Local pixmap:TPixmap=CreatePixmap(1,1,PF_RGBA8888);pixmap.WritePixel(0,0,$ffff0000)
  DrawPixmap(pixmap,1,1)
  Check(Pixel(1,1)=$ff0000 And Pixel(11,11)=0,"DrawPixmap retains native pixel semantics")
+ ' Reusable capture is independent of the stack and keeps camera values isolated.
+ Local canvas:TMax2DGraphics=TMax2DGraphics.Current()
+ Local snapshot:TMax2DSavedState=New TMax2DSavedState
+ snapshot.active=False
+ SetCamera(camera); SetColor(19,20,21)
+ canvas.CaptureState(snapshot)
+ Local storage:TMax2DState=snapshot.state
+ Local cameraStorage:TCamera2D=storage.camera
+ Check(canvas.saved.IsEmpty() And Not snapshot.active,"Capture does not push or activate a snapshot")
+ canvas.state.camera.x=73; SetColor(29,30,31)
+ Check(storage.camera.x=10 And storage.red<>canvas.state.red,"Snapshot does not share live state or camera")
+ canvas.CaptureState(snapshot)
+ Check(snapshot.state=storage And storage.camera=cameraStorage And storage.camera.x=73,"Capture reuses state and camera storage")
+ storage.CopyTo(storage)
+ Check(storage.camera.x=73,"Copy to Self preserves settings")
+ Local copy:TMax2DState=storage.Copy()
+ copy.camera.x=99
+ Check(storage.camera.x=73,"Copy keeps independent camera storage")
+ SetCamera(Null); canvas.CaptureState(snapshot)
+ Check(Not storage.camera,"Capture clears absent camera")
+ canvas.RestoreState(snapshot)
+ canvas.CaptureState(snapshot)
+ Check(snapshot.state<>canvas.state,"Recapture detaches a snapshot previously restored as live state")
  EndGraphics()
  Print "Max2D nested drawing state tests passed"
 Catch error:Object

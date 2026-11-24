@@ -1,0 +1,7 @@
+platform,profile,test,status,summary
+macOS,sdlgpu,scene_bloom,PASS,PASS: 19 scene bloom checks
+macOS,sdlgpu,scene_shadows,PASS,PASS: 39 scene shadow checks
+macOS,sdlgpu,scene_composite,PASS,PASS: 48 scene composite checks
+macOS,gl,scene_bloom,PASS,PASS: 19 scene bloom checks
+macOS,gl,scene_shadows,PASS,PASS: 39 scene shadow checks
+macOS,gl,scene_composite,PASS,PASS: 48 scene composite checks

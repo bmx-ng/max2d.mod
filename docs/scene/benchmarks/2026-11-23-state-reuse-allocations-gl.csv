@@ -1,0 +1,18 @@
+# isolated warmed allocation probes; rendering flushed each call; no timing claims
+case,trial,calls,managed_bytes_per_call,gc_cycles,new_textures,submissions_per_call
+flush_only,1,2000,0.0,0,0,0.0
+flush_only,2,2000,0.0,0,0,0.0
+flush_only,3,2000,0.0,0,0,0.0
+state_scope,1,2000,368.0,0,0,0.0
+state_scope,2,2000,368.0,0,0,0.0
+state_scope,3,2000,368.0,0,0,0.0
+empty_scene,1,2000,32.0,0,0,0.0
+empty_scene,2,2000,32.0,0,0,0.0
+empty_scene,3,2000,32.0,0,0,0.0
+sprite_scene,1,2000,32.0,0,0,1.0
+sprite_scene,2,2000,32.0,0,0,1.0
+sprite_scene,3,2000,32.0,0,0,1.0
+eight_text_nodes,1,2000,288.0,0,0,1.0
+eight_text_nodes,2,2000,288.0,0,0,1.0
+eight_text_nodes,3,2000,288.0,0,0,1.0
+# PASS: allocation probes and context cleanup

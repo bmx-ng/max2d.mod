@@ -1,0 +1,11 @@
+platform,profile,test,status,summary
+Windows 11 ARM64 Parallels (x64 application),d3d9,d3d_texture_set,PASS,PASS: 60 Direct3D texture-set checks
+Windows 11 ARM64 Parallels (x64 application),d3d9,shader_texture_bindings,PASS,PASS: 19 texture binding checks
+Windows 11 ARM64 Parallels (x64 application),d3d9,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+Windows 11 ARM64 Parallels (x64 application),d3d9,shader_packages,PASS,shader_packages passed
+Windows 11 ARM64 Parallels (x64 application),d3d9,d3d_package_textures,PASS,d3d_package_textures passed
+Windows 11 ARM64 Parallels (x64 application),d3d11,d3d_texture_set,PASS,PASS: 60 Direct3D texture-set checks
+Windows 11 ARM64 Parallels (x64 application),d3d11,shader_texture_bindings,PASS,PASS: 19 texture binding checks
+Windows 11 ARM64 Parallels (x64 application),d3d11,lighting_mapped_ambient,PASS,PASS: 184 mapped emission checks
+Windows 11 ARM64 Parallels (x64 application),d3d11,shader_packages,PASS,shader_packages passed
+Windows 11 ARM64 Parallels (x64 application),d3d11,d3d_package_textures,PASS,d3d_package_textures passed

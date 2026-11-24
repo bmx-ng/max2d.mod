@@ -15,7 +15,7 @@ Try
 	Local root:String=RealPath(AppArgs[1]), scratch:String=RealPath(AppArgs[2])
 	If FileType(scratch) Then Throw "Scratch directory must not already exist"
 	CreateDir(scratch,True)
-	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask",root+"/tests/data/legacytexturemask",root+"/sdl3gpueffects.mod/packages/thresholdmask"]
+	For Local directory:String=EachIn [root+"/sdl3gpueffects.mod/packages/colormatrix",root+"/tests/data/shaderpackage",root+"/tests/data/coordinates",root+"/sdl3gpueffects.mod/packages/distortion",root+"/sdl3gpueffects.mod/packages/graded_distortion",root+"/tests/data/combined",root+"/sdl3gpueffects.mod/packages/displacement",root+"/sdl3gpueffects.mod/packages/dissolve",root+"/sdl3gpueffects.mod/packages/texturemask",root+"/tests/data/legacytexturemask",root+"/sdl3gpueffects.mod/packages/thresholdmask",root+"/sdl3gpueffects.mod/packages/pointlight",root+"/sdl3gpueffects.mod/packages/normallight",root+"/sdl3gpueffects.mod/packages/texturedlight",root+"/sdl3gpueffects.mod/packages/lightpair",root+"/sdl3gpueffects.mod/packages/emissionlight"]
 		Local manifest:String=directory+"/manifest.json"
 		Local parsed:TJSONObject=ReadManifest(manifest), name:String=parsed.GetString("name")
 		Local output:String=scratch+"/"+name
@@ -32,7 +32,7 @@ Try
 		Check(LoadText(output+"/"+name+"_assets.c")=LoadText(directory+"/"+name+"_assets.c"),"Reproducible embedded assets")
 	Next
 	Local manifest:String=root+"/sdl3gpueffects.mod/packages/colormatrix/manifest.json"
-	For Local invalid:Int=0 Until 20
+	For Local invalid:Int=0 Until 29
 		Local data:TJSONObject=ReadManifest(manifest)
 		Local params:TJSONArray=TJSONArray(data.Get("parameters"))
 		Local first:TJSONObject=TJSONObject(params.Get(0)), bodies:TJSONObject=TJSONObject(data.Get("bodies"))
@@ -85,7 +85,23 @@ Try
 				colour.Set("hlsl",New TJSONString.Create("return c;"))
 				data.Set("colourBodies",colour)
 			Case 17
+				data.Set("abi",New TJSONInteger.Create(4))
+			Case 23
+				data.Set("abi",New TJSONInteger.Create(5))
+			Case 24,25,26
+				data=ReadManifest(root+"/sdl3gpueffects.mod/packages/texturedlight/manifest.json")
+				If invalid=24 Then data.Set("abi",New TJSONInteger.Create(4))
+				If invalid=25 Then TJSONObject(data.Get("thirdBodies")).Set("glsl",New TJSONString.Create("} void main() {"))
+				If invalid=26 Then TJSONObject(TJSONArray(data.Get("parameters")).Get(0)).Set("name",New TJSONString.Create("t"))
+			Case 27,28
+				data=ReadManifest(root+"/sdl3gpueffects.mod/packages/lightpair/manifest.json")
+				If invalid=27 Then data.Set("abi",New TJSONInteger.Create(4))
+				If invalid=28 Then TJSONObject(data.Get("secondBodies")).Set("glsl",New TJSONString.Create("} void main() {"))
+			Case 22
 				data.Set("abi",New TJSONInteger.Create(3))
+				Local extra:TJSONObject=New TJSONObject.Create()
+				extra.Set("name",New TJSONString.Create("sixth")); extra.Set("type",New TJSONString.Create("float"))
+				params.Append(extra)
 			Case 18
 				data.Set("abi",New TJSONInteger.Create(3))
 				Local shortParams:TJSONArray=New TJSONArray.Create()
@@ -94,6 +110,12 @@ Try
 				data.Set("parameters",shortParams)
 			Case 19
 				data.Set("abi",New TJSONInteger.Create(4))
+			Case 20
+				data.Set("abi",New TJSONInteger.Create(2))
+				data.Set("colourBodies",bodies)
+				data.Set("colourUV",New TJSONString.Create("true"))
+			Case 21
+				data.Set("colourUV",New TJSONBool.Create(True))
 		End Select
 		Local path:String=scratch+"/invalid.json", rejected:Int
 		SaveText(data.SaveString(),path)

@@ -1,7 +1,7 @@
 SuperStrict
 
 Rem
-bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1–4 shader packages.
+bbdoc: Optional OpenGL 2.1 provider for colour, blur, outline, bloom extraction and tone-mapping effects and ABI 1–5 shader packages.
 about: Import alongside Max2D.GLMax2D. Shader programs belong to the graphics context; effects can be reused after graphics recreation.
 End Rem
 Module Max2D.GLEffects
@@ -255,22 +255,45 @@ RegisterMax2DImageEffectBackend(New TGLImageEffectBackend)
 
 Private
 Type TGLShaderPackageBackend Extends TMax2DShaderPackageBackend
+ Field frames:Byte Ptr[4]
 	Method Handles:Int(context:TMax2DContext) Override
 		Return TGLMax2DContext(context)<>Null
 	End Method
+ Method MaximumTextures:Int(context:TMax2DContext) Override
+  If Handles(context) Then Return 5
+  Return 0
+ End Method
+ Method BindTextureSet(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,textures:TImageFrame[],count:Int) Override
+  Local native:TGLMax2DContext=TGLMax2DContext(context)
+  For Local i:Int=0 Until count
+   frames[i]=native.NativeFrame(textures[i])
+  Next
+  Try
+   native.Require(m2d_gl_select_texture_set(native.native,shader,values,frames,count))
+  Finally
+   For Local i:Int=0 Until count
+    frames[i]=Null
+   Next
+  End Try
+ End Method
+
 	Method Shader:Byte Ptr(context:TMax2DContext,package:Byte Ptr) Override
 		context.Activate()
 		Return m2d_gl_package_shader(TGLMax2DContext(context).native,package)
 	End Method
 	Method SelectShader(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame) Override
-		m2d_gl_select_package_effect(TGLMax2DContext(context).native,shader,values,TGLMax2DContext(context).NativeFrame(second))
+  SelectTextures(context,shader,values,second,Null)
+ End Method
+ Method SelectTextures(context:TMax2DContext,shader:Byte Ptr,values:Float Ptr,second:TImageFrame,third:TImageFrame) Override
+		m2d_gl_select_package_effect(TGLMax2DContext(context).native,shader,values,TGLMax2DContext(context).NativeFrame(second),TGLMax2DContext(context).NativeFrame(third))
 	End Method
 	Method ClearShader(context:TMax2DContext) Override
 		m2d_gl_select_image_effect(TGLMax2DContext(context).native,Null,0,0,0,0)
 	End Method
 End Type
 Extern "C"
+	Function m2d_gl_select_texture_set:Int(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,textures:Byte Ptr Ptr,count:Int)
 	Function m2d_gl_package_shader:Byte Ptr(context:Byte Ptr,package:Byte Ptr)
-	Function m2d_gl_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr)
+	Function m2d_gl_select_package_effect(context:Byte Ptr,shader:Byte Ptr,values:Float Ptr,second:Byte Ptr,third:Byte Ptr)
 End Extern
 RegisterShaderPackageBackend(New TGLShaderPackageBackend)

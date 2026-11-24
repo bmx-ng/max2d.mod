@@ -4,6 +4,7 @@ about: Prepare allocates and materializes a complete layout. Repeating the same 
 End Rem
 Type TMax2DEffectBuffers
 	Private
+	Field chainState:TLayerDrawingState=New TLayerDrawingState
 	Field owner:TMax2DContext
 	Field images:TRenderImage[]
 	Field levels:TRenderImage[]
@@ -54,6 +55,8 @@ Type TMax2DEffectBuffers
 
 	Rem
 	bbdoc: Returns a borrowed full-size image by zero-based index.
+	param: Zero-based full-size image index, less than the imageCount supplied to Prepare.
+	returns: A borrowed full-size image by zero-based index.
 	about: Requires the owning context to be current and open. Do not release or resize the returned image independently.
 	End Rem
 	Method Image:TRenderImage(index:Int)
@@ -68,13 +71,14 @@ Type TMax2DEffectBuffers
 	param: Index of the result image.
 	param: Retained effect descriptions in drawing order.
 	param: Index of a distinct full-size scratch image, used only for chains with two or more effects; defaults to one.
-	about: Dimensions must match the prepared layout. Empty chains copy the source. Every call rebuilds the output; there is no dirty tracking. Full-layer processing ignores drawing tint, transforms and source handles, and restores caller state and target views. The returned image is overwritten by subsequent operations targeting that index and expires after changed Prepare, Release or context closure.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
+	about: Dimensions must match the prepared layout. Empty chains copy the source. Warm calls reuse private drawing state; reentrant calls use a separate scope. Every call rebuilds the output; there is no dirty tracking. Full-layer processing ignores drawing tint, transforms and source handles, and restores caller state and target views. The returned image is overwritten by subsequent operations targeting that index and expires after changed Prepare, Release or context closure.
 	End Rem
 	Method ApplyChain:TRenderImage(source:TRenderImage, destinationIndex:Int, effects:TMax2DImageEffect[], scratchIndex:Int = 1)
 		Local destination:TRenderImage = Image(destinationIndex)
 		Local scratch:TRenderImage
 		If effects.Length > 1 Then scratch = Image(scratchIndex)
-		ApplyLayerEffects(source, destination, effects, scratch)
+		ApplyLayerEffectsInternal(source, destination, effects, scratch, chainState)
 		Return destination
 	End Method
 
@@ -83,6 +87,7 @@ Type TMax2DEffectBuffers
 	param: Filtered source layer, distinct from the result.
 	param: Index of the full-size result image.
 	param: Reusable scaled-blur descriptor; its radius must fit the prepared pyramid.
+	returns: Borrowed processed output owned by this object; valid until a subsequent update, storage replacement or release.
 	about: Prepare must include blur storage with nonnegative reductionLevels. Source dimensions must match the full-size layout and its flags must include FILTEREDIMAGE without MIPMAPPEDIMAGE. No images or arrays are allocated here. Existing scaled-blur validation and state restoration apply. Every call rebuilds the indexed output; the borrowed result has the same lifetime as Image(index).
 	End Rem
 	Method ApplyBlur:TRenderImage(source:TRenderImage, destinationIndex:Int, blur:TMax2DScaledBlur)

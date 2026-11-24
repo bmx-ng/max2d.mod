@@ -1,0 +1,9 @@
+platform,profile,test,status,summary
+macOS arm64,sdlgpu,lighting_specular_native,PASS,279 native specular checks including custom flat-normal strength fallback
+macOS arm64,gl,lighting_specular_native,PASS,279 native specular checks including custom flat-normal strength fallback
+Windows 11 ARM64 Parallels (x64 application),d3d9,lighting_specular_native,PASS,252 native specular checks before the final flat-normal strength case was added
+Windows 11 ARM64 Parallels (x64 application),d3d11,lighting_specular_native,PASS,252 native specular checks before the final flat-normal strength case was added
+macOS arm64,sdlgpu,material_maps,PASS,121 material map checks
+Windows 11 ARM64 Parallels (x64 application),d3d9,material_maps,PASS,121 material map checks
+Windows 11 ARM64 Parallels (x64 application),d3d11,material_maps,PASS,121 material map checks
+macOS arm64,console,native_lighting_shaders,PASS,All six shader variants reproduce source and embedded assets
