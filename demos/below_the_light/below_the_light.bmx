@@ -77,6 +77,10 @@ If testing Then
 	game.CheckControls()
 End If
 
+?Not max2d_gl
+Local gpu:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
+Local startIssued:ULong, startMerged:ULong
+?
 Local profileFrames:Int, updateNs:ULong, drawNs:ULong, flipNs:ULong, intervalStart:ULong
 While Not AppTerminate()
 	input.mapping = CaptureWindowInput()
@@ -182,6 +186,9 @@ While Not AppTerminate()
 			flipNs = 0
 			game.fishNs = 0
 			game.lighting.ResetStats()
+?Not max2d_gl
+			gpu.GetDrawCounts(startIssued, startMerged)
+?
 		End If
 	End If
 	game.Advance(dt, ax, ay)
@@ -196,12 +203,18 @@ While Not AppTerminate()
 		flipNs :+ finish - drawn
 		profileFrames :+ 1
 		If profileFrames = 30 Then
+			Local gpuReport:String
+?Not max2d_gl
+			Local issued:ULong, merged:ULong
+			gpu.GetDrawCounts(issued, merged)
+			gpuReport = " gpu_draws/frame=" + Float(issued - startIssued) / profileFrames + " adjacent_merged/frame=" + Float(merged - startMerged) / profileFrames
+?
 			Local stats:TMax2DLightingStats = game.lighting.CaptureStats()
 			Local ms:Double = 0.000001 / profileFrames
 			Print "depth=" + Int((game.y + 1400) * 0.18) + " lamps=" + game.lamps + " fps=" + Int(1.0e9 * profileFrames / (finish - intervalStart)) + ..
 				" update_ms=" + Float(updateNs * ms) + " fish_ms=" + Float(game.fishNs * ms) + " draw_ms=" + Float(drawNs * ms) + " flip_ms=" + Float(flipNs * ms) + ..
 				" receivers/frame=" + Float(stats.ReceiverDraws()) / profileFrames + " shadow_rebuilds/frame=" + Float(stats.ShadowRebuilds()) / profileFrames + ..
-				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames + " casters/frame=" + Float(stats.Casters()) / profileFrames
+				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames + " casters/frame=" + Float(stats.Casters()) / profileFrames + gpuReport
 			If kelpProfile Then kelpProfile.Report(profileFrames)
 			profileFrames = 0
 		End If

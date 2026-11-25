@@ -59,6 +59,7 @@ struct GPUContext {
 	Uint32 bufferSize;
 	GPUDraw *draws;
 	int drawCount,drawCapacity;
+	Uint64 drawsIssued,drawsMerged;
 	float *data;
 	int vertexCount,vertexCapacity;
 	float transform[4];
@@ -716,7 +717,7 @@ static int flush(GPUContext *c) {
 	GPUFrame *active=NULL;
 	for(int i=0;i<c->drawCount;++i) {
 		GPUDraw *draw=&c->draws[i];
-		int count=draw->count;
+		int firstRecord=i,count=draw->count;
 		while(i+1<c->drawCount && can_join_draws(c,&c->draws[i],&c->draws[i+1]))
 			count+=c->draws[++i].count;
 		GPUFrame *target=draw->destination?draw->destination:c->backbuffer;
@@ -759,6 +760,8 @@ static int flush(GPUContext *c) {
             SDL_BindGPUFragmentSamplers(pass,1,bindings,count);
         }
 		SDL_DrawGPUPrimitives(pass,draw->compact?count*3:count,1,draw->compact?draw->first*3:draw->first,0);
+		c->drawsIssued++;
+		c->drawsMerged+=(Uint64)(i-firstRecord);
 	}
 	if(pass) SDL_EndGPURenderPass(pass);
 	c->drawCount=0;
@@ -800,6 +803,10 @@ int m2d_gpu_clear(GPUContext *c,GPUFrame *target,int bars,int r,int g,int b,floa
 		if(!ok) return 0;
 	}
 	return clear_rect(c,target,r,g,b,a);
+}
+void m2d_gpu_draw_counts(GPUContext *c,Uint64 *issued,Uint64 *merged) {
+	*issued=c->drawsIssued;
+	*merged=c->drawsMerged;
 }
 int m2d_gpu_present(GPUContext *c,int sync) {
 	if(!flush(c)) return 0;

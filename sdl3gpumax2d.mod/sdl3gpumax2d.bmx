@@ -262,6 +262,17 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	End Method
 
 	Rem
+	bbdoc: Reads cumulative SDL GPU geometry command counts for this context.
+	param: Receives the number of geometry draw commands recorded into SDL GPU render passes.
+	param: Receives the number of adjacent draw records absorbed into preceding commands.
+	about: Reading these counters does not flush pending geometry or wait for the GPU. Sample after Flip for frame totals. Counts exclude blits, uploads and external rendering, and accumulate for the lifetime of this context.
+	End Rem
+	Method GetDrawCounts(issued:ULong Var, merged:ULong Var)
+		CheckOpen()
+		m2d_gpu_draw_counts(native, Varptr issued, Varptr merged)
+	End Method
+
+	Rem
 	bbdoc: Presents the window backbuffer with the requested synchronization setting.
 	param: Presentation synchronization setting; negative uses the backend default.
 	End Rem
@@ -677,6 +688,7 @@ Extern "C"
 	Function m2d_gpu_close(context:Byte Ptr)
 	Function m2d_gpu_name:Byte Ptr(context:Byte Ptr)
 	Function m2d_gpu_output:Int(context:Byte Ptr,width:Int Ptr,height:Int Ptr)
+	Function m2d_gpu_draw_counts(context:Byte Ptr,issued:ULong Ptr,merged:ULong Ptr)
 	Function m2d_gpu_present:Int(context:Byte Ptr,sync:Int)
 	Function m2d_gpu_create:Byte Ptr(context:Byte Ptr,width:Int,height:Int,flags:Int,target:Int,kind:Int,levels:Int)
 	Function m2d_gpu_target_support:Int(context:Byte Ptr,kind:Int)

@@ -341,7 +341,10 @@ Compare a steady surface view with a steady cave view, then toggle the lamps
 with L in the same spot. Timings are elapsed milliseconds per frame. Fish time
 is included in update time, and Flip can include waiting for the display.
 Lighting counters include every receiver draw, including repeated draws for
-mesh sections. Depth and lamp state describe the end of each interval.
+mesh sections. On SDL GPU, `gpu_draws/frame` counts geometry commands issued and
+`adjacent_merged/frame` counts additional records folded into those commands.
+Their sum gives the geometry record count before adjacent merging. These totals
+cover the entire frame, including HUD and shadow geometry. Depth and lamp state describe the end of each interval.
 
 For a repeatable comparison, run the console build with `--profile-cave`. It
 replays a slight change of heading at 241 m for four 90-frame intervals: full
