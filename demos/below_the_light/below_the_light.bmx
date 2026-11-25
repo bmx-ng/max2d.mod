@@ -169,7 +169,7 @@ While Not AppTerminate()
 			Print "depth=" + Int((game.y + 1400) * 0.18) + " lamps=" + game.lamps + " fps=" + Int(1.0e9 * profileFrames / (finish - intervalStart)) + ..
 				" update_ms=" + Float(updateNs * ms) + " fish_ms=" + Float(game.fishNs * ms) + " draw_ms=" + Float(drawNs * ms) + " flip_ms=" + Float(flipNs * ms) + ..
 				" receivers/frame=" + Float(stats.ReceiverDraws()) / profileFrames + " shadow_rebuilds/frame=" + Float(stats.ShadowRebuilds()) / profileFrames + ..
-				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames
+				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames + " casters/frame=" + Float(stats.Casters()) / profileFrames
 			profileFrames = 0
 		End If
 	End If

@@ -260,7 +260,7 @@ Type TMax2DLightShadow
 		filtered = False
 	End Method
 
-	Method Update:TMax2DLightTexture(x:Float, y:Float, radius:Float, occluders:TMax2DLightOccluder[], pattern:TMax2DLightTexture, directional:Int = False, dx:Float = 0, dy:Float = 0, dz:Float = 0, pointHeight:Float = 128, stats:TMax2DLightingStats = Null)
+	Method Update:TMax2DLightTexture(x:Float, y:Float, radius:Float, occluders:TMax2DLightOccluder[], casterStates:TMax2DCasterState[], pattern:TMax2DLightTexture, directional:Int = False, dx:Float = 0, dy:Float = 0, dz:Float = 0, pointHeight:Float = 128, stats:TMax2DLightingStats = Null)
 		If directional And (boundsWidth <= 0 Or boundsHeight <= 0) Then
 			Throw "Max2D Lighting: configure directional shadow bounds before drawing"
 		End If
@@ -345,12 +345,13 @@ Type TMax2DLightShadow
 
 			SetColor(0, 0, 0)
 			SetAlpha(1)
-			For Local polygon:TMax2DLightOccluder = EachIn occluders
+			For Local iCaster:Int = 0 Until occluders.Length
 				stats.occluderTests :+ 1
-				If Not polygon.enabled Or Not (polygon.mask & mask) Then
+				If Not casterStates[iCaster].Affects(Self, directional, x, y, radius) Then
 					Continue
 				End If
 
+				Local polygon:TMax2DLightOccluder = occluders[iCaster]
 				Local points:Float[] = polygon.vertices
 				If (Double(points[2]) - points[0]) * (Double(points[5]) - points[1]) = (Double(points[3]) - points[1]) * (Double(points[4]) - points[0]) Then
 					Continue

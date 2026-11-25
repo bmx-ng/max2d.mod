@@ -1723,7 +1723,7 @@ Type TMax2DLighting
 				Throw "Max2D Lighting: light pattern is the current render target"
 			End If
 
-			Return shadows[index].Update(lights[index * 8], lights[index * 8 + 1], lights[index * 8 + 2], occluders, textures[index], directional[index], lights[index * 8], lights[index * 8 + 1], lights[index * 8 + 2], heights[index], stats)
+			Return shadows[index].Update(lights[index * 8], lights[index * 8 + 1], lights[index * 8 + 2], occluders, casterStates, textures[index], directional[index], lights[index * 8], lights[index * 8 + 1], lights[index * 8 + 2], heights[index], stats)
 		End If
 
 		Return textures[index]
