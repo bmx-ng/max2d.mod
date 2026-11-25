@@ -11,6 +11,14 @@ End Function
 Try
  Local mesh:TMesh2D=TMesh2D.Create([0.0,0.0,12.0,0.0,24.0,0.0,0.0,24.0,12.0,24.0,24.0,24.0],[0,1,4,0,4,3,1,2,5,1,5,4],[0.0,0.0,0.5,0.0,1.0,0.0,0.0,1.0,0.5,1.0,1.0,1.0])
  Local retained:TMax2DLightingMeshCache=New TMax2DLightingMeshCache
+ ' Opposite sides of a slanted shared edge can batch. Folding the fourth
+ ' vertex just across that edge must preserve ordered transparent drawing.
+ Local seam:TMesh2D=TMesh2D.Create([0.25,0.5,24.5,1.75,23.125,21.375,0.125,20.875],[0,1,2,0,2,3],[0.0,0.0,1.0,0.0,1.0,1.0,0.0,1.0])
+ retained.Accepts(seam)
+ Check(retained.DisjointGeometry(),"slanted shared boundary is disjoint")
+ seam.xy[6]=11.6875;seam.xy[7]=10.9365
+ retained.Accepts(seam)
+ Check(Not retained.DisjointGeometry(),"thin overlap at shared edge stays ordered")
  For Local iteration:Int=0 Until 400
   ' Split, merge and overlap sections while preserving the UV/index topology.
   Local bend:Int=(iteration Mod 5)-2

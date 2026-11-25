@@ -143,15 +143,37 @@ Type TDiveFlora
 	End Method
 End Type
 
+Type TDiveKelpProfile
+	Field lighting:TSceneLighting
+	Field before:TMax2DLightingStats = New TMax2DLightingStats, after:TMax2DLightingStats = New TMax2DLightingStats
+	Field whole:Long, sections:Long, triangles:Long, receivers:Long
+	Method Report(frames:Int)
+		Print "kelp/frame whole=" + Float(whole)/frames + " sectioned=" + Float(sections)/frames + " per_triangle=" + Float(triangles)/frames + " receivers=" + Float(receivers)/frames
+		whole = 0
+		sections = 0
+		triangles = 0
+		receivers = 0
+	End Method
+End Type
+
 ' Adjacent leaf segments overlap. Submit each segment in stalk order so the
 ' renderer can batch its interior triangles while preserving the leaf layering.
 Type TDiveKelpNode Extends TLitMeshNode
 	Field sections:TMesh2D[], artwork:TImage
+	Field profile:TDiveKelpProfile
 
 	Method OnDraw(context:TSceneDrawContext) Override
+		If profile Then profile.lighting.CopyStats(profile.before)
 		For Local section:TMesh2D = EachIn sections
 			DrawLitMesh(section, artwork)
 		Next
+		If profile Then
+			profile.lighting.CopyStats(profile.after)
+			profile.whole :+ profile.after.WholeMeshDraws() - profile.before.WholeMeshDraws()
+			profile.sections :+ profile.after.SectionMeshDraws() - profile.before.SectionMeshDraws()
+			profile.triangles :+ profile.after.TriangleMeshDraws() - profile.before.TriangleMeshDraws()
+			profile.receivers :+ profile.after.ReceiverDraws() - profile.before.ReceiverDraws()
+		End If
 	End Method
 End Type
 

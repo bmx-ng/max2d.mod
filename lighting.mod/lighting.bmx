@@ -1106,12 +1106,18 @@ Type TMax2DLighting
 					DrawImage(image, image.handle_x, image.handle_y, frame, receiverMask, meshBasis[0], meshBasis[1], meshBasis[2], meshBasis[3], meshBasis[4], meshBasis[5], material)
 					meshDeformed = False
 					If meshAccepted Then
+						stats.wholeMeshDraws :+ 1
 						Return
 					End If
 				End If
 			End If
 
 			If whole Then
+				If meshCache.runCount = 1 Then
+					stats.wholeMeshDraws :+ 1
+				Else
+					stats.sectionMeshDraws :+ 1
+				End If
 				For Local section:Int = 0 Until meshCache.runCount
 					meshReceiver = mesh
 					If meshCache.runCount > 1 Then
@@ -1125,6 +1131,7 @@ Type TMax2DLighting
 				Return
 			End If
 
+			stats.triangleMeshDraws :+ 1
 			meshReceiver = meshTriangle
 			For Local triangle:Int = 0 Until mesh.indices.Length Step 3
 				MeshMapping(mesh, triangle, image.width, image.height, x - canvas.state.handleX, y - canvas.state.handleY, xx, xy, yx, yy, tx, ty, mappingCache)

@@ -346,7 +346,10 @@ mesh sections. Depth and lamp state describe the end of each interval.
 For a repeatable comparison, run the console build with `--profile-cave`. It
 replays a slight change of heading at 241 m for four 90-frame intervals: full
 scene, grass hidden, kelp hidden, then lamp off. Vegetation continues animating
-while hidden so the two visibility comparisons isolate drawing work. Compare
+while hidden so the two visibility comparisons isolate drawing work. Two final
+intervals freeze the pose and animation, first with the lamp on and then off.
+The kelp line counts input segments drawn whole, split into affine sections,
+or handled per triangle. Its receiver count includes all pieces drawn. Compare
 the final two reports per interval to allow for the change of state. Use the
 same seed, backend and window size when comparing builds.
 
