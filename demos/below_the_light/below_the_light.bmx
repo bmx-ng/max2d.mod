@@ -57,8 +57,9 @@ input.Init(game)
 input.mapping = CaptureWindowInput()
 SetAutoPoll(False)
 AddHook(EmitEventHook, DiveInputHook, input)
-Local testing:Int, frames:Int, previous:Int = MilliSecs()
+Local sync:Int = 1, testing:Int, frames:Int, previous:Int = MilliSecs()
 For Local arg:String = EachIn AppArgs
+	If arg = "--software-60" Then sync = -1
 	If arg = "--test" Then
 		testing = True
 	End If
@@ -132,7 +133,7 @@ While Not AppTerminate()
 
 	game.Advance(dt, ax, ay)
 	game.Draw()
-	Flip
+	Flip(sync)
 	frames :+ 1
 	If testing And frames = 120 Then
 		game.CheckRendered()

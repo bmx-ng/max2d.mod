@@ -8,6 +8,7 @@ Type TDiveSchool
 	Field fish:TLitSpriteNode[CAPACITY]
 	Field x:Float[CAPACITY], y:Float[CAPACITY], vx:Float[CAPACITY], vy:Float[CAPACITY]
 	Field ax:Float[CAPACITY], ay:Float[CAPACITY], alarm:Float[CAPACITY]
+	Field nearbyRockIndices:Int[]
 	Field colour:TImage, normal:TImage
 	Method Init(world:TLayerNode, lighting:TSceneLighting, kind:Int = 0, number:Int = 28, anchorX:Float = 620, anchorY:Float = -680)
 		species = kind
@@ -71,6 +72,28 @@ Type TDiveSchool
 		Next
 	End Method
 
+	' Keep map order for steering and penetration resolution. The margin covers the
+	' half-second lookahead, one integration step and the avoidance clearance.
+	Method SelectNearbyRocks:Int(rocks:TDiveRock[])
+		If nearbyRockIndices.Length < rocks.Length Then nearbyRockIndices = New Int[rocks.Length]
+		Local left:Float = x[0], right:Float = x[0], top:Float = y[0], bottom:Float = y[0]
+		For Local i:Int = 1 Until count
+			left = Min(left, x[i])
+			right = Max(right, x[i])
+			top = Min(top, y[i])
+			bottom = Max(bottom, y[i])
+		Next
+		Local margin:Float = 71 + (cruise + 110) * 0.5
+		Local found:Int
+		For Local i:Int = 0 Until rocks.Length
+			Local rock:TDiveRock = rocks[i], reach:Float = margin + rock.radius
+			If rock.x + reach < left Or rock.x - reach > right Or rock.y + reach < top Or rock.y - reach > bottom Then Continue
+			nearbyRockIndices[found] = i
+			found :+ 1
+		Next
+		Return found
+	End Method
+
 	Method Advance(dt:Float, time:Float, subX:Float, subY:Float, rocks:TDiveRock[])
 		If dt <= 0 Then
 			Return
@@ -78,6 +101,7 @@ Type TDiveSchool
 		' Small substeps keep avoidance and cohesion stable at different frame rates.
 		Local steps:Int = Max(1, Int(Ceil(dt * 60))), stepTime:Float = dt / steps
 		For Local substep:Int = 0 Until steps
+			Local nearby:Int = SelectNearbyRocks(rocks)
 			Local targetX:Float = homeX + Sin(time * 9) * roam, targetY:Float = homeY + Sin(time * 13) * roam * 0.625
 			For Local i:Int = 0 Until COUNT
 				Local cx:Float, cy:Float, avx:Float, avy:Float, sepX:Float, sepY:Float, neighbours:Int
@@ -118,7 +142,8 @@ Type TDiveSchool
 					ay[i] :+ dy / d * flee
 				End If
 
-				For Local rock:TDiveRock = EachIn rocks
+				For Local k:Int = 0 Until nearby
+					Local rock:TDiveRock = rocks[nearbyRockIndices[k]]
 					dx = x[i] + vx[i] * 0.5 - rock.x
 					dy = y[i] + vy[i] * 0.5 - rock.y
 					d = Sqr(dx * dx + dy * dy)
@@ -155,9 +180,22 @@ Type TDiveSchool
 				x[i] :+ vx[i] * stepTime
 				y[i] :+ vy[i] * stepTime
 				' Resolve any penetration after steering, including direct flee paths.
-				For Local rock:TDiveRock = EachIn rocks
+				Local k:Int, nextRock:Int = -1
+				While k < nearby Or (nextRock >= 0 And nextRock < rocks.Length)
+					Local index:Int
+					If nextRock >= 0 Then
+						index = nextRock
+						nextRock :+ 1
+					Else
+						index = nearbyRockIndices[k]
+						k :+ 1
+					End If
+					Local rock:TDiveRock = rocks[index]
 					Local dx:Float = x[i] - rock.x, dy:Float = y[i] - rock.y, d:Float = Sqr(dx * dx + dy * dy), radius:Float = rock.radius + 12
 					If d < radius Then
+						' A correction can move us beyond the original school bounds.
+						k = nearby
+						nextRock = index + 1
 						If d < 0.01 Then dx = 1;dy = 0;d = 1
 
 						x[i] = rock.x + dx / d * radius
@@ -165,7 +203,7 @@ Type TDiveSchool
 						Local into:Float = (vx[i] * dx + vy[i] * dy) / d
 						If into < 0 Then vx[i] :- into * dx / d;vy[i] :- into * dy / d
 					End If
-				Next
+				Wend
 
 				x[i] = Max(150:Float, Min(Float(worldWidth - 80), x[i]))
 				y[i] = Max(-1320:Float, Min(Float(worldBottom - 80), y[i]))
