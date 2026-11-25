@@ -134,7 +134,7 @@ Type TDive
 		sun = TDirectionalLightNode.Create(-0.35, -0.7, 0.8)
 		sun.SetColor(70, 156, 189)
 		sun.SetIntensity(0.10)
-		sun.SetShadows(True, 1024)
+		sun.SetShadows(True, 512)
 		sun.SetShadowBounds(0, 0, map.width, map.bottom)
 		sun.SetShadowSoftness(1)
 		world.AddChild(sun)

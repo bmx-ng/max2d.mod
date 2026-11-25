@@ -143,6 +143,18 @@ Type TDiveFlora
 	End Method
 End Type
 
+' Adjacent leaf segments overlap. Submit each segment in stalk order so the
+' renderer can batch its interior triangles while preserving the leaf layering.
+Type TDiveKelpNode Extends TLitMeshNode
+	Field sections:TMesh2D[], artwork:TImage
+
+	Method OnDraw(context:TSceneDrawContext) Override
+		For Local section:TMesh2D = EachIn sections
+			DrawLitMesh(section, artwork)
+		Next
+	End Method
+End Type
+
 ' One retained mesh per plant. Repeated kelp artwork shares a continuous bend
 ' function, including the overlapping leaf tips at each texture boundary.
 Type TDivePlantMesh
@@ -150,9 +162,6 @@ Type TDivePlantMesh
 	Function Create:TDivePlantMesh(image:TImage, lighting:TSceneLighting, material:TMax2DLightingMaterial, count:Int, isKelp:Int)
 		Local plant:TDivePlantMesh = New TDivePlantMesh
 		Local rows:Int = 6, cols:Int = 2
-		' Each repeated kelp segment already supplies a bend interval. Keep its
-		' centre column for leaf flutter without subdividing the stalk six times.
-		If isKelp Then rows = 1
 		Local vertices:Int = (rows + 1) * (cols + 1)
 		Local xy:Float[count * vertices * 2], uv:Float[xy.Length], indices:Int[count * rows * cols * 6]
 		Local cursor:Int, top:Float = 0
@@ -185,7 +194,22 @@ Type TDivePlantMesh
 
 		plant.rest = xy[..]
 		plant.mesh = TMesh2D.Create(xy, indices, uv)
-		plant.node = TLitMeshNode.Create(plant.mesh, image, lighting, material)
+		If isKelp Then
+			Local stalk:TDiveKelpNode = New TDiveKelpNode
+			stalk.InitializeLighting(lighting, material)
+			stalk.SetMesh(plant.mesh)
+			stalk.SetImage(image)
+			stalk.artwork = image
+			stalk.sections = New TMesh2D[count]
+			Local sectionIndices:Int[] = indices[..rows * cols * 6]
+			For Local part:Int = 0 Until count
+				Local first:Int = part * vertices * 2, last:Int = first + vertices * 2
+				stalk.sections[part] = TMesh2D.Create(xy[first..last], sectionIndices, uv[first..last])
+			Next
+			plant.node = stalk
+		Else
+			plant.node = TLitMeshNode.Create(plant.mesh, image, lighting, material)
+		End If
 		Return plant
 	End Function
 
@@ -198,6 +222,14 @@ Type TDivePlantMesh
 			mesh.xy[i + 1] = rest[i + 1] + Abs(rest[i]) * flutter
 		Next
 
+		Local stalk:TDiveKelpNode = TDiveKelpNode(node)
+		If stalk Then
+			Local first:Int
+			For Local section:TMesh2D = EachIn stalk.sections
+				MemCopy(Varptr section.xy[0], Varptr mesh.xy[first], SizeOf(Float) * section.xy.Length)
+				first :+ section.xy.Length
+			Next
+		End If
 		node.InvalidateContent()
 	End Method
 
