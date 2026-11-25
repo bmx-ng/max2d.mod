@@ -332,6 +332,10 @@ through the cave, with six additional groups in bright surface water. Route
 centreline samples, probes and habitats are checked for collision clearance before
 the scene is constructed.
 
+Presentation synchronises to the display refresh by default. On high-refresh
+displays this can increase the number of frames drawn per second. Pass
+`--software-60` to compare with the windowed 60 Hz software timer.
+
 The default seed is `7`. Pass `--seed=12345` to the executable to explore another
 layout; replay preserves the seed and New Cave advances it deterministically.
 For command-line testing, use the console build below. Seeds reproduce layouts
