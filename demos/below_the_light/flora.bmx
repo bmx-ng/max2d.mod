@@ -149,7 +149,11 @@ Type TDivePlantMesh
 	Field node:TLitMeshNode, mesh:TMesh2D, rest:Float[], height:Float
 	Function Create:TDivePlantMesh(image:TImage, lighting:TSceneLighting, material:TMax2DLightingMaterial, count:Int, isKelp:Int)
 		Local plant:TDivePlantMesh = New TDivePlantMesh
-		Local rows:Int = 6, cols:Int = 2, vertices:Int = (rows + 1) * (cols + 1)
+		Local rows:Int = 6, cols:Int = 2
+		' Each repeated kelp segment already supplies a bend interval. Keep its
+		' centre column for leaf flutter without subdividing the stalk six times.
+		If isKelp Then rows = 1
+		Local vertices:Int = (rows + 1) * (cols + 1)
 		Local xy:Float[count * vertices * 2], uv:Float[xy.Length], indices:Int[count * rows * cols * 6]
 		Local cursor:Int, top:Float = 0
 		If isKelp Then
