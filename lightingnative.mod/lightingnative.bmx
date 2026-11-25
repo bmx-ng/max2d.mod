@@ -209,8 +209,16 @@ Type TMax2DNativeLightingRenderer Extends TMax2DLightingRenderer
    Bounds(specular,specularFrame,userSlots+8)
   End If
   PrepareMaps(draw)
-  values[0]=draw.xx*draw.source.width;values[1]=draw.xy*draw.source.height;values[2]=draw.tx;values[3]=1.0/draw.source.width
-  values[4]=draw.yx*draw.source.width;values[5]=draw.yy*draw.source.height;values[6]=draw.ty;values[7]=1.0/draw.source.height
+  If draw.deformed Then
+   ' The fragment shader reconstructs position and normal basis from screen
+   ' coordinates and UV gradients. Keep unused affine coefficients identical.
+   values[0]=0;values[1]=0;values[2]=0
+   values[4]=0;values[5]=0;values[6]=0
+  Else
+   values[0]=draw.xx*draw.source.width;values[1]=draw.xy*draw.source.height;values[2]=draw.tx
+   values[4]=draw.yx*draw.source.width;values[5]=draw.yy*draw.source.height;values[6]=draw.ty
+  End If
+  values[3]=1.0/draw.source.width;values[7]=1.0/draw.source.height
   values[8]=strength;values[9]=draw.specularStrength;values[10]=draw.shininess;values[11]=draw.specularFromNormalAlpha
   If specular Then values[11]=2+specularAlpha
   values[12]=draw.count;values[13]=draw.targetFormat<>PF_RGBA16F And draw.targetFormat<>PF_RGBA32F
