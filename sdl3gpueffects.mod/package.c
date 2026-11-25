@@ -1,6 +1,6 @@
 #include <SDL3/SDL.h>
 #include <max2d.mod/shadereffects.mod/package.h>
-extern void *m2d_gpu_image_effect_sized(void *,const char *,const SDL_GPUShaderCreateInfo *,int);
+extern void *m2d_gpu_image_effect_package(void *,const char *,const SDL_GPUShaderCreateInfo *,int,int);
 // SDL DXBC has its own binding contract; never select the native D3D assets.
 void *m2d_package_shader(void *context,SDL_GPUDevice *device,M2DPackage *p) {
     if(!p || p->slots<1 || p->slots>M2D_NATIVE_PARAMETER_SLOTS || p->samplers<1 || p->samplers>5 ||
@@ -18,5 +18,6 @@ void *m2d_package_shader(void *context,SDL_GPUDevice *device,M2DPackage *p) {
 	} else if((formats & SDL_GPU_SHADERFORMAT_DXBC) && p->dxbc) {
 		info.format=SDL_GPU_SHADERFORMAT_DXBC; info.code=p->dxbc; info.code_size=p->dxbcSize; info.entrypoint="m2dEffectMain";
 	} else { SDL_SetError("Max2D package: no shader asset for this backend"); return NULL; }
-	return m2d_gpu_image_effect_sized(context,p->key,&info,p->slots*16);
+	return m2d_gpu_image_effect_package(context,p->key,&info,p->slots*16,
+		p->abi==M2D_NATIVE_LIGHTING_ABI || p->abi==M2D_NATIVE_MATERIAL_ABI);
 }

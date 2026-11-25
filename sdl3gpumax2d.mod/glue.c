@@ -19,7 +19,7 @@ struct GPUImageEffect {
 	GPUContext *owner;
 	char *key;
 	Uint32 parameterBytes;
-	int samplers;
+	int samplers,mergeable;
 	SDL_GPUShader *fragment;
 	GPUBlendPipeline *pipelines;
 	GPUImageEffect *next;
@@ -373,11 +373,14 @@ void *m2d_gpu_image_effect(GPUContext *c,const char *key,const SDL_GPUShaderCrea
 	return effect;
 }
 /* Packages use bounded float4 slots; built-ins retain 16-byte uniforms. */
-void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
+void *m2d_gpu_image_effect_package(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes,int mergeable) {
 	if(bytes<16 || bytes>M2D_NATIVE_PARAMETER_SLOTS*16 || bytes%16 || bytes<(int)(info->num_samplers-1)*16) { fail("Invalid effect parameter size"); return NULL; }
 	GPUImageEffect *effect=m2d_gpu_image_effect(c,key,info);
-	if(effect) effect->parameterBytes=(Uint32)bytes;
+	if(effect) { effect->parameterBytes=(Uint32)bytes; effect->mergeable=mergeable; }
 	return effect;
+}
+void *m2d_gpu_image_effect_sized(GPUContext *c,const char *key,const SDL_GPUShaderCreateInfo *info,int bytes) {
+	return m2d_gpu_image_effect_package(c,key,info,bytes,0);
 }
 void m2d_gpu_select_package_effect(GPUContext *c,GPUImageEffect *effect,const float *parameters) {
 	c->selectedEffect=effect;
@@ -660,6 +663,25 @@ static void generate_mips(GPUContext *c,SDL_GPUCommandBuffer *cmd,GPUFrame *fram
 		}
 	} else SDL_GenerateMipmapsForGPUTexture(cmd,frame->texture);
 }
+/* Keep the first record's mip generation and never cross a later generation.
+ * Triangle lists must meet at primitive boundaries. Compact records always
+ * contain complete sprites, each occupying two vertex-buffer units. */
+static int can_join_draws(const GPUContext *c,const GPUDraw *a,const GPUDraw *b) {
+	if(b->generate || a->pipeline!=b->pipeline || a->effect!=b->effect ||
+	   a->destination!=b->destination || a->source!=b->source ||
+	   a->blend!=b->blend || a->compact!=b->compact ||
+	   a->first+a->count!=b->first || (!a->compact && a->count%3) ||
+	   memcmp(&a->clip,&b->clip,sizeof(a->clip)) ||
+	   memcmp(a->transform,b->transform,sizeof(a->transform))) return 0;
+	if(!a->effect) return 1;
+	/* Custom fragment programs may observe per-draw primitive IDs. */
+	if(!a->effect->mergeable) return 0;
+	size_t bytes=a->effect->parameterBytes;
+	if(bytes<=16 && a->effect->samplers==1)
+		return !memcmp(a->effectParameters.small,b->effectParameters.small,bytes);
+	bytes+=(a->effect->samplers-1)*sizeof(GPUFrame *);
+	return !memcmp(c->effectData+a->effectParameters.offset,c->effectData+b->effectParameters.offset,bytes);
+}
 static int flush(GPUContext *c) {
 	if(!c->drawCount) return 1;
 	Uint32 size=(Uint32)c->vertexCount*32;
@@ -694,6 +716,9 @@ static int flush(GPUContext *c) {
 	GPUFrame *active=NULL;
 	for(int i=0;i<c->drawCount;++i) {
 		GPUDraw *draw=&c->draws[i];
+		int count=draw->count;
+		while(i+1<c->drawCount && can_join_draws(c,&c->draws[i],&c->draws[i+1]))
+			count+=c->draws[++i].count;
 		GPUFrame *target=draw->destination?draw->destination:c->backbuffer;
 		if(draw->generate) {
 			if(pass) SDL_EndGPURenderPass(pass);
@@ -733,7 +758,7 @@ static int flush(GPUContext *c) {
             }
             SDL_BindGPUFragmentSamplers(pass,1,bindings,count);
         }
-		SDL_DrawGPUPrimitives(pass,draw->compact?draw->count*3:draw->count,1,draw->compact?draw->first*3:draw->first,0);
+		SDL_DrawGPUPrimitives(pass,draw->compact?count*3:count,1,draw->compact?draw->first*3:draw->first,0);
 	}
 	if(pass) SDL_EndGPURenderPass(pass);
 	c->drawCount=0;
