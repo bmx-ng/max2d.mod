@@ -61,6 +61,7 @@ input.Init(game)
 input.mapping = CaptureWindowInput()
 SetAutoPoll(False)
 AddHook(EmitEventHook, DiveInputHook, input)
+Local kelpProfile:TDiveKelpProfile
 Local profileCave:Int
 Local sync:Int = 1, testing:Int, frames:Int, previous:Int = MilliSecs()
 For Local arg:String = EachIn AppArgs
@@ -146,19 +147,27 @@ While Not AppTerminate()
 		' Repeat the same pose series for each 90-frame lighting comparison.
 		Local phase:Int = frames / 90, tick:Int = frames Mod 90
 		If tick = 0 Then
-			game.lamps = phase <> 3
+			If Not kelpProfile Then kelpProfile = New TDiveKelpProfile
+			kelpProfile.lighting = game.lighting
+			game.lamps = phase <> 3 And phase <> 5
 			For Local grass:TDivePlantMesh = EachIn game.flora.grass
 				grass.node.SetVisible(phase <> 1)
 			Next
 			For Local kelp:TDivePlantMesh = EachIn game.flora.kelp
+				TDiveKelpNode(kelp.node).profile = kelpProfile
 				kelp.node.SetVisible(phase <> 2)
 			Next
-			Print "profile-cave phase=" + ["full", "hide-grass", "hide-kelp", "lamp-off"][phase]
+			Print "profile-cave phase=" + ["full", "hide-grass", "hide-kelp", "lamp-off", "frozen-on", "frozen-off"][phase]
 		End If
-		game.Place(620, -60, Float(Sin(tick * 4) * 2))
+		If phase < 4 Then
+			game.Place(620, -60, Float(Sin(tick * 4) * 2))
+		Else
+			game.Place(620, -60, 0)
+		End If
 		game.camera.x = 710
 		game.camera.y = -60
 		dt = 1.0 / 60
+		If phase >= 4 Then dt = 0
 		ax = 0
 		ay = 0
 	End If
@@ -193,11 +202,12 @@ While Not AppTerminate()
 				" update_ms=" + Float(updateNs * ms) + " fish_ms=" + Float(game.fishNs * ms) + " draw_ms=" + Float(drawNs * ms) + " flip_ms=" + Float(flipNs * ms) + ..
 				" receivers/frame=" + Float(stats.ReceiverDraws()) / profileFrames + " shadow_rebuilds/frame=" + Float(stats.ShadowRebuilds()) / profileFrames + ..
 				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames + " casters/frame=" + Float(stats.Casters()) / profileFrames
+			If kelpProfile Then kelpProfile.Report(profileFrames)
 			profileFrames = 0
 		End If
 	End If
 	frames :+ 1
-	If profileCave And frames = 360 Then Exit
+	If profileCave And frames = 540 Then Exit
 	If testing And frames = 120 Then
 		game.CheckRendered()
 		Print "PASS: Below the Light controls, collisions, probe recovery, camera, lighting and 120 rendered frames"

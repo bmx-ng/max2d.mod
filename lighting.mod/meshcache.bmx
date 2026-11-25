@@ -229,6 +229,20 @@ Type TMax2DLightingMeshCache
 
 		For Local edge:Int = 0 Until 3
 			Local p:Int = indices[a + edge] * 2, q:Int = indices[a + (edge + 1) Mod 3] * 2
+			' Test this triangle's own edge as a separating line. Relative
+			' coordinates preserve exact zero for a shared endpoint.
+			Local ex:Double = Double(points[q]) - points[p], ey:Double = Double(points[q + 1]) - points[p + 1]
+			Local r:Int = indices[a + (edge + 2) Mod 3] * 2
+			Local side:Double = ex * (Double(points[r + 1]) - points[p + 1]) - ey * (Double(points[r]) - points[p])
+			If side <> 0 Then
+				Local outside:Int = True
+				For Local corner:Int = 0 Until 3
+					Local k:Int = indices[b + corner] * 2
+					Local cross:Double = ex * (Double(points[k + 1]) - points[p + 1]) - ey * (Double(points[k]) - points[p])
+					If (side > 0 And cross > 0) Or (side < 0 And cross < 0) Then outside = False;Exit
+				Next
+				If outside Then Return True
+			End If
 			Local nx:Double = Double(points[q + 1]) - points[p + 1], ny:Double = Double(points[p]) - points[q]
 			Local amin:Double, amax:Double, bmin:Double, bmax:Double
 			For Local corner:Int = 0 Until 3

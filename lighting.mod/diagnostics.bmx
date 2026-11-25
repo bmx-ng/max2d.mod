@@ -4,6 +4,9 @@ about: Use TMax2DLighting or TSceneLighting ResetStats to begin a measurement in
 End Rem
 Type TMax2DLightingStats
 	Internal
+	Field wholeMeshDraws:Long
+	Field sectionMeshDraws:Long
+	Field triangleMeshDraws:Long
 	Field mapUploads:Long, mapHits:Long, mapBytes:Long
 	Field groupedLightContributions:Long, groupSupportChecks:Long, groupSupportRejections:Long
 	Field maximumGroupSize:Int
@@ -25,6 +28,9 @@ Type TMax2DLightingStats
 	Field filterPasses:Long
 	Field shadowBytes:Long
 	Method Reset()
+		wholeMeshDraws = 0
+		sectionMeshDraws = 0
+		triangleMeshDraws = 0
 		mapUploads = 0
 		mapHits = 0
 		mapBytes = 0
@@ -55,6 +61,9 @@ Type TMax2DLightingStats
 	End Method
 
 	Method CopyTo(output:TMax2DLightingStats)
+		output.wholeMeshDraws = wholeMeshDraws
+		output.sectionMeshDraws = sectionMeshDraws
+		output.triangleMeshDraws = triangleMeshDraws
 		output.mapUploads = mapUploads
 		output.mapHits = mapHits
 		output.mapBytes = mapBytes
@@ -85,6 +94,27 @@ Type TMax2DLightingStats
 	End Method
 
 	Public
+	Rem
+	bbdoc: Counts lit meshes split into individual triangle receivers.
+	returns: Total input meshes using this path since the last reset.
+	End Rem
+	Method TriangleMeshDraws:Long()
+		Return triangleMeshDraws
+	End Method
+	Rem
+	bbdoc: Counts lit meshes split into affine receiver sections.
+	returns: Total input meshes using this path since the last reset.
+	End Rem
+	Method SectionMeshDraws:Long()
+		Return sectionMeshDraws
+	End Method
+	Rem
+	bbdoc: Counts lit meshes drawn as one receiver.
+	returns: Total input meshes using this path since the last reset.
+	End Rem
+	Method WholeMeshDraws:Long()
+		Return wholeMeshDraws
+	End Method
 	Rem
 	bbdoc: Returns completed ambient compositions, including those combined with direct lighting.
 	returns: Completed ambient compositions, including those combined with direct lighting.
