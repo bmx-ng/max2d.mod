@@ -19,6 +19,18 @@ Try
  seam.xy[6]=11.6875;seam.xy[7]=10.9365
  retained.Accepts(seam)
  Check(Not retained.DisjointGeometry(),"thin overlap at shared edge stays ordered")
+ ' A pair can separate on another edge, fold through the seam, or coincide.
+ ' Keep the cache warm across all of these edits, including a winding reversal.
+ seam.xy[6]=0.125;seam.xy[7]=20.875
+ seam.indices=[3,2,0,2,1,0]
+ retained.Accepts(seam)
+ Check(retained.DisjointGeometry(),"stale edge hint with reordered vertices")
+ seam.indices=[3,2,0,0,2,3]
+ retained.Accepts(seam)
+ Check(Not retained.DisjointGeometry(),"coincident reversed triangles stay ordered")
+ seam.xy[6]=seam.xy[4];seam.xy[7]=seam.xy[5]
+ retained.Accepts(seam)
+ Check(Not retained.DisjointGeometry(),"collapsed geometry stays ordered after a cached separation")
  For Local iteration:Int=0 Until 400
   ' Split, merge and overlap sections while preserving the UV/index topology.
   Local bend:Int=(iteration Mod 5)-2
