@@ -8,6 +8,7 @@ ModuleInfo "License: zlib/libpng"
 Import Max2D.ShaderEffects
 Import Max2D.LightingDriver
 Import Max2D.LightingNative
+Import "casterepoch.cpp"
 Import "../sdl3gpueffects.mod/packages/emissionlight/emissionlight_assets.c"
 Import "../sdl3gpueffects.mod/packages/texturedlight/texturedlight_assets.c"
 Import "../sdl3gpueffects.mod/packages/lightpair/lightpair_assets.c"
@@ -28,6 +29,10 @@ Include "casterstate.bmx"
 Include "../sdl3gpueffects.mod/packages/texturedlight/texturedlight.bmx"
 
 Private
+Extern "C"
+	Function CasterEpoch:ULong() = "max2d_caster_epoch"
+	Function MarkCasterEdit() = "max2d_mark_caster_edit"
+End Extern
 Global lightPairPackage:TMax2DShaderPackage = CreateLightPairPackage()
 Global pointLightPackage:TMax2DShaderPackage = CreatePointLightPackage()
 Global texturedLightPackage:TMax2DShaderPackage = CreateTexturedLightPackage()
@@ -47,6 +52,7 @@ borrowed results expire on update, changed preparation, release or context closu
 End Rem
 Type TMax2DLighting
 	Private
+	Field observedCasterEpoch:ULong
 	Field meshTriangle:TMesh2D
 	Field meshReceiver:TMesh2D
 	Field meshDeformed:Int, meshAccepted:Int, meshCombined:Int
@@ -498,6 +504,9 @@ Type TMax2DLighting
 	returns: The lighting configuration revision; unchanged settings do not increment it.
 	End Rem
 	Method Revision:Long()
+		Local epoch:ULong = CasterEpoch()
+		If observedCasterEpoch = epoch Then Return revision
+		observedCasterEpoch = epoch
 		For Local i:Int = 0 Until occluders.Length
 			Local previous:TMax2DCasterState = casterStates[i]
 			If previous.revision = occluders[i].Revision() Then

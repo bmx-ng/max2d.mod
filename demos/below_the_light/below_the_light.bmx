@@ -61,9 +61,11 @@ input.Init(game)
 input.mapping = CaptureWindowInput()
 SetAutoPoll(False)
 AddHook(EmitEventHook, DiveInputHook, input)
+Local profileCave:Int
 Local sync:Int = 1, testing:Int, frames:Int, previous:Int = MilliSecs()
 For Local arg:String = EachIn AppArgs
-	If arg = "--profile" Then game.profiling = True
+	If arg = "--profile-cave" Then profileCave = True
+	If arg = "--profile" Or profileCave Then game.profiling = True
 	If arg = "--software-60" Then sync = -1
 	If arg = "--test" Then
 		testing = True
@@ -140,6 +142,27 @@ While Not AppTerminate()
 		End If
 	End If
 
+	If profileCave Then
+		' Repeat the same pose series for each 90-frame lighting comparison.
+		Local phase:Int = frames / 90, tick:Int = frames Mod 90
+		If tick = 0 Then
+			game.lamps = phase <> 3
+			For Local grass:TDivePlantMesh = EachIn game.flora.grass
+				grass.node.SetVisible(phase <> 1)
+			Next
+			For Local kelp:TDivePlantMesh = EachIn game.flora.kelp
+				kelp.node.SetVisible(phase <> 2)
+			Next
+			Print "profile-cave phase=" + ["full", "hide-grass", "hide-kelp", "lamp-off"][phase]
+		End If
+		game.Place(620, -60, Float(Sin(tick * 4) * 2))
+		game.camera.x = 710
+		game.camera.y = -60
+		dt = 1.0 / 60
+		ax = 0
+		ay = 0
+	End If
+
 	Local start:ULong, drawn:ULong, updated:ULong
 	If game.profiling Then
 		start = DiveTicks()
@@ -174,6 +197,7 @@ While Not AppTerminate()
 		End If
 	End If
 	frames :+ 1
+	If profileCave And frames = 360 Then Exit
 	If testing And frames = 120 Then
 		game.CheckRendered()
 		Print "PASS: Below the Light controls, collisions, probe recovery, camera, lighting and 120 rendered frames"

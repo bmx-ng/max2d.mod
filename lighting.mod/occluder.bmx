@@ -78,6 +78,7 @@ Type TMax2DLightOccluder
 		vertices = points[..]
 		triangles = indices
 		revision :+ 1
+		MarkCasterEdit()
 	End Method
 	Rem
 	bbdoc: Copies another polygon through a finite affine transform into this polygon, reusing matching storage.
@@ -123,6 +124,7 @@ Type TMax2DLightOccluder
 
 		If changed Then
 			revision :+ 1
+			MarkCasterEdit()
 		End If
 	End Method
 	Rem
@@ -141,6 +143,7 @@ Type TMax2DLightOccluder
 
 		height = value
 		revision :+ 1
+		MarkCasterEdit()
 	End Method
 	Rem
 	bbdoc: Returns height above Z=0, or -1 for infinite height.
@@ -161,6 +164,7 @@ Type TMax2DLightOccluder
 
 		mask = value
 		revision :+ 1
+		MarkCasterEdit()
 	End Method
 	Rem
 	bbdoc: Returns the caster mask.
@@ -181,6 +185,7 @@ Type TMax2DLightOccluder
 
 		enabled = value
 		revision :+ 1
+		MarkCasterEdit()
 	End Method
 	Rem
 	bbdoc: Returns whether casting is enabled.
