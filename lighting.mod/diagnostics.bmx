@@ -7,6 +7,11 @@ Type TMax2DLightingStats
 	Field wholeMeshDraws:Long
 	Field sectionMeshDraws:Long
 	Field triangleMeshDraws:Long
+	Field mappingNs:ULong
+	Field overlapNs:ULong
+	Field meshNs:ULong
+	Field selectionNs:ULong
+	Field supportNs:ULong
 	Field mapUploads:Long, mapHits:Long, mapBytes:Long
 	Field groupedLightContributions:Long, groupSupportChecks:Long, groupSupportRejections:Long
 	Field maximumGroupSize:Int
@@ -31,6 +36,11 @@ Type TMax2DLightingStats
 		wholeMeshDraws = 0
 		sectionMeshDraws = 0
 		triangleMeshDraws = 0
+		mappingNs = 0
+		overlapNs = 0
+		meshNs = 0
+		selectionNs = 0
+		supportNs = 0
 		mapUploads = 0
 		mapHits = 0
 		mapBytes = 0
@@ -64,6 +74,11 @@ Type TMax2DLightingStats
 		output.wholeMeshDraws = wholeMeshDraws
 		output.sectionMeshDraws = sectionMeshDraws
 		output.triangleMeshDraws = triangleMeshDraws
+		output.mappingNs = mappingNs
+		output.overlapNs = overlapNs
+		output.meshNs = meshNs
+		output.selectionNs = selectionNs
+		output.supportNs = supportNs
 		output.mapUploads = mapUploads
 		output.mapHits = mapHits
 		output.mapBytes = mapBytes
@@ -94,6 +109,41 @@ Type TMax2DLightingStats
 	End Method
 
 	Public
+	Rem
+	bbdoc: Reports elapsed nanoseconds spent on whole-mesh geometry overlap checks.
+	returns: Cumulative time included in MeshNs while stage timing was enabled, since reset.
+	End Rem
+	Method OverlapNs:ULong()
+		Return overlapNs
+	End Method
+	Rem
+	bbdoc: Reports elapsed nanoseconds spent on mesh mapping cache lookup and affine section analysis.
+	returns: Cumulative time included in MeshNs while stage timing was enabled, since reset.
+	End Rem
+	Method MappingNs:ULong()
+		Return mappingNs
+	End Method
+	Rem
+	bbdoc: Reports elapsed nanoseconds spent on native lighting group support checks, including deformed gradient checks.
+	returns: Cumulative time while stage timing was enabled, since the last reset.
+	End Rem
+	Method SupportNs:ULong()
+		Return supportNs
+	End Method
+	Rem
+	bbdoc: Reports elapsed nanoseconds spent on receiver bounds and selection of affecting lights.
+	returns: Cumulative time while stage timing was enabled, since the last reset.
+	End Rem
+	Method SelectionNs:ULong()
+		Return selectionNs
+	End Method
+	Rem
+	bbdoc: Reports elapsed nanoseconds spent on input validation, cached mapping analysis, transformed basis validation and overlap checks.
+	returns: Cumulative time while stage timing was enabled, since the last reset.
+	End Rem
+	Method MeshNs:ULong()
+		Return meshNs
+	End Method
 	Rem
 	bbdoc: Counts lit meshes split into individual triangle receivers.
 	returns: Total input meshes using this path since the last reset.

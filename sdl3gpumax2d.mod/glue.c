@@ -59,7 +59,8 @@ struct GPUContext {
 	Uint32 bufferSize;
 	GPUDraw *draws;
 	int drawCount,drawCapacity;
-	Uint64 drawsIssued,drawsMerged;
+	Uint64 drawsIssued,drawsMerged,recordNs;
+	int timeRecords;
 	float *data;
 	int vertexCount,vertexCapacity;
 	float transform[4];
@@ -554,6 +555,7 @@ int m2d_gpu_view(GPUContext *c,GPUFrame *target,int width,int height,int ox,int 
 	return 1;
 }
 static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count,int compact) {
+	Uint64 start=c->timeRecords?SDL_GetTicksNS():0;
     if(c->selectedEffect) for(int i=0;i<c->selectedEffect->samplers-1;i++) {
         GPUFrame *texture=c->effectTextures[i];
         if(!texture || texture->owner!=c || texture==target)
@@ -568,7 +570,9 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	/* Offsets are in 32-byte units; storage records require 64-byte alignment. */
 	int padding=compact?(c->vertexCount & 1):0;
 	if(c->vertexCount+count+padding>262144) {
+		if(c->timeRecords) c->recordNs+=SDL_GetTicksNS()-start;
 		if(!flush(c)) return 0;
+		if(c->timeRecords) start=SDL_GetTicksNS();
 		padding=0;
 	}
 	if(c->drawCount==c->drawCapacity) {
@@ -628,6 +632,7 @@ static int record_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend
 	memcpy(draw->transform,c->transform,sizeof(c->transform));
 	memcpy(c->data+(size_t)c->vertexCount*8,vertices,(size_t)count*32);
 	c->vertexCount+=count;
+	if(c->timeRecords) c->recordNs+=SDL_GetTicksNS()-start;
 	return 1+draw->generate;
 }
 int m2d_gpu_draw(GPUContext *c,GPUFrame *target,GPUFrame *source,int blend,const float *vertices,int count) {
@@ -804,6 +809,8 @@ int m2d_gpu_clear(GPUContext *c,GPUFrame *target,int bars,int r,int g,int b,floa
 	}
 	return clear_rect(c,target,r,g,b,a);
 }
+void m2d_gpu_set_record_timing(GPUContext *c,int enabled) { c->timeRecords=enabled; }
+Uint64 m2d_gpu_record_ns(GPUContext *c) { return c->recordNs; }
 void m2d_gpu_draw_counts(GPUContext *c,Uint64 *issued,Uint64 *merged) {
 	*issued=c->drawsIssued;
 	*merged=c->drawsMerged;

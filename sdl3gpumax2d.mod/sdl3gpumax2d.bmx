@@ -262,6 +262,24 @@ Type TSDLGPUMax2DContext Extends TMax2DContext
 	End Method
 
 	Rem
+	bbdoc: Enables timing of geometry record construction before adjacent draw merging.
+	param: True to collect elapsed time in GetRecordNanoseconds. Defaults to False.
+	End Rem
+	Method SetRecordTiming(enabled:Int)
+		CheckOpen()
+		m2d_gpu_set_record_timing(native, enabled)
+	End Method
+
+	Rem
+	bbdoc: Reads cumulative elapsed geometry recording time without flushing.
+	returns: Nanoseconds for record setup and copying vertices, bindings and parameters while timing was enabled. Excludes capacity-triggered flushes.
+	End Rem
+	Method GetRecordNanoseconds:ULong()
+		CheckOpen()
+		Return m2d_gpu_record_ns(native)
+	End Method
+
+	Rem
 	bbdoc: Reads cumulative SDL GPU geometry command counts for this context.
 	param: Receives the number of geometry draw commands recorded into SDL GPU render passes.
 	param: Receives the number of adjacent draw records absorbed into preceding commands.
@@ -688,6 +706,8 @@ Extern "C"
 	Function m2d_gpu_close(context:Byte Ptr)
 	Function m2d_gpu_name:Byte Ptr(context:Byte Ptr)
 	Function m2d_gpu_output:Int(context:Byte Ptr,width:Int Ptr,height:Int Ptr)
+	Function m2d_gpu_set_record_timing(context:Byte Ptr,enabled:Int)
+	Function m2d_gpu_record_ns:ULong(context:Byte Ptr)
 	Function m2d_gpu_draw_counts(context:Byte Ptr,issued:ULong Ptr,merged:ULong Ptr)
 	Function m2d_gpu_present:Int(context:Byte Ptr,sync:Int)
 	Function m2d_gpu_create:Byte Ptr(context:Byte Ptr,width:Int,height:Int,flags:Int,target:Int,kind:Int,levels:Int)

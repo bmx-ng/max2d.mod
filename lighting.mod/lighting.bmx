@@ -9,6 +9,7 @@ Import Max2D.ShaderEffects
 Import Max2D.LightingDriver
 Import Max2D.LightingNative
 Import "casterepoch.cpp"
+Import "timing.cpp"
 Import "../sdl3gpueffects.mod/packages/emissionlight/emissionlight_assets.c"
 Import "../sdl3gpueffects.mod/packages/texturedlight/texturedlight_assets.c"
 Import "../sdl3gpueffects.mod/packages/lightpair/lightpair_assets.c"
@@ -30,6 +31,7 @@ Include "../sdl3gpueffects.mod/packages/texturedlight/texturedlight.bmx"
 
 Private
 Extern "C"
+	Function LightingTicksNS:ULong() = "max2d_lighting_ticks_ns"
 	Function CasterEpoch:ULong() = "max2d_caster_epoch"
 	Function MarkCasterEdit() = "max2d_mark_caster_edit"
 End Extern
@@ -52,6 +54,7 @@ borrowed results expire on update, changed preparation, release or context closu
 End Rem
 Type TMax2DLighting
 	Private
+	Field timeStages:Int
 	Field observedCasterEpoch:ULong
 	Field meshTriangle:TMesh2D
 	Field meshReceiver:TMesh2D
@@ -613,6 +616,13 @@ Type TMax2DLighting
 		Return batchLimit
 	End Method
 	Rem
+	bbdoc: Enables elapsed CPU-side timing of mesh preparation, light selection and native group support checks.
+	param: True to collect nanosecond totals in lighting statistics. Defaults to False.
+	End Rem
+	Method SetStageTiming(enabled:Int)
+		timeStages = enabled
+	End Method
+	Rem
 	bbdoc: Clears cumulative lighting work counters without invalidating caches or releasing textures.
 	End Rem
 	Method ResetStats()
@@ -758,6 +768,8 @@ Type TMax2DLighting
 			End If
 
 			SetBlend(additive)
+			Local selectionStart:ULong
+			If timeStages Then selectionStart = LightingTicksNS()
 			Local minX:Float = bx + Min(0.0:Float, xx * source.width) + Min(0.0:Float, xy * source.height)
 			Local maxX:Float = bx + Max(0.0:Float, xx * source.width) + Max(0.0:Float, xy * source.height)
 			Local minY:Float = by + Min(0.0:Float, yx * source.width) + Min(0.0:Float, yy * source.height)
@@ -810,6 +822,7 @@ Type TMax2DLighting
 				activeLights[activeCount] = i
 				activeCount :+ 1
 			Next
+			If timeStages Then stats.selectionNs :+ LightingTicksNS() - selectionStart
 			' Resolve direct-light material data only after receiver/light selection.
 			' Ambient and emission do not sample normal or specular artwork.
 			If activeCount Then
@@ -1048,6 +1061,8 @@ Type TMax2DLighting
 			Return
 		End If
 
+		Local meshStart:ULong
+		If timeStages Then meshStart = LightingTicksNS()
 		If mesh.xy.Length < 6 Or (mesh.xy.Length & 1) Or mesh.uv.Length <> mesh.xy.Length Or mesh.indices.Length Mod 3 Then
 			Throw "Max2D Lighting: invalid mesh arrays"
 		End If
@@ -1077,7 +1092,10 @@ Type TMax2DLighting
 					meshCache = New TMax2DLightingMeshCache
 				End If
 
+				Local analysisStart:ULong
+				If timeStages Then analysisStart = LightingTicksNS()
 				whole = meshCache.Accepts(mesh)
+				If timeStages Then stats.mappingNs :+ LightingTicksNS() - analysisStart
 				mappingCache = meshCache
 			End If
 		End If
@@ -1087,28 +1105,34 @@ Type TMax2DLighting
 			MeshMapping(mesh, triangle, image.width, image.height, x - canvas.state.handleX, y - canvas.state.handleY, xx, xy, yx, yy, tx, ty, mappingCache)
 		Next
 
+		Local disjoint:Int
+		If mappingCache And renderer.Capabilities().DeformedMeshGeometry() And mappingCache.runCount > 1 Then
+			Local overlapStart:ULong
+			If timeStages Then overlapStart = LightingTicksNS()
+			disjoint = mappingCache.DisjointGeometry()
+			If timeStages Then stats.overlapNs :+ LightingTicksNS() - overlapStart
+		End If
+		If timeStages Then stats.meshNs :+ LightingTicksNS() - meshStart
 		drawingMesh = True
 		meshX = x
 		meshY = y
 		Try
-			If mappingCache And renderer.Capabilities().DeformedMeshGeometry() And mappingCache.runCount > 1 Then
-				If mappingCache.DisjointGeometry() Then
-					meshGeometry[0] = xx
-					meshGeometry[1] = xy
-					meshGeometry[2] = yx
-					meshGeometry[3] = yy
-					meshGeometry[4] = tx
-					meshGeometry[5] = ty
-					meshDeformed = True
-					meshAccepted = False
-					meshReceiver = mesh
-					MeshMapping(mesh, 0, image.width, image.height, x - canvas.state.handleX, y - canvas.state.handleY, xx, xy, yx, yy, tx, ty, mappingCache)
-					DrawImage(image, image.handle_x, image.handle_y, frame, receiverMask, meshBasis[0], meshBasis[1], meshBasis[2], meshBasis[3], meshBasis[4], meshBasis[5], material)
-					meshDeformed = False
-					If meshAccepted Then
-						stats.wholeMeshDraws :+ 1
-						Return
-					End If
+			If disjoint Then
+				meshGeometry[0] = xx
+				meshGeometry[1] = xy
+				meshGeometry[2] = yx
+				meshGeometry[3] = yy
+				meshGeometry[4] = tx
+				meshGeometry[5] = ty
+				meshDeformed = True
+				meshAccepted = False
+				meshReceiver = mesh
+				MeshMapping(mesh, 0, image.width, image.height, x - canvas.state.handleX, y - canvas.state.handleY, xx, xy, yx, yy, tx, ty, mappingCache)
+				DrawImage(image, image.handle_x, image.handle_y, frame, receiverMask, meshBasis[0], meshBasis[1], meshBasis[2], meshBasis[3], meshBasis[4], meshBasis[5], material)
+				meshDeformed = False
+				If meshAccepted Then
+					stats.wholeMeshDraws :+ 1
+					Return
 				End If
 			End If
 
@@ -1654,7 +1678,11 @@ Type TMax2DLighting
 		For Local size:Int = eligible To minimum Step -1
 			groupDraw.count = size
 			stats.groupSupportChecks :+ 1
-			If Not selected.Supports(canvas, groupDraw) Then
+			Local supportStart:ULong
+			If timeStages Then supportStart = LightingTicksNS()
+			Local supported:Int = selected.Supports(canvas, groupDraw)
+			If timeStages Then stats.supportNs :+ LightingTicksNS() - supportStart
+			If Not supported Then
 				stats.groupSupportRejections :+ 1
 				Continue
 			End If

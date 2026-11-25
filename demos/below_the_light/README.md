@@ -356,6 +356,17 @@ or handled per triangle. Its receiver count includes all pieces drawn. Compare
 the final two reports per interval to allow for the change of state. Use the
 same seed, backend and window size when comparing builds.
 
+Add `--profile-stages` to `--profile-cave` for CPU-side elapsed milliseconds
+per frame before draw merging. `mesh_ms` includes coordinate and index checks,
+mapping analysis (`mapping_ms`), basis validation and the triangle overlap
+test (`overlap_ms`). Mapping and overlap are breakdowns of mesh time.
+`selection_ms` covers receiver bounds and light filtering. `group_check_ms`
+covers renderer support checks. SDL GPU also reports `record_ms` for building
+geometry records, including pipeline lookup and copying parameters and vertices.
+The record timer excludes a flush triggered by a full vertex buffer. These
+timers cover selected stages; they do not sum to the entire drawing time.
+Run the same command without `--profile-stages` to compare timing overhead.
+
 The default seed is `7`. Pass `--seed=12345` to the executable to explore another
 layout; replay preserves the seed and New Cave advances it deterministically.
 For command-line testing, use the console build below. Seeds reproduce layouts
