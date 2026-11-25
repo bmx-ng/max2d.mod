@@ -499,7 +499,9 @@ Type TMax2DLightShadow
 		SetOrigin(px, py)
 		Local samplingFrame:Int = pattern.frame
 		Local sampling:TImage = pattern.image.SamplingImage(samplingFrame)
-		Max2D.Core.DrawImage(sampling, sampling.handle_x, sampling.handle_y, samplingFrame)
+		' Project the full rectangle: image handles are drawing metadata, not pattern placement.
+		' DrawImage offsets are outside the affine basis, so adding the handle cannot cancel it here.
+		TMax2DGraphics.Current().DrawImageRegion(sampling, 0, 0, sampling.width, sampling.height, 0, 0, sampling.width, sampling.height, 0, 0, samplingFrame)
 		SetOrigin(0, 0)
 		SetAffineTransform(1, 0, 0, 1)
 	End Method

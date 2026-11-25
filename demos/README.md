@@ -20,4 +20,8 @@ Complete, small applications that combine the modules in an interactive setting.
 - [ECS Swarm](ecs_swarm/README.md): Flecs simulation with retained scene views,
   bounded spawning, entity expiry and explicit ownership. Requires `Ecs.Flecs`.
 
+- [Below the Light](below_the_light/README.md): a scrolling submarine exploration
+  scene with projected headlights, normal-mapped rocks, occluder shadows, bloom,
+  sonar and mouse/touch steering.
+
 Focused demonstrations of individual APIs remain in `examples/`.

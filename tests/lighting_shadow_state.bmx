@@ -81,6 +81,31 @@ Try
   Next
  Next
  outer.Close()
+ ' Pattern placement describes the full image rectangle independently of its handle.
+ For Local angle:Int=0 To 120 Step 40
+  Local lighting:TMax2DLighting=TMax2DLighting.Create(1)
+  lighting.SetAmbient(0,0,0)
+  lighting.SetPointLight(0,32,32,100,255,255,255,0.8)
+  lighting.SetLightShadows(0,True,128)
+  Local projection:TMax2DLightTexture=TMax2DLightTexture.Create(pattern)
+  projection.SetPlacement(48,24,5,-3,angle)
+  lighting.SetLightTexture(0,projection)
+  SetImageHandle(pattern,0,0);projection.Invalidate()
+  SetClsColor(0,0,0,0);Cls;lighting.DrawImage(art,0,0)
+  Local reference:TPixmap=ReadRenderImage(target)
+  SetImageHandle(pattern,9,17);projection.Invalidate()
+  Cls;lighting.DrawImage(art,0,0)
+  Local actual:TPixmap=ReadRenderImage(target),same:Int=True,visible:Int
+  For Local py:Int=0 Until 64
+   For Local px:Int=0 Until 64
+    If reference.ReadPixel(px,py)<>actual.ReadPixel(px,py) Then same=False
+    If reference.ReadPixel(px,py) & $ffffff Then visible=True
+   Next
+  Next
+  Check(visible,"projected light produces visible pixels")
+  Check(same,"rotated/scaled shadow pattern ignores source image handle at angle "+angle)
+  lighting.Release()
+ Next
  SetRenderImage(Null);target.ReleaseFrames();art.ReleaseFrames();pattern.ReleaseFrames()
  EndGraphics()
  Check(canvas.context.frames.IsEmpty(),"context releases all frames")
