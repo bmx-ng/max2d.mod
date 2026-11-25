@@ -62,11 +62,12 @@ input.mapping = CaptureWindowInput()
 SetAutoPoll(False)
 AddHook(EmitEventHook, DiveInputHook, input)
 Local kelpProfile:TDiveKelpProfile
-Local profileCave:Int
+Local profileCave:Int, profileStages:Int
 Local sync:Int = 1, testing:Int, frames:Int, previous:Int = MilliSecs()
 For Local arg:String = EachIn AppArgs
+	If arg = "--profile-stages" Then profileStages = True
 	If arg = "--profile-cave" Then profileCave = True
-	If arg = "--profile" Or profileCave Then game.profiling = True
+	If arg = "--profile" Or profileCave Or profileStages Then game.profiling = True
 	If arg = "--software-60" Then sync = -1
 	If arg = "--test" Then
 		testing = True
@@ -79,7 +80,8 @@ End If
 
 ?Not max2d_gl
 Local gpu:TSDLGPUMax2DContext = TSDLGPUMax2DContext(TMax2DGraphics.Current().context)
-Local startIssued:ULong, startMerged:ULong
+Local startIssued:ULong, startMerged:ULong, recordStart:ULong
+If profileStages Then gpu.SetRecordTiming(True)
 ?
 Local profileFrames:Int, updateNs:ULong, drawNs:ULong, flipNs:ULong, intervalStart:ULong
 While Not AppTerminate()
@@ -185,9 +187,11 @@ While Not AppTerminate()
 			drawNs = 0
 			flipNs = 0
 			game.fishNs = 0
+			game.lighting.SetStageTiming(profileStages)
 			game.lighting.ResetStats()
 ?Not max2d_gl
 			gpu.GetDrawCounts(startIssued, startMerged)
+			If profileStages Then recordStart = gpu.GetRecordNanoseconds()
 ?
 		End If
 	End If
@@ -215,6 +219,14 @@ While Not AppTerminate()
 				" update_ms=" + Float(updateNs * ms) + " fish_ms=" + Float(game.fishNs * ms) + " draw_ms=" + Float(drawNs * ms) + " flip_ms=" + Float(flipNs * ms) + ..
 				" receivers/frame=" + Float(stats.ReceiverDraws()) / profileFrames + " shadow_rebuilds/frame=" + Float(stats.ShadowRebuilds()) / profileFrames + ..
 				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames + " casters/frame=" + Float(stats.Casters()) / profileFrames + gpuReport
+			If profileStages Then
+				Local stages:String = "mesh_ms=" + Float(stats.MeshNs() * ms) + " mapping_ms=" + Float(stats.MappingNs() * ms) + " overlap_ms=" + Float(stats.OverlapNs() * ms) + ..
+					" selection_ms=" + Float(stats.SelectionNs() * ms) + " group_check_ms=" + Float(stats.SupportNs() * ms)
+?Not max2d_gl
+				stages :+ " record_ms=" + Float((gpu.GetRecordNanoseconds() - recordStart) * ms)
+?
+				Print stages
+			End If
 			If kelpProfile Then kelpProfile.Report(profileFrames)
 			profileFrames = 0
 		End If

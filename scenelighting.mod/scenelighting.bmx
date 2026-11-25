@@ -473,6 +473,13 @@ Type TSceneLighting
   Return processor.GetLightBatchLimit()
  End Method
  Rem
+ bbdoc: Enables CPU-side stage timings for draws using this lighting environment.
+ param: True to collect timings in lighting statistics. Defaults to False.
+ End Rem
+ Method SetStageTiming(enabled:Int)
+  processor.SetStageTiming(enabled)
+ End Method
+ Rem
  bbdoc: Clears cumulative lighting work counters without invalidating scene caches.
  about: Scene Prepare does not reset these counters. Reset before the interval being measured; cached scene receivers may produce no lighting work. See TMax2DLightingStats for counter definitions.
  End Rem
