@@ -323,7 +323,9 @@ Type TDiveOcean Extends TCustomDrawNode
 	Field width:Int = 3000, bottom:Int = 1100
 	Field time:Float
 	Field surfaceLight:TImage[24]
-	Method Init()
+	Field camera:TCamera2D
+	Method Init(viewCamera:TCamera2D)
+		camera = viewCamera
 		For Local i:Int = 0 Until surfaceLight.Length
 			surfaceLight[i] = SurfaceLightImage(i)
 		Next
@@ -336,33 +338,77 @@ Type TDiveOcean Extends TCustomDrawNode
 	End Method
 
 	Method OnDraw(context:TSceneDrawContext) Override
+		' The world uses an unrotated camera and a 1200 by 760 virtual viewport.
+		Local viewLeft:Float = camera.x - camera.offsetX - 2, viewRight:Float = viewLeft + 1204
+		Local viewTop:Float = camera.y - camera.offsetY - 2, viewBottom:Float = viewTop + 764
 		context.SetAlpha(1)
-		For Local row:Int = 0 Until 30
+		For Local row:Int = Max(0, Int(Floor((viewTop + 2000 - 21) / 20))) To Min(29, Int(Floor((viewBottom + 2000) / 20)))
 			Local t:Float = row / 29.0
 			context.SetColor(104 + Int(t * 75), 164 + Int(t * 49), 193 + Int(t * 30))
 			DrawRect(0, -2000 + row * 20, width, 21)
 		Next
 
-		context.SetColor(236, 246, 240)
-		context.SetAlpha(0.3)
-		DrawOval(90, -1700, 360, 28)
-		DrawOval(700, -1850, 450, 35)
+		If viewTop <= -1670 And viewBottom >= -1852 Then
+			context.SetColor(236, 246, 240)
+			context.SetAlpha(0.3)
+			DrawOval(90, -1700, 360, 28)
+			DrawOval(700, -1850, 450, 35)
+		End If
 		context.SetAlpha(1)
-		For Local row:Int = 0 Until (bottom + 1400) / 4 + 1
+		Local firstRow:Int = Max(0, Int(Floor((viewTop + 1400 - 5) / 4)))
+		Local lastRow:Int = Min((bottom + 1400) / 4, Int(Floor((viewBottom + 1400) / 4)))
+		For Local row:Int = firstRow To Min(467, lastRow)
 			Local t:Float = Min(1:Float, row / 467.5), fade:Float = (1 - t) * (1 - t)
 			context.SetColor(3 + Int(fade * 29), 12 + Int(fade * 113), 21 + Int(fade * 126))
 			DrawRect(0, -1400 + row * 4, width, 5)
 		Next
+		' From row 468 onward the fade is zero and all bands are the same colour.
+		Local solidRow:Int = Max(468, firstRow)
+		If solidRow <= lastRow Then
+			context.SetColor(3, 12, 21)
+			DrawRect(0, -1400 + solidRow * 4, width, (lastRow - solidRow) * 4 + 5)
+		End If
+		If viewTop > -298 Then Return
 		' Crossfade prebuilt frames: no texture uploads or particle allocations per frame.
 		Local animation:Float = (time * 2.4) Mod 24, index:Int = Int(animation), mix:Float = animation - index
 		context.SetColor(255, 255, 255)
-		For Local tile:Int = 0 Until width / 1500 + 1
+		For Local tile:Int = Max(0, Int(Floor(viewLeft / 1500))) To Min(width / 1500, Int(Floor(viewRight / 1500)))
 			context.SetAlpha(1 - mix)
 			DrawImageRect(surfaceLight[index], tile * 1500, -1400, 1500, 1100)
 			context.SetAlpha(mix)
 			DrawImageRect(surfaceLight[(index + 1) Mod 24], tile * 1500, -1400, 1500, 1100)
 		Next
 
+		If viewTop > -1348 Then Return
+		If viewLeft <= 590 And viewRight >= 105 And viewBottom >= -1600 Then DrawVessel(context)
+		If viewBottom < -1405 Or viewTop > -1395 Then Return
+		For Local segment:Int = Max(0, Int(Floor((viewLeft - 20) / 20))) To Min(width / 20 - 1, Int(Floor(viewRight / 20)))
+			Local xx:Float = segment * 20, yy:Float = DiveWaterline(xx, time)
+			context.SetColor(190, 236, 221)
+			context.SetAlpha(Float(0.5 + 0.2 * Sin(segment * 33 + time * 40)))
+			SetLineWidth(2)
+			DrawLine(xx, yy, xx + 18, DiveWaterline(xx + 18, time))
+		Next
+		' Brief highlights track the animated waterline rather than hovering in the air.
+		For Local glint:Int = Max(0, Int(Floor((viewLeft - 20) / 31))) To Min(width / 31 - 1, Int(Ceil((viewRight + 20) / 31)))
+			Local xx:Float = glint * 31 + Sin(glint * 71) * 12
+			Local flash:Float = Max(0:Float, Float(Sin(time * 95 + glint * 137) * Sin(time * 47 - glint * 53)) - 0.65) / 0.35
+			If flash <= 0 Then
+				Continue
+			End If
+
+			Local yy:Float = DiveWaterline(xx, time)
+			context.SetColor(222, 255, 238)
+			context.SetAlpha(flash * 0.65)
+			SetLineWidth(1)
+			DrawLine(xx - 2 - flash * 5, yy, xx + 2 + flash * 5, yy)
+		Next
+
+		SetLineWidth(1)
+		context.SetAlpha(1)
+	End Method
+
+	Method DrawVessel(context:TSceneDrawContext)
 		Local bob:Float = Sin(time * 65) * 4
 		' Survey vessel: submerged keel, working deck, bridge, rail and launch crane.
 		context.SetAlpha(1)
@@ -404,29 +450,5 @@ Type TDiveOcean Extends TCustomDrawNode
 		context.SetColor(45, 143, 158)
 		context.SetAlpha(0.4)
 		DrawPoly([left, waterY, right, waterY, 442.0, -1355 + bob, 164.0, -1355 + bob])
-		For Local segment:Int = 0 Until width / 20
-			Local xx:Float = segment * 20, yy:Float = DiveWaterline(xx, time)
-			context.SetColor(190, 236, 221)
-			context.SetAlpha(Float(0.5 + 0.2 * Sin(segment * 33 + time * 40)))
-			SetLineWidth(2)
-			DrawLine(xx, yy, xx + 18, DiveWaterline(xx + 18, time))
-		Next
-		' Brief highlights track the animated waterline rather than hovering in the air.
-		For Local glint:Int = 0 Until width / 31
-			Local xx:Float = glint * 31 + Sin(glint * 71) * 12
-			Local flash:Float = Max(0:Float, Float(Sin(time * 95 + glint * 137) * Sin(time * 47 - glint * 53)) - 0.65) / 0.35
-			If flash <= 0 Then
-				Continue
-			End If
-
-			Local yy:Float = DiveWaterline(xx, time)
-			context.SetColor(222, 255, 238)
-			context.SetAlpha(flash * 0.65)
-			SetLineWidth(1)
-			DrawLine(xx - 2 - flash * 5, yy, xx + 2 + flash * 5, yy)
-		Next
-
-		SetLineWidth(1)
-		context.SetAlpha(1)
 	End Method
 End Type

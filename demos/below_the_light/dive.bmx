@@ -70,7 +70,7 @@ Type TDive
 		beam = BeamImage()
 
 		ocean = New TDiveOcean
-		ocean.Init()
+		ocean.Init(camera)
 		ocean.width = map.width
 		ocean.bottom = map.bottom
 		ocean.SetSelfBounds(TSceneRect.Create(0, -2000, map.width, map.bottom + 2000))
