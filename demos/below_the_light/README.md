@@ -343,6 +343,13 @@ is included in update time, and Flip can include waiting for the display.
 Lighting counters include every receiver draw, including repeated draws for
 mesh sections. Depth and lamp state describe the end of each interval.
 
+For a repeatable comparison, run the console build with `--profile-cave`. It
+replays a slight change of heading at 241 m for four 90-frame intervals: full
+scene, grass hidden, kelp hidden, then lamp off. Vegetation continues animating
+while hidden so the two visibility comparisons isolate drawing work. Compare
+the final two reports per interval to allow for the change of state. Use the
+same seed, backend and window size when comparing builds.
+
 The default seed is `7`. Pass `--seed=12345` to the executable to explore another
 layout; replay preserves the seed and New Cave advances it deterministically.
 For command-line testing, use the console build below. Seeds reproduce layouts
