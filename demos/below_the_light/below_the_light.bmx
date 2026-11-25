@@ -23,6 +23,10 @@ Extern "C"
 	Function DiveDisablePressAndHold:Int()="dive_disable_press_and_hold"
 End Extern
 ?
+Extern "C"
+	Function DiveTicks:ULong() = "SDL_GetTicksNS"
+End Extern
+
 Include "art.bmx"
 Include "nodes.bmx"
 Include "input.bmx"
@@ -59,6 +63,7 @@ SetAutoPoll(False)
 AddHook(EmitEventHook, DiveInputHook, input)
 Local sync:Int = 1, testing:Int, frames:Int, previous:Int = MilliSecs()
 For Local arg:String = EachIn AppArgs
+	If arg = "--profile" Then game.profiling = True
 	If arg = "--software-60" Then sync = -1
 	If arg = "--test" Then
 		testing = True
@@ -69,6 +74,7 @@ If testing Then
 	game.CheckControls()
 End If
 
+Local profileFrames:Int, updateNs:ULong, drawNs:ULong, flipNs:ULong, intervalStart:ULong
 While Not AppTerminate()
 	input.mapping = CaptureWindowInput()
 	PollSystem()
@@ -100,7 +106,10 @@ While Not AppTerminate()
 		input.Cancel()
 		game.Close()
 		seed = Int((Long(game.map.seed) * 48271) Mod 2147483647)
+		Local profiling:Int = game.profiling
 		game = New TDive
+		game.profiling = profiling
+		profileFrames = 0
 		game.Init(seed)
 		input.Init(game)
 	End If
@@ -131,9 +140,39 @@ While Not AppTerminate()
 		End If
 	End If
 
+	Local start:ULong, drawn:ULong, updated:ULong
+	If game.profiling Then
+		start = DiveTicks()
+		If profileFrames = 0 Then
+			intervalStart = start
+			updateNs = 0
+			drawNs = 0
+			flipNs = 0
+			game.fishNs = 0
+			game.lighting.ResetStats()
+		End If
+	End If
 	game.Advance(dt, ax, ay)
+	If game.profiling Then updated = DiveTicks()
 	game.Draw()
+	If game.profiling Then drawn = DiveTicks()
 	Flip(sync)
+	If game.profiling Then
+		Local finish:ULong = DiveTicks()
+		updateNs :+ updated - start
+		drawNs :+ drawn - updated
+		flipNs :+ finish - drawn
+		profileFrames :+ 1
+		If profileFrames = 30 Then
+			Local stats:TMax2DLightingStats = game.lighting.CaptureStats()
+			Local ms:Double = 0.000001 / profileFrames
+			Print "depth=" + Int((game.y + 1400) * 0.18) + " lamps=" + game.lamps + " fps=" + Int(1.0e9 * profileFrames / (finish - intervalStart)) + ..
+				" update_ms=" + Float(updateNs * ms) + " fish_ms=" + Float(game.fishNs * ms) + " draw_ms=" + Float(drawNs * ms) + " flip_ms=" + Float(flipNs * ms) + ..
+				" receivers/frame=" + Float(stats.ReceiverDraws()) / profileFrames + " shadow_rebuilds/frame=" + Float(stats.ShadowRebuilds()) / profileFrames + ..
+				" occluder_tests/frame=" + Float(stats.OccluderTests()) / profileFrames
+			profileFrames = 0
+		End If
+	End If
 	frames :+ 1
 	If testing And frames = 120 Then
 		game.CheckRendered()

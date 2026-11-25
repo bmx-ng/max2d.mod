@@ -1,4 +1,5 @@
 Type TDive
+	Field profiling:Int, fishNs:ULong
 	Field scene:TScene, world:TLayerNode, hud:TLayerNode, camera:TCamera2D
 	Field lighting:TSceneLighting, head:TPointLightNode, fill:TPointLightNode, sun:TDirectionalLightNode
 	Field pattern:TMax2DLightTexture, ship:TLitSpriteNode, scatter:TSpriteNode, atmosphere:TDiveAtmosphere
@@ -456,12 +457,15 @@ Type TDive
 			End If
 		End If
 
+		Local fishStart:ULong
+		If profiling Then fishStart = DiveTicks()
 		For Local school:TDiveSchool = EachIn schools
 			If Abs(school.homeX - x) < 1500 And Abs(school.homeY - y) < 1100 Then
 				school.Advance(dt, time, x, y, rocks)
 			End If
 		Next
 
+		If profiling Then fishNs :+ DiveTicks() - fishStart
 		ecology.Advance(dt, time, x, y, Float(Sqr(vx * vx + vy * vy)), atmosphere, lamps, heading)
 		chart.Advance(dt, atmosphere)
 		SetTouchInterface(touchInterface)

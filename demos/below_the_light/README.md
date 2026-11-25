@@ -336,6 +336,13 @@ Presentation synchronises to the display refresh by default. On high-refresh
 displays this can increase the number of frames drawn per second. Pass
 `--software-60` to compare with the windowed 60 Hz software timer.
 
+Run the console build with `--profile` to print averages every 30 frames.
+Compare a steady surface view with a steady cave view, then toggle the lamps
+with L in the same spot. Timings are elapsed milliseconds per frame. Fish time
+is included in update time, and Flip can include waiting for the display.
+Lighting counters include every receiver draw, including repeated draws for
+mesh sections. Depth and lamp state describe the end of each interval.
+
 The default seed is `7`. Pass `--seed=12345` to the executable to explore another
 layout; replay preserves the seed and New Cave advances it deterministically.
 For command-line testing, use the console build below. Seeds reproduce layouts
