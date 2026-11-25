@@ -6,6 +6,7 @@ Type TMax2DLightingMeshCache
 	Field coordinates:Int = -1, indexCount:Int = -1, eligible:Int
 	Field shapeKnown:Int, shapeDisjoint:Int
 	Field shapeBounds:Float[]
+	Field separatingEdges:Byte[]
 	Field valid:Int
 	Field mappings:Double[]
 	Field membership:Int[]
@@ -193,6 +194,12 @@ Type TMax2DLightingMeshCache
 			shapeBounds = New Float[indexCount / 3 * 4]
 		End If
 
+		' One byte per unordered pair. A hint names an edge to try first; every
+		' use tests the current positions, even after topology or winding changes.
+		Local triangles:Int = indexCount / 3
+		Local pairs:Int = triangles * (triangles - 1) / 2
+		If separatingEdges.Length < pairs Then separatingEdges = New Byte[pairs]
+
 		For Local t:Int = 0 Until indexCount Step 3
 			Local a:Int = indices[t] * 2, b:Int = indices[t + 1] * 2, c:Int = indices[t + 2] * 2
 			If (Double(xy[b]) - xy[a]) * (Double(xy[c + 1]) - xy[a + 1]) = (Double(xy[b + 1]) - xy[a + 1]) * (Double(xy[c]) - xy[a]) Then
@@ -204,13 +211,33 @@ Type TMax2DLightingMeshCache
 			shapeBounds[offset + 1] = Min(xy[a + 1], Min(xy[b + 1], xy[c + 1]))
 			shapeBounds[offset + 2] = Max(xy[a], Max(xy[b], xy[c]))
 			shapeBounds[offset + 3] = Max(xy[a + 1], Max(xy[b + 1], xy[c + 1]))
+			Local pairBase:Int = (t / 3) * (t / 3 - 1) / 2
 			For Local previous:Int = 0 Until t Step 3
 				Local other:Int = previous / 3 * 4
 				If shapeBounds[offset + 2] <= shapeBounds[other] Or shapeBounds[other + 2] <= shapeBounds[offset] Or shapeBounds[offset + 3] <= shapeBounds[other + 1] Or shapeBounds[other + 3] <= shapeBounds[offset + 1] Then
 					Continue
 				End If
 
-				If Not Separated(previous, t, xy) And Not Separated(t, previous, xy) Then
+				Local pair:Int = pairBase + previous / 3
+				Local hint:Int = separatingEdges[pair]
+				If hint Then
+					If hint <= 3 Then
+						If EdgeSeparates(previous, t, hint - 1, xy) Then Continue
+					Else
+						If EdgeSeparates(t, previous, hint - 4, xy) Then Continue
+					End If
+				End If
+				Local edge:Int = FindSeparatingEdge(previous, t, xy)
+				If edge Then
+					separatingEdges[pair] = edge
+					Continue
+				End If
+				edge = FindSeparatingEdge(t, previous, xy)
+				If edge Then
+					separatingEdges[pair] = edge + 3
+					Continue
+				End If
+				If Not SeparatedProjections(previous, t, xy) And Not SeparatedProjections(t, previous, xy) Then
 					Return False
 				End If
 			Next
@@ -220,29 +247,36 @@ Type TMax2DLightingMeshCache
 		Return True
 	End Method
 
+	Method FindSeparatingEdge:Int(a:Int, b:Int, points:Float[])
+		For Local edge:Int = 0 Until 3
+			If EdgeSeparates(a, b, edge, points) Then Return edge + 1
+		Next
+		Return 0
+	End Method
+
+	Method EdgeSeparates:Int(a:Int, b:Int, edge:Int, points:Float[])
+		Local p:Int = indices[a + edge] * 2, q:Int = indices[a + (edge + 1) Mod 3] * 2
+		Local r:Int = indices[a + (edge + 2) Mod 3] * 2
+		Local ex:Double = Double(points[q]) - points[p], ey:Double = Double(points[q + 1]) - points[p + 1]
+		Local side:Double = ex * (Double(points[r + 1]) - points[p + 1]) - ey * (Double(points[r]) - points[p])
+		If side = 0 Then Return False
+		For Local corner:Int = 0 Until 3
+			Local k:Int = indices[b + corner] * 2
+			Local cross:Double = ex * (Double(points[k + 1]) - points[p + 1]) - ey * (Double(points[k]) - points[p])
+			If (side > 0 And cross > 0) Or (side < 0 And cross < 0) Then Return False
+		Next
+		Return True
+	End Method
+
 	' Separating axes in UV space: a shared boundary is allowed; overlapping
 	' interiors are not, because regrouping passes would change painter order.
-	Method Separated:Int(a:Int, b:Int, points:Float[] = Null)
-		If Not points Then
-			points = uv
-		End If
+	Method Separated:Int(a:Int, b:Int)
+		Return FindSeparatingEdge(a, b, uv) Or SeparatedProjections(a, b, uv)
+	End Method
 
+	Method SeparatedProjections:Int(a:Int, b:Int, points:Float[])
 		For Local edge:Int = 0 Until 3
 			Local p:Int = indices[a + edge] * 2, q:Int = indices[a + (edge + 1) Mod 3] * 2
-			' Test this triangle's own edge as a separating line. Relative
-			' coordinates preserve exact zero for a shared endpoint.
-			Local ex:Double = Double(points[q]) - points[p], ey:Double = Double(points[q + 1]) - points[p + 1]
-			Local r:Int = indices[a + (edge + 2) Mod 3] * 2
-			Local side:Double = ex * (Double(points[r + 1]) - points[p + 1]) - ey * (Double(points[r]) - points[p])
-			If side <> 0 Then
-				Local outside:Int = True
-				For Local corner:Int = 0 Until 3
-					Local k:Int = indices[b + corner] * 2
-					Local cross:Double = ex * (Double(points[k + 1]) - points[p + 1]) - ey * (Double(points[k]) - points[p])
-					If (side > 0 And cross > 0) Or (side < 0 And cross < 0) Then outside = False;Exit
-				Next
-				If outside Then Return True
-			End If
 			Local nx:Double = Double(points[q + 1]) - points[p + 1], ny:Double = Double(points[p]) - points[q]
 			Local amin:Double, amax:Double, bmin:Double, bmax:Double
 			For Local corner:Int = 0 Until 3
